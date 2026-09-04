@@ -58,7 +58,10 @@ curl http://localhost:8090/health  # not llama.cpp's conventional 8080 - see llm
 
 make benchmark CONFIG=1.5b-awq-vllm-orin           # latency/cold-start/thermal/power
 make benchmark CONFIG=1.5b-q4-llamacpp-orin
-make benchmark-streaming CONFIG=1.5b-awq-vllm-orin # TTFT / tokens-per-sec
+make benchmark-streaming CONFIG=1.5b-awq-vllm-orin CONDITION=standalone  # TTFT/tok-s/memory/power/energy
+# CONDITION is required and has no default: on unified memory a standalone and a
+# co-resident number are different physical quantities. Results land in
+# results/raw/<experiment_id>/ and are schema-validated at write time.
 make validate-tool-calling CONFIG=1.5b-awq-vllm-orin  # BFCL tool-call judgment accuracy (needs staged data, see below)
 make validate-mmlu CONFIG=1.5b-awq-vllm-orin          # MMLU quantization-sanity accuracy (needs staged data, see below)
 make test                                          # unit tests, no Docker/GPU needed

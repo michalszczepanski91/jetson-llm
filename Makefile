@@ -33,9 +33,17 @@ benchmark:      ## Latency/cold-start/thermal/power - pass CONFIG=<model-config>
 	uv run python scripts/benchmark.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
 	  --results-json output/benchmark_$(or $(CONFIG),1.5b-awq-vllm-orin).json
 
-benchmark-streaming: ## TTFT/tokens-per-sec - pass CONFIG=<model-config>
+benchmark-streaming: ## TTFT/tok-s/memory/power/ENERGY - CONFIG=<model-config> CONDITION=standalone|co-resident [CORESIDENT="yolo stt"]
+	@test -n "$(CONDITION)" || { \
+	  echo "error: CONDITION is required and has no default."; \
+	  echo "  make benchmark-streaming CONFIG=1.5b-q4-llamacpp-orin CONDITION=standalone"; \
+	  echo "  make benchmark-streaming CONFIG=... CONDITION=co-resident CORESIDENT=\"yolo stt tts\""; \
+	  echo "On unified memory a standalone and a co-resident number are different physical"; \
+	  echo "quantities (docs/note.md 15) - the run must say which it was."; \
+	  exit 1; }
 	uv run python scripts/benchmark_streaming.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
-	  --results-json output/streaming_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+	  --execution-condition $(CONDITION) $(if $(CORESIDENT),--co-resident $(CORESIDENT),)
+	@echo "results written under results/raw/ - output/*.json is no longer used by this target"
 
 validate-tool-calling: ## BFCL tool-call judgment accuracy - pass CONFIG=<model-config> (needs /opt/datasets/BFCL, see README)
 	uv run python scripts/validate_tool_calling.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
