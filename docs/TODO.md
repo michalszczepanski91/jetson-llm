@@ -125,7 +125,7 @@ explicitly deferred with reasons recorded above (not silently dropped).
       section: 399 BFCL `simple` cases + 399 matching ground-truth rows, 239
       `irrelevance` cases, 14042 MMLU `all/test` questions - all loaded and verified
       against this repo's own loaders before being trusted
-- [x] Repo renamed `jetson-llm-qwen` -> `jetson-llm-lab` and Apertus-8B-Instruct-2509
+- [x] Repo renamed `jetson-llm-qwen` -> `jetson-llm` and Apertus-8B-Instruct-2509
       added as a second model family (`apertus-8b-q4-llamacpp-orin` in
       `configs/models.yaml`, llama.cpp/GGUF only - no trustworthy AWQ found, see that
       row's own notes), 2026-09-04, per direct user request following the same

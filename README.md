@@ -1,4 +1,4 @@
-# jetson-llm-lab
+# jetson-llm
 
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, and eventually Thor -
 see `configs/models.yaml`'s `platform` field). Compares candidate models - currently
