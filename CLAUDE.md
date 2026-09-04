@@ -25,7 +25,8 @@ evaluates), so unlike that repo, nothing here does JPEG/frame encoding.
 make serve-1.5b-vllm / make serve-1.5b-llamacpp   # Start a candidate server in the foreground
 make benchmark CONFIG=<key>                        # Latency/cold-start/thermal/power
 make benchmark-streaming CONFIG=<key>               # TTFT / tokens-per-sec
-make validate-tool-calling CONFIG=<key>             # Tool-call judgment accuracy (see README)
+make validate-tool-calling CONFIG=<key>             # BFCL tool-call judgment accuracy (needs staged data, see README)
+make validate-mmlu CONFIG=<key>                     # MMLU quantization-sanity accuracy (needs staged data, see README)
 make test                                           # Unit tests, no Docker/GPU needed
 ```
 

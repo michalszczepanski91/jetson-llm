@@ -62,17 +62,25 @@ winner:
 | Cold start | `benchmarks/harness.py` |
 | Latency p50/p95/p99 (never mean) | `benchmarks/harness.py` |
 | TTFT p50, steady tokens/sec | `make benchmark-streaming` |
-| **Tool-call judgment accuracy** (overall + broken out by ask_vlm-escalation / read_scene_state / no-tool) | `make validate-tool-calling` |
+| **BFCL tool-call judgment accuracy** (`simple` + `irrelevance` categories) | `make validate-tool-calling` |
+| **MMLU accuracy** (quantization-regression sanity check only, not a ranking signal - see caveat below) | `make validate-mmlu` |
 | KV-cache / context headroom at the tuned serving args | server startup log / harness |
 | Qualitative spot-check | same fixed transcript/scene-context set across every candidate |
 
-Tool-call judgment accuracy is the axis that didn't exist in `jetson-vlm-lab`'s
+BFCL tool-call judgment accuracy is the axis that didn't exist in `jetson-vlm-lab`'s
 scorecard (GQA/TextVQA measure visual QA, not applicable here) and is arguably the
 more important number for this lab specifically: it directly answers whether a bigger
 model or a different backend's tool-call parser closes the documented `ask_vlm`
 escalation gap well enough that `orchestrator.py`'s forced-`tool_choice` workaround
 (`_FORCE_ASK_VLM`) could be removed - see `scripts/validate_tool_calling.py`'s
-docstring.
+docstring for why BFCL (a real, external, recognized benchmark) rather than a
+hand-rolled case list.
+
+MMLU is deliberately **not** a factor in declaring a winner between different model
+*sizes* - a 7B beating a 1.5B there is not new information. Its only role is comparing
+a backend/precision pair against its own same-size sibling (e.g. does the GGUF Q4_K_M
+1.5B score meaningfully worse than the AWQ 1.5B?) to catch a broken quantization
+config before it contaminates the other axes' numbers.
 
 Every number must record which `platform` it was measured on and whether it was
 standalone or under the same co-resident load the real pipeline puts on that machine

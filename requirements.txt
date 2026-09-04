@@ -1,8 +1,11 @@
 # Host-side deps for scripts/*.py and tests/ - these run directly (uv run),
 # not inside the vLLM/llama.cpp containers (those are prebuilt vendor
-# images, see docker-compose*.yml). Deliberately minimal: unlike
-# jetson-vlm-lab (which needs opencv/numpy for image encoding), this repo is
-# text-only, so stdlib (urllib, json) covers every HTTP call - only the
-# config loader and test runner need real deps.
+# images, see docker-compose*.yml). pyarrow is the one addition beyond the
+# stdlib-only original scope: scripts/validate_mmlu.py reads a staged MMLU
+# parquet file directly (HF Hub serves modern dataset repos as parquet
+# regardless of original format) - pulled in on its own rather than the
+# much heavier full `datasets`/`pandas` stack, since this repo only ever
+# needs to read one already-staged file, not query/stream a live dataset.
 pytest==9.1.1
 pyyaml==6.0.3
+pyarrow==25.0.1

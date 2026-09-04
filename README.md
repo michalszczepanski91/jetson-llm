@@ -27,9 +27,29 @@ curl http://localhost:8080/health
 make benchmark CONFIG=1.5b-awq-vllm-orin           # latency/cold-start/thermal/power
 make benchmark CONFIG=1.5b-q4-llamacpp-orin
 make benchmark-streaming CONFIG=1.5b-awq-vllm-orin # TTFT / tokens-per-sec
-make validate-tool-calling CONFIG=1.5b-awq-vllm-orin  # tool-call judgment accuracy
+make validate-tool-calling CONFIG=1.5b-awq-vllm-orin  # BFCL tool-call judgment accuracy (needs staged data, see below)
+make validate-mmlu CONFIG=1.5b-awq-vllm-orin          # MMLU quantization-sanity accuracy (needs staged data, see below)
 make test                                          # unit tests, no Docker/GPU needed
 ```
+
+## Dataset staging
+
+Neither eval dataset is bundled (both are several MB, not appropriate to commit).
+Download once per device:
+
+```bash
+# BFCL (scripts/validate_tool_calling.py) - 3 files, ~330KB total
+huggingface-cli download gorilla-llm/Berkeley-Function-Calling-Leaderboard \
+    BFCL_v3_simple.json BFCL_v3_irrelevance.json possible_answer/BFCL_v3_simple.json \
+    --repo-type dataset --local-dir /opt/datasets/BFCL
+
+# MMLU (scripts/validate_mmlu.py) - one parquet file, ~3.5MB
+huggingface-cli download cais/mmlu all/test-00000-of-00001.parquet \
+    --repo-type dataset --local-dir /opt/datasets/MMLU
+```
+
+Both scripts fail fast with a clear message (not a stack trace) if the expected
+files aren't at those paths - same convention as jetson-vlm-lab's TextVQA staging.
 
 To measure against an already-running remote server (e.g. Thor) instead of starting a
 local container, pass `--target remote --remote-host <ip>` to any `scripts/*.py`
@@ -45,18 +65,32 @@ the full registry) rather than hardcoding a single model, so adding a new
 size/quantization/backend to evaluate means adding a row to that file, not editing
 every script.
 
-## Why a tool-calling accuracy eval, not GQA/TextVQA
+## Why BFCL + MMLU, not GQA/TextVQA
 
 `jetson-vlm-lab` (this repo's sibling, same pattern applied to the VLM slot) measures
 GQA/TextVQA because the VLM's job is visual QA. The orchestrator LLM's actual job -
 and its actual documented failure mode
 (`embedded-ai-chain/src/orchestrator_models.py`'s "weakest tool-calling judgment...the
 documented ask_vlm escalation gap") - is tool-call judgment: given a transcript and
-scene-state grounding, does it call `read_scene_state`, call `ask_vlm`, or answer
-directly, correctly and *unforced* (`tool_choice="auto"`, not the forced-tool_choice
-workaround `orchestrator.py` currently needs)? `scripts/validate_tool_calling.py`
-measures exactly that, on a fixed 15-case eval set hand-copied from
-`orchestrator.py`'s own `VLM_QUERY_PATTERNS`/`VISION_QUERY_PATTERNS`.
+scene-state grounding, does it call the right tool, or answer directly, correctly and
+*unforced* (`tool_choice="auto"`, not the forced-tool_choice workaround
+`orchestrator.py` currently needs)?
+
+- **`scripts/validate_tool_calling.py`** measures exactly that using the **Berkeley
+  Function-Calling Leaderboard (BFCL)** - the standard, widely-cited benchmark for
+  this (`gorilla-llm/Berkeley-Function-Calling-Leaderboard` on HF, Apache-2.0) -
+  rather than a hand-rolled case list, so the resulting numbers mean something beyond
+  this one repo. Only BFCL's `simple` (one function, AST-matched against the official
+  ground truth) and `irrelevance` (correct behavior is calling nothing) categories are
+  used - this orchestrator only ever considers one tool call per turn, so
+  multi-turn/parallel/multiple-function BFCL categories don't apply. See that script's
+  docstring for exactly how scoring works and how it differs from the official
+  `bfcl-eval` checker (simplified, good enough for comparing this lab's own candidates
+  against each other, not for a leaderboard-exact score).
+- **`scripts/validate_mmlu.py`** is a *quantization-regression sanity check*, not a
+  model-ranking benchmark - it exists to catch a broken AWQ/GGUF config (wrong quant
+  file, broken chat template) by comparing each backend/precision pair against its own
+  same-size sibling, not across sizes. A 7B beating a 1.5B on MMLU is not news.
 
 ## Why this is a separate repo
 

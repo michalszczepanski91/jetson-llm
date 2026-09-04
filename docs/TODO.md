@@ -55,11 +55,18 @@ explicitly deferred with reasons recorded above (not silently dropped).
 - [x] `scripts/benchmark.py` / `scripts/benchmark_streaming.py`: text-only ports of
       jetson-vlm-lab's, no image loading
 - [x] `scripts/validate_tool_calling.py`: **new accuracy axis**, replacing GQA/
-      TextVQA (not applicable to a text orchestrator) - hand-copied `_LLM_TOOLS`/
-      `_LLM_SYSTEM_PROMPT`/grounding-context shape from `embedded-ai-chain/src/
-      orchestrator.py`, 15 fixed eval cases (5 ask_vlm / 5 read_scene_state / 5
-      no-tool), `tool_choice="auto"` only - deliberately not using orchestrator.py's
-      forced-tool_choice workaround, since the point is measuring unforced judgment
+      TextVQA (not applicable to a text orchestrator) - scores against real BFCL
+      (`gorilla-llm/Berkeley-Function-Calling-Leaderboard`) `simple`/`irrelevance`
+      categories (a simplified AST-style checker, not the official `bfcl-eval`
+      package - see the script's docstring), `tool_choice="auto"` only - deliberately
+      not using orchestrator.py's forced-tool_choice workaround, since the point is
+      measuring unforced judgment. Superseded an earlier version that hand-copied 15
+      cases from `orchestrator.py`'s own patterns - real external dataset instead,
+      per 2026-09-04 user request
+- [x] `scripts/validate_mmlu.py`: **new axis**, a quantization-regression sanity
+      check (not a ranking signal) using `cais/mmlu`'s `all/test` split - generative
+      letter-parsing scoring (works identically across vLLM/llama.cpp, unlike
+      logprob-based scoring which would need a backend-specific API)
 - [ ] Real Docker/GPU smoke test: `make serve-1.5b-vllm` + curl `/health` +
       `/v1/chat/completions`, confirming the known-good vllm/1.5b row actually starts
       the way `configs/models.yaml`'s notes claim
@@ -71,6 +78,8 @@ explicitly deferred with reasons recorded above (not silently dropped).
       `validate_tool_calling.py`'s results against this backend at all
 - [ ] `uv venv && uv pip install -r requirements.txt && make test` on real hardware
       (currently only written/self-consistent, not yet run)
+- [ ] Stage BFCL + MMLU on-device per README's "Dataset staging" section (neither is
+      bundled) before `validate-tool-calling`/`validate-mmlu` can run for real
 
 **GATE 1** — met once both smoke tests pass and `make test` is green for real, not
 just self-consistent on inspection.
@@ -93,10 +102,10 @@ jetson-vlm-lab's own Gate B.
 
 ## Phase 3 — Full matrix + scorecard
 
-- [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` for every row
-      in `configs/models.yaml` (2 backends x 3 sizes x 2 platforms = up to 12 runs,
-      fewer if a size doesn't fit on a given platform/backend - record the OOM as a
-      real result, not a skip)
+- [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` /
+      `validate-mmlu` for every row in `configs/models.yaml` (2 backends x 3 sizes x
+      2 platforms = up to 12 runs, fewer if a size doesn't fit on a given
+      platform/backend - record the OOM as a real result, not a skip)
 - [ ] Write up the comparison (README "Current State" or a dedicated benchmarks doc),
       same as jetson-vlm-lab's own Qwen-vs-Phi writeup
 

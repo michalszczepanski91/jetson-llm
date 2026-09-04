@@ -7,7 +7,7 @@
 # against an already-running container), not for the benchmark scripts
 # themselves, which start/stop their own container via llm_coordinator.py.
 .PHONY: help serve-1.5b-vllm serve-1.5b-llamacpp stop stop-llamacpp \
-        benchmark benchmark-streaming validate-tool-calling test clean clean-docker
+        benchmark benchmark-streaming validate-tool-calling validate-mmlu test clean clean-docker
 
 COMPOSE := docker compose
 
@@ -37,9 +37,13 @@ benchmark-streaming: ## TTFT/tokens-per-sec - pass CONFIG=<model-config>
 	uv run python scripts/benchmark_streaming.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
 	  --results-json output/streaming_$(or $(CONFIG),1.5b-awq-vllm-orin).json
 
-validate-tool-calling: ## Tool-call judgment accuracy - pass CONFIG=<model-config>
+validate-tool-calling: ## BFCL tool-call judgment accuracy - pass CONFIG=<model-config> (needs /opt/datasets/BFCL, see README)
 	uv run python scripts/validate_tool_calling.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
 	  --results-json output/tool_calling_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+
+validate-mmlu:  ## MMLU quantization-sanity accuracy - pass CONFIG=<model-config> (needs /opt/datasets/MMLU, see README)
+	uv run python scripts/validate_mmlu.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
+	  --results-json output/mmlu_$(or $(CONFIG),1.5b-awq-vllm-orin).json
 
 # ── Dev ───────────────────────────────────────────────────────────────────
 test:           ## Run the unit test suite (no Docker/GPU needed)
