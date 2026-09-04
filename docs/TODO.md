@@ -118,13 +118,23 @@ explicitly deferred with reasons recorded above (not silently dropped).
         (confirmed `docker ps`/`free -h` before and after) or with
         `embedded-ai-chain`'s own dashboard (moved this lab's llama.cpp default port
         to 8090 before running anything, once the 8080 collision was found).
-- [ ] `uv venv && uv pip install -r requirements.txt && make test` on real hardware
-      (currently only written/self-consistent, not yet run)
-- [ ] Stage BFCL + MMLU on-device per README's "Dataset staging" section (neither is
-      bundled) before `validate-tool-calling`/`validate-mmlu` can run for real
+- [x] `uv venv && uv pip install -r requirements.txt && make test` on real hardware,
+      2026-09-04: 47/47 pass (clean install from `requirements.txt`, not just the
+      dev environment's pre-existing venv)
+- [x] Staged BFCL + MMLU on-device, 2026-09-04, per README's "Dataset staging"
+      section: 399 BFCL `simple` cases + 399 matching ground-truth rows, 239
+      `irrelevance` cases, 14042 MMLU `all/test` questions - all loaded and verified
+      against this repo's own loaders before being trusted
+- [x] Repo renamed `jetson-llm-qwen` -> `jetson-llm-lab` and Apertus-8B-Instruct-2509
+      added as a second model family (`apertus-8b-q4-llamacpp-orin` in
+      `configs/models.yaml`, llama.cpp/GGUF only - no trustworthy AWQ found, see that
+      row's own notes), 2026-09-04, per direct user request following the same
+      "second model family arrived, so did jetson-vlm-lab's own rename" reasoning
+      that repo's `docs/TODO.md` already used. Not yet run - it needs its own smoke
+      test before any of its numbers are trusted, same bar every Qwen row was held to
 
-**GATE 1** — met once both smoke tests pass and `make test` is green for real, not
-just self-consistent on inspection.
+**GATE 1** — met for Qwen2.5-1.5B on both backends. Apertus and the remaining
+Qwen sizes (3B/7B) still need their own smoke tests before Phase 3's full matrix.
 
 ## Phase 2 — Thor access
 

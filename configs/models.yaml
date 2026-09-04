@@ -117,3 +117,40 @@
     New backend leg, not yet benchmarked, same high-risk memory-fit caveat
     as 7b-awq-vllm-orin above. Official Qwen-published GGUF repo confirmed
     to exist (HF Hub search).
+
+# --- Second model family: Apertus (swiss-ai) ---
+# Added 2026-09-04 per user request, motivated by embedded-ai-chain's own
+# data-sovereignty framing (CLAUDE.md) - Apertus is Swiss-public-funded
+# (ETH Zurich/EPFL) and fully open including training data, vs Qwen2.5's
+# Alibaba origin. No official/trustworthy pre-quantized AWQ was found for
+# it (HF Hub search, 2026-09-04) - the only AWQ-shaped results were for
+# unrelated models - so unlike the Qwen rows above, there is no vllm/orin
+# row yet: the only alternative would be the official fp16 checkpoint
+# (~16GB) at vLLM's default 0.9 utilization, which this device's ~30GB
+# unified memory pool cannot take seriously without a real run first (see
+# jetson-vlm-lab's own qwen25-vl-7b-fp16 row for what "right at the edge"
+# looks like at a smaller weight size than this). Not attempted blind.
+apertus-8b-q4-llamacpp-orin:
+  model: bartowski/swiss-ai_Apertus-8B-Instruct-2509-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: orin
+  quant: Q4_K_M
+  n_gpu_layers: -1
+  ctx_size: 2048  # matches the Qwen rows' for a fair cross-family comparison
+  notes: >
+    Not yet run. `model` points at bartowski's GGUF redistribution, not the
+    original swiss-ai/Apertus-8B-Instruct-2509 repo - that original IS gated
+    (SNAI's Acceptable Use Policy, confirmed live 2026-09-04 via its model
+    card) but bartowski's re-hosted GGUF repo shows no gated field in its
+    own listing (checked live, not assumed identical to the base repo) - so
+    this row's -hf download should need no HF token/gate acceptance at all.
+    A vllm/orin row using the original fp16 weights directly WOULD still
+    need the base repo's gate accepted - not attempted yet, see the comment
+    block above this row for why no such row exists yet regardless.
+    Remaining open question, not a blocker: tool-calling support is
+    UNCONFIRMED for this model - its model card makes no mention of
+    function-calling as a trained capability the way Qwen2.5's does, so
+    scripts/validate_tool_calling.py's result against this row is a genuine
+    open question, not an expected pass. Q4_K_M file confirmed to exist in
+    bartowski's repo (~5.06GB, HF Hub ls, 2026-09-04).

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Makefile — jetson-llm-qwen developer shortcuts
+#  Makefile — jetson-llm-lab developer shortcuts
 # ─────────────────────────────────────────────────────────────────────────────
 # serve-*'s env vars are hand-kept in sync with configs/models.yaml (the
 # actual source of truth the benchmark/validate scripts read) - these

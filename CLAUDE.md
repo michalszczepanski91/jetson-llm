@@ -6,14 +6,23 @@ this repository.
 ## Project Overview
 
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, eventually Thor) -
-tests Qwen2.5-Instruct at 1.5B/3B/7B across two serving backends (vLLM, llama.cpp; see
+tests candidate models across two serving backends (vLLM, llama.cpp; see
 `docs/TODO.md` Phase 0 for why TensorRT is explicitly excluded), not one fixed
-model/framework. Sibling project to `jetson-yolov8-trt`/`jetson-whisper-trt`/
-`jetson-piper`/`jetson-chatterbox`/`jetson-vlm-lab`, meant to be pulled into
-`embedded-ai-chain` as a `third_party/` git submodule once a winner is chosen.
-Evaluated there as a drop-in replacement for `LlmOrchestrator`'s hardcoded
-`base_url`/`model` (currently Qwen2.5-1.5B-Instruct-AWQ on vLLM) - see
-`docs/promotion-contract.md` for exactly how.
+model/framework/family. Currently Qwen2.5-Instruct (1.5B/3B/7B) plus
+Apertus-8B-Instruct-2509 as a second model family - see README's "Model families"
+section for why Apertus specifically (data-sovereignty framing: Swiss-public-funded
+and fully open including training data, vs Qwen's Alibaba origin) and what's still
+unconfirmed about it (gated download, unconfirmed tool-calling support).
+
+(Named `jetson-llm-qwen` until Apertus was added - renamed once a second model family
+broadened its scope, mirroring `jetson-vlm-lab`'s own history of starting as
+`jetson-qwen-2.5-VL` and being renamed when Qwen3-VL did the same thing there.)
+
+Sibling project to `jetson-yolov8-trt`/`jetson-whisper-trt`/`jetson-piper`/
+`jetson-chatterbox`/`jetson-vlm-lab`, meant to be pulled into `embedded-ai-chain` as a
+`third_party/` git submodule once a winner is chosen. Evaluated there as a drop-in
+replacement for `LlmOrchestrator`'s hardcoded `base_url`/`model` (currently
+Qwen2.5-1.5B-Instruct-AWQ on vLLM) - see `docs/promotion-contract.md` for exactly how.
 
 Text-only (transcript in, response + optional tool call out) - the orchestrator never
 handles an image itself (that's the separate on-demand VLM tier `jetson-vlm-lab`
@@ -45,8 +54,8 @@ only the pieces with zero dependency on `embedded-ai-chain`'s own modules.
   the blocking chat-completions round trip. Returns the full assistant message (not
   just text), because `scripts/validate_tool_calling.py` needs `message["tool_calls"]`.
 - `src/model_config.py` - loads a named variant (`1.5b-awq-vllm-orin`, ...) from
-  `configs/models.yaml`, the single place new sizes/quantizations/backends get
-  registered.
+  `configs/models.yaml`, the single place new families/sizes/quantizations/backends
+  get registered.
 
 **What stays in `embedded-ai-chain` and does NOT move here**: `orchestrator.py`'s
 `LlmOrchestrator`/`_ToolCallingMixin` (the real dialogue-loop integration: scene-state
@@ -103,6 +112,8 @@ having no OpenAI-compatible server at all) and what's still pending (Thor access
 
 ## Current State
 
-Scaffolded (all `src/`/`scripts/`/`configs/` code and mocked unit tests written), not
-yet run against real hardware. See `docs/TODO.md` Phase 1 for the two pending smoke
-tests before any real benchmark number here should be trusted.
+Real vLLM + llama.cpp smoke tests done for Qwen2.5-1.5B, 2026-09-04 - see README's
+"Current State" for the summary and `docs/TODO.md` Phase 1 for the full record,
+including two real bugs those tests caught and fixed, and an open, unresolved
+tool-calling-reliability question on the llama.cpp side. Apertus is registered in
+`configs/models.yaml` but not yet run (gated download, see README).
