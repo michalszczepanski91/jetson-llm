@@ -195,8 +195,46 @@ explicitly deferred with reasons recorded above (not silently dropped).
         Qwen - real evidence the earlier llama.cpp tool-calling gap may be
         model/size-specific rather than a backend-wide limitation, though this is
         one data point, not a trend - the real BFCL run is still what settles it.
+- [x] Real Docker/GPU smoke test, 2026-09-04, `bielik-11b-awq-vllm-orin` - the
+      vLLM half of the Bielik question, added after the llama.cpp row above worked.
+      Recorded here as well as in README/`configs/models.yaml` because this file is
+      the experimental record.
+      - **Serving: works.** `gpu_memory_utilization=0.3` (an untested guess when the
+        row was added) needed no re-tuning; cold start 234-274s across two runs.
+        Plain completion and a Polish-language sanity check ("Jaka jest stolica
+        Polski?" -> correct, coherent Polish) both fine. vLLM auto-detected the
+        compressed-tensors int4 checkpoint with no `--quantization` flag, the same
+        way it does for the Qwen AWQ rows.
+      - **Tool calling: CONFIRMED NOT WORKING**, on two parsers - `hermes` (this
+        lab's default) and `llama3_json` (tried because Bielik-v3 is
+        LlamaForCausalLM-architected). Both returned an empty `tool_calls` list on
+        the identical `get_weather`/Warsaw test that vLLM+Qwen2.5 and
+        llama.cpp+Bielik each handle correctly. Two independent parsers, identical
+        result - not a fluke.
+      - Root cause, not just symptom: Bielik's own GGUF README documents tool use
+        only as a manual prompt-injection convention (an Ollama Modfile asking the
+        model to emit `{"name":...,"arguments":{...}}` as plain text), not training
+        on any tagged format vLLM's per-family regex parsers look for. That is
+        consistent with why llama.cpp's grammar-CONSTRAINED "Generic" path works for
+        this model (it forces valid JSON structurally, regardless of what the model
+        was trained to emit) where vLLM's tag-DETECTION parsers don't (nothing to
+        detect if the tag is never emitted).
+      - Not exhaustively tried: vLLM has ~30 `--tool-call-parser` options; the other
+        ~28 remain untried after two cheap, plausible guesses failed -
+        diminishing returns, not attempted further without a specific reason to
+        expect a particular one matches Bielik's training.
+      - **The generalisable finding, and the reason this matters beyond one row:**
+        tool-calling reliability is a property of (model x backend x parser x
+        temperature), not of the model. Three of this lab's four
+        (family, backend) cells now behave differently on that axis, and in both
+        directions - Qwen2.5 works on both backends, Bielik works only on llama.cpp.
+        `schemas/quality_result.schema.json` records all four fields for exactly
+        this reason.
 
 **GATE 1** — met for Qwen2.5-1.5B on both backends, and for Bielik-11B on llama.cpp.
+Bielik-11B on vLLM is a *partial* pass: it serves and answers correctly but cannot
+tool-call, so it is benchmarkable for performance and excluded from the tool-calling
+scorecard with a reason, not a blank.
 Apertus is a closed question (blocked, documented) rather than an open one. Still
 pending before the full matrix: the remaining Qwen sizes (3B/7B), and a real
 BFCL/MMLU scorecard run for every row that's actually able to serve at all.
@@ -209,7 +247,8 @@ convention.)*
 
 # Scope change, 2026-09-04 — `docs/note.md` merged into this plan
 
-`docs/note.md` (added 2026-09-04 alongside `docs/progect.diagram.md` and the
+`docs/note.md` (added 2026-09-04 alongside `docs/project.diagram.md` - renamed
+from `progect.diagram.md`, a typo in a never-committed file - and the
 `schemas/` sketches) re-aims this repo from "pick one orchestrator LLM for
 `embedded-ai-chain`" to "a reproducible, publication-quality LLM benchmark suite for
 Jetson, which *also* picks that orchestrator LLM." Phases 2+ below are rewritten
@@ -249,11 +288,18 @@ this file's own append-only convention applies to them.
 - **note.md §7's example schema hardcodes `"memory_gb": 128`.** This Orin has ~30GB
   unified (verified, see `CLAUDE.md`). Every memory-budget figure is per-platform;
   never carry a Thor budget into an Orin analysis or vice versa.
-- **note.md §45/§46 plan a Qwen2.5-vs-Qwen3.x campaign; this repo has no Qwen3 row and
-  may not be able to serve one.** vLLM ≥0.11 has no prebuilt JetPack 6.2/CUDA 12.6
-  wheels and this lab is pinned to `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin`;
-  whether *that* build serves Qwen3 is unknown. Qwen3 is a Phase 7 task gated on a
-  real check, not a planning assumption.
+- **note.md §45/§46 plan a Qwen2.5-vs-Qwen3.x campaign; this repo has no Qwen3 row.**
+  Recorded here on 2026-09-04 as "may not be able to serve one — vLLM ≥0.11 has no
+  prebuilt JetPack 6.2/CUDA 12.6 wheels". **Measured the same day: that premise does
+  not apply to this lab's path.** The pinned container
+  `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` reports **`vllm 0.19.0`** when
+  asked (`GET /version`, during the Phase 2 verification run) and serves correctly on
+  this JetPack 6.2 device. The wheel-availability constraint is about *pip* wheels;
+  NVIDIA's container is a different distribution path and sidesteps it. So Qwen3 is
+  very likely servable here, and its Phase 7 item stays gated on a real test only
+  because *every* new row is — not because a known blocker stands in the way. This is
+  the second time in this repo a version has been assumed from a name and been wrong;
+  both times the fix was to ask the running server.
 - **note.md never mentions Bielik or Apertus**, which are this lab's actual second and
   third families and its two most interesting existing results (Apertus blocked
   outright; Bielik the strongest llama.cpp row). They stay in the matrix. A benchmark
@@ -264,10 +310,11 @@ this file's own append-only convention applies to them.
   the complete Cartesian product"; Phases 4-9 below are the actual expansion order.
 - **note.md implies a third paper.** There are already two: `PAPER_PLAN.md`
   (Real-Time/Embedded Systems journal, 2027-01-25) and `docs/paper.md` (Metabolic
-  Perception position paper). **Decision: this repo is not writing a third paper. It
-  is the instrument that produces `paper.md`'s P3/P4/P5/P6 evidence** — see the
-  mapping in Phase 4. Revisit only if the data turns out to justify a standalone
-  benchmark paper on its own.
+  Perception position paper). **Decision (revised 2026-09-04): the paper count is
+  settled after the results exist, not now.** This repo is built as the instrument
+  that produces `paper.md`'s P3/P4/P5/P6 evidence — see the mapping in Phase 4 — and
+  that is true whether or not the benchmark data also supports a paper of its own.
+  Deferring costs nothing, because no phase below changes based on the answer.
 
 **The `schemas/` files added alongside note.md are examples, not schemas** — they are
 instance documents (`"experiment_id": "thor-qwen3-8b-..."`), not JSON Schema (no
@@ -283,57 +330,194 @@ change to code that already exists, and every one of them is *unrecoverable if
 skipped* — a campaign run without these produces numbers that cannot be re-analysed
 later. Nothing in Phases 4+ should run until this phase is closed.
 
-- [ ] **Persist raw per-run measurements** (note.md §10 — the single biggest gap).
-      `run_benchmark()` currently computes `percentiles(latencies)` and then discards
-      `latencies`; `benchmark_streaming.py` keeps its per-run list in memory and
-      writes only percentiles. Both must write every run. Aggregates get regenerated
-      from raw, never stored as the only copy.
-- [ ] **Energy, and the split-brain that currently prevents it.** `benchmark.py` has
-      power (tegrastats, via the harness) but does not know how many tokens were
-      generated; `benchmark_streaming.py` knows the token count but never starts a
-      sampler at all. So `J/token` — note.md §14's headline metric and `paper.md`
-      §7.1's `E_decision` — is presently *uncomputable from either script*. Fix:
-      give the streaming script the harness's sampler, then derive
-      `energy_joules` (rail power integrated over the measured interval) and
-      `energy_per_output_token_j`.
-- [ ] **Real token accounting instead of counted SSE chunks.** `_stream_one()` counts
-      content deltas, which is a chunk count, not a token count, and it has no input
-      token count at all. Request `usage` from the server (`stream_options:
-      {"include_usage": true}` on vLLM; confirm llama-server's equivalent rather than
-      assuming parity — this lab has already been bitten twice by assumed
-      vLLM/llama.cpp parity). Record `input_tokens`, `output_tokens` separately.
-- [ ] **Decompose cold start** (note.md §37). Bielik's recorded 338s "cold start"
-      is mostly a 6.7GB model *download*, and the 1.5B llama.cpp row's 2.0s is a
-      warm-cache number — both already flagged in Phase 1, neither yet separated in
-      code. Split into `download_s` / `container_start_s` / `model_load_s` /
-      `server_ready_s`, and record which of them the run actually paid.
-- [ ] **Environment manifest per run** (note.md §31). Currently absent: git commit of
-      this repo, backend version, container image tag+digest, dataset version,
-      Docker version, the exact command line. Add a `manifest` block to every result
-      row. Backend version must be read from the running server, not from the image
-      tag — the tag `0.3.9-r36.4.0-cu128-24.04` is not a llama.cpp version, and this
-      lab has already had to identify builds 4579 vs 5058 vs 5283 by behaviour.
-- [ ] **Experiment IDs and a result hierarchy** (note.md §29/§30). Replace the
-      hand-passed `--results-json` path with `results/raw/<experiment_id>/`.
-      Historical outputs under `output/` are not rewritten — they are moved, not
-      reformatted, and the move is recorded here.
-- [ ] **`standalone` vs `co-resident` on every row** (note.md §15). One required
-      field, no default — a run must state which it was. This is the field that makes
-      Phase 9 possible at all, and it is the distinction `embedded-ai-chain`'s own
-      Phase 4 concurrency test depends on.
+**Done 2026-09-04**, verified by two real runs on this Orin (`1.5b-q4-llamacpp-orin`,
+co-resident with the live `vllm-orchestrator`, `results/raw/..._phase2-verify_...r01`
+and `r02`) — not by unit tests alone:
 
-**GATE 2** — one full `benchmark` + `benchmark-streaming` pair on
-`1.5b-awq-vllm-orin` produces: raw per-run rows, an energy/token figure, a complete
-manifest, an experiment ID, and an explicit standalone/co-resident label. Re-derive
-the published aggregates from the raw file as proof the raw data is sufficient.
+- [x] **Raw per-run measurements persisted** (note.md §10). Every repetition is
+      written to `runs[]`; the aggregates are derived from it and from nothing else.
+- [x] **Energy exists.** `scripts/benchmark_streaming.py` now runs the tegrastats
+      sampler across its own measurement window, so the script that knows token
+      counts is the script that knows power. First real figure: **0.996 J per output
+      token** (rails VDD_GPU_SOC + VDD_CPU_CV; Qwen2.5-1.5B Q4_K_M on llama.cpp,
+      co-resident). `benchmarks/manifest.py:energy_block()` records which rails were
+      summed — VIN_SYS_5V0 is deliberately excluded, since a board-total and a
+      GPU+CPU figure must never share an axis.
+- [x] **Real token accounting.** `src/llm_client.py:stream_llm()` requests
+      `stream_options={"include_usage": true}` and reads the server's own `usage`.
+      **llama-server does honour it** (checked, not assumed — this lab has been
+      wrong about vLLM/llama.cpp parity twice). When a server sends no usage block
+      the delta count is used *and* flagged
+      (`token_counts_are_sse_chunk_counts_not_tokens`), never silently mixed.
+- [x] **Cold start decomposed** (note.md §37), via `_ColdStartMixin`:
+      container_start / model_load / server_ready, plus `weights_cached` checked
+      *before* the container runs. First real decomposition: 4.05s total = 2.04s
+      container + 2.01s load, `weights_cached=true`. `download_s` is deliberately
+      left null even when a download happened — it is not separable from load time
+      without parsing each backend's logs, and `weights_cached=false` carries that
+      information honestly instead. `RemoteCoordinator` returns
+      `measured: false` with every component null, and the schema refuses a non-null
+      total when `measured` is false.
+- [x] **Environment manifest** (note.md §31). git commit + dirty flag, container
+      image **and digest**, hardware read from the device, and the backend version
+      **read from the running server**. That last one immediately paid for itself:
+      the llama.cpp server reports `b5058-6bf28f01` — confirming by query the build
+      number Phase 1 had to identify by behaviour.
+- [x] **Experiment IDs and `results/raw/<experiment_id>/`** (note.md §29/§30).
+      `write_result()` **refuses to overwrite**: re-running a cell means a new
+      replicate, not a silently replaced file.
+- [x] **`--execution-condition` is required with no default** (note.md §15), and a
+      `co-resident` run without `--co-resident` naming the components is rejected by
+      both the CLI and the schema.
+- [x] Every emitted document is validated against
+      `schemas/benchmark_result.schema.json` at write time, so a malformed row fails
+      in seconds rather than at analysis time.
+
+### Real finding from the verification runs: prefix-cache contamination
+
+**Every TTFT and prefill number this lab could have produced before today was
+measuring a KV-cache hit, not a prefill.** The benchmark scripts sent the *identical*
+prompt on every repetition, and both backends cache by prompt prefix (vLLM's
+`--enable-prefix-caching`, on by default in `VllmCoordinator`; llama-server's slot
+cache). Caught by reading llama-server's own log during the first verification run:
+for a 40-token prompt it reported `prompt eval time = ... / 1 tokens` on every run
+after the first — it was not prefilling at all.
+
+Measured impact, same config, same 8 runs, only the prompt varying:
+
+| | TTFT p50 | prefill |
+|---|---|---|
+| identical prompt (`r01`, the old behaviour) | **40.8 ms** | ~1 token evaluated |
+| unique per run (`r02`, the fix) | **268.1 ms** | 18 tokens evaluated |
+
+A **6.6× error**, in the flattering direction. Fixed: `--prompt-uniqueness` defaults
+to `unique-per-run`, prefixing a per-run marker at the *front* of the prompt (a
+unique suffix would leave the prefix reusable and change nothing), and
+`workload.prompt_uniqueness` is now a recorded schema field so a warm-cache cell can
+never be compared against a cold-prefill one by accident. Note the chat template's
+own system prefix stays cacheable even so — which is realistic, since a real
+deployment also has a stable system prompt.
+
+This is the clearest possible argument for Phase 2 preceding every campaign: the bug
+was invisible in aggregate numbers and only surfaced by running the real thing and
+reading the server's own log.
+
+### Both backends verified end-to-end, 2026-09-04
+
+Real runs on this Orin, both co-resident with the live `vllm-orchestrator`, both
+schema-validated at write time:
+
+| | cold start | weights cached | backend version (queried) | TTFT p50 | decode p50 | J/output-token |
+|---|---|---|---|---|---|---|
+| `1.5b-q4-llamacpp-orin` | 2.0-4.0s | yes | `b5058-6bf28f01` | 268.1 ms | 21.1 tok/s | 0.996 |
+| `1.5b-awq-vllm-orin` | 136.2s | yes | `vllm 0.19.0` | 30.2 ms | 106.6 tok/s | 0.308 |
+
+**These are tooling-verification runs, not benchmark results, and must not be quoted
+as a backend comparison.** n=8, `warmup_reached_steady_state=false` on both, running
+alongside a production container, and the two rows are different quantizations
+(AWQ-4bit vs GGUF Q4_K_M) — note.md §41's fairness rules are violated on at least
+three axes at once. What they legitimately establish is that the instrument works on
+both backends and produces the fields the schema requires. The real comparison is
+Phase 8's job.
+
+Two things the runs settled that were previously assumed:
+
+- **`vllm 0.19.0`** — read from the running server, not the tag. See the scope-change
+  section: this retires the "vLLM ≥0.11 has no JetPack 6.2 wheels" concern for this
+  lab's container path.
+- **vLLM's own prefix-cache hit rate was 32.6%** even with `unique-per-run` prompts,
+  because the chat template's system prefix is legitimately shared across requests.
+  That is realistic (a real deployment has a stable system prompt) and is why the fix
+  puts the uniqueness marker at the front of the *user* message rather than trying to
+  defeat caching entirely — which would measure something no deployment ever sees.
+
+**A third finding, from `weights_cached` reporting False twice in a row.** That
+looked at first like a detection bug and was not: the vLLM container was genuinely
+re-downloading its weights on every single run. `VllmCoordinator` mounted
+`/opt/hf-cache:/root/.cache/huggingface` and set `HF_HOME` to match, but this image
+**bakes in `HUGGINGFACE_HUB_CACHE=/data/models/huggingface`**, which takes precedence
+— so the mount was inert, the weights landed inside a `--rm` container, and they went
+away on every stop. Found by `docker inspect`-ing the production container's own
+environment after the host cache stayed empty across two full runs.
+
+Fixed by setting `HUGGINGFACE_HUB_CACHE`/`HF_HUB_CACHE` explicitly in both
+`VllmCoordinator.start()` and `docker-compose.yml` — the same
+coordinator-vs-compose drift Phase 1 already caught once in the other direction, so
+both were changed together. Measured effect, same config, three runs:
+
+| | cold start | of which container start | model load |
+|---|---|---|---|
+| r01, r02 — cache mount inert | 156.2s / 154.2s | 2.0s | 154.2s / 152.2s |
+| r03 — after the fix, weights cached | **136.2s** | 2.0s | 134.2s |
+
+So the download was **~18s of a ~155s cold start** for this 1.5GB model — real, worth
+fixing, and considerably smaller than the raw number suggests. The other ~134s is
+vLLM's own engine initialisation. That split is precisely what an undecomposed cold
+start hides: Phase 1's recorded "158-162s" was 2s of container start, ~18s of
+download nobody knew was happening, and ~140s of engine init, and nothing in the
+number said so. Note the download cost scales with the model — Bielik-11B's AWQ is
+~6.2GB, so a full Phase 5 matrix was on course to pay minutes of avoidable download
+per run.
+
+A third was caught and fixed by looking at the resulting document rather than the
+summary line: the vLLM cell's energy figure rested on **9 tegrastats samples over
+4.4s**, because at 108 tok/s it finished 8 repetitions before the 500ms sampler had
+characterised anything. `benchmarks/harness.py` has a `min_measurement_s` floor for
+exactly this reason and the rewrite had dropped it. Restored as
+`--min-measurement-s` (default 10s), plus a `power_window_thin_<n>_samples` validity
+flag so a thin figure can never read as authoritative as a full one.
+
+### Still open in this phase
+
+- [ ] `scripts/benchmark.py` (the non-streaming path through
+      `benchmarks/harness.py`) has had none of the above applied: it still discards
+      raw latencies, has no manifest or experiment ID, and sends an identical prompt
+      every repetition, so its TTFT-equivalent figures carry the prefix-cache error
+      above. Either retrofit it or retire it in favour of
+      `benchmark_streaming.py` — ⟨DECIDE⟩, but do not run a campaign through it as
+      it stands. `benchmarks/harness.py` itself is a hand-maintained copy shared with
+      two sibling repos, so any change there has to be a deliberate divergence.
+- [ ] Backfill the same treatment into `scripts/validate_tool_calling.py` /
+      `validate_mmlu.py` so they emit `quality_result` documents (this is Phase 5's
+      first task, listed there).
+
+**GATE 2** — met for the streaming path, 2026-09-04: a real run on
+`1.5b-q4-llamacpp-orin` produced raw per-run rows, an energy/token figure, a complete
+manifest, an experiment ID, an explicit co-resident label, and passed schema
+validation. **Not yet met for `scripts/benchmark.py`** — see "Still open" above.
+Remaining before the gate closes fully: re-derive published aggregates from a raw
+file as proof the raw data is sufficient.
 
 ## Phase 3 — Experiment configuration, separated from model configuration
 
-- [ ] Promote `schemas/*.json` from example instances to real JSON Schema
-      (`$schema`, `type`, `properties`, `required`), keeping the current files as
-      `schemas/examples/` fixtures. Validate every written result against
-      `benchmark_result.schema.json` in the test suite, so a malformed row fails in
-      CI rather than three months into a campaign.
+- [x] **Done 2026-09-04.** Promoted `schemas/*.json` from example instances to real
+      JSON Schema (draft 2020-12), originals preserved verbatim as
+      `schemas/examples/*.example.json` per this file's append-only convention.
+      Four schemas now exist, not three: `model` / `experiment` /
+      `benchmark_result` / **`quality_result`** — the fourth was added because
+      note.md §5 keeps quality and performance independently measurable, which is
+      only enforceable if they are separate document types rather than one merged
+      row. `tests/test_schemas.py` (31 tests) checks that each schema is itself
+      valid (a typo'd keyword otherwise fails *open* — unknown keywords are silently
+      ignored, so a broken schema validates everything), that each schema's own
+      examples pass, and — the only one guarding live data today — that **all 9
+      `configs/models.yaml` rows validate**, including a conditional that rejects
+      llama.cpp-only args on a vLLM row and vice versa (inert in the coordinator,
+      authoritative-looking in the registry forever). Conformance levels are
+      documented in `schemas/README.md`: `model.schema.json` is written to what the
+      registry satisfies *today*, the other three to what Phases 2/3/5 produce.
+      Added `jsonschema==4.26.0` to `requirements.txt` (pure Python — none of the
+      GPU-wheel-shadowing risk `docs/environment.md` warns about).
+- [ ] Backfill `configs/models.yaml` with note.md §28's registry fields the schema
+      already defines and documents (`family`, `parameters_b`, `revision`,
+      `quantization{}`, `license`, `status`, ...), then promote them to `required`.
+      Deliberately not done at the same time as the schema: a backfill is a change
+      to the experimental record and deserves its own review, not a side effect.
+- [ ] Validate every *written result* against `benchmark_result.schema.json` /
+      `quality_result.schema.json` in the test suite, so a malformed row fails in CI
+      rather than three months into a campaign. Blocked on Phase 2 — the scripts
+      don't emit conformant documents yet; `schemas/examples/*.target.json` are the
+      shapes they must produce.
 - [ ] Add `configs/benchmarks/{smoke,latency,streaming,context,output,quality}.yaml`
       (note.md §8) holding input/output token grids, warmup/measurement counts, and
       sampling params. `configs/models.yaml` stays a *candidate registry* and does not
@@ -387,9 +571,12 @@ needs, and it is not superseded by the benchmark framing.
 
 - [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` /
       `validate-mmlu` for every row in `configs/models.yaml` that can serve at all:
-      the remaining Qwen sizes (3B/7B) on both backends, `bielik-11b-awq-vllm-orin`
-      (added 2026-09-04, never run — its `gpu_memory_utilization: 0.3` is an untested
-      guess), `bielik-11b-q4-llamacpp-orin`. Record an OOM as a real result, not a skip.
+      the remaining Qwen sizes (3B/7B) on both backends, and both Bielik rows.
+      Record an OOM as a real result, not a skip. Note `bielik-11b-awq-vllm-orin`
+      needs no `benchmark`/`benchmark-streaming` caveat (smoke-tested 2026-09-04,
+      `gpu_memory_utilization: 0.3` confirmed working) but **cannot produce a
+      tool-calling scorecard at all** — see Phase 1's record. That is a
+      fail-with-reason entry, which GATE 5 accepts.
 - [ ] Full-corpus BFCL, not `--limit 20`. The only real scorecard so far (75% overall,
       n=40, `1.5b-q4-llamacpp-orin`) is a sample, and Phase 1 says so.
 - [ ] Report tool-calling as a confusion matrix (note.md §36), not one percentage:
@@ -438,12 +625,17 @@ least one Phase 4 sweep is reproduced there with on-device telemetry.
       *named* `-awq`. Hold every future row to that bar.
 - [ ] Per quantized candidate: smoke → MMLU regression → performance → memory → power,
       always against the same-model higher-precision baseline.
-- [ ] Qwen3 row, gated on a real check first: does the pinned
-      `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` build actually serve a Qwen3
-      checkpoint? If not, the Qwen2.5-vs-Qwen3 comparison is llama.cpp-only, and that
-      constraint must be stated in the writeup rather than worked around by upgrading
-      vLLM (which `embedded-ai-chain/CLAUDE.md` explicitly forbids: "do not let a model
-      choice force a runtime upgrade").
+- [ ] Qwen3 row. **The expected blocker turned out not to exist**: the pinned
+      `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` reports `vllm 0.19.0` (read from
+      the running server 2026-09-04, not inferred from the tag), so the
+      "vLLM ≥0.11 has no JetPack 6.2 wheels" constraint — which is about pip wheels —
+      does not bind this container path. Qwen3 support is comfortably inside 0.19.0.
+      Still add the row behind a real serving test, same bar as every other row, and
+      note that `embedded-ai-chain/CLAUDE.md`'s "do not let a model choice force a
+      runtime upgrade" rule is satisfied here without any upgrade at all: the runtime
+      is already newer than that rule assumed. Worth propagating that correction back
+      to `embedded-ai-chain/CLAUDE.md`, whose vLLM constraint is now misleading as
+      written.
 
 **GATE 7** — at least one same-model precision pair has quality *and* efficiency
 numbers, with the quantization method named exactly.
@@ -515,9 +707,11 @@ repos, not just left in this file.
 - **A declarative multi-machine launch config** — `jetson-vlm-lab`'s own TODO already
   judged this premature for a 2-machine reality; revisit together with
   `embedded-ai-chain`'s "embedded platform zoo" goal, not from this repo in isolation.
-- **A third paper from this repo.** See the scope-change section. This lab feeds
-  `paper.md` and `PAPER_PLAN.md`; it does not compete with them for the same writing
-  window.
+- **Deciding how many papers this work becomes.** Deferred to after the campaign, by
+  direct decision 2026-09-04: the data decides. This lab feeds `paper.md` and
+  `PAPER_PLAN.md` regardless; whether it *also* carries a standalone benchmark paper
+  is a question the results answer better than a plan does. Nothing in Phases 2-10
+  changes either way — which is exactly why it is safe to leave open.
 
 ### From note.md, deliberately not scheduled yet (not forgotten)
 
@@ -555,6 +749,12 @@ Rows are never deleted, even when superseded — same convention as
 | 2026-09-04 | Orin is the platform of record; Thor is the cross-platform arm | No Thor access confirmed yet; and "does the ranking change across hardware" needs both boards anyway (paper.md P5) |
 | 2026-09-04 | Existing harness warmup/steady-state policy kept over note.md §4's fixed `warmup: 5` | Temperature-driven steady state with an honest `warmup_reached_steady_state` flag is strictly stronger than a guessed count |
 | 2026-09-04 | Measurement-integrity retrofit (raw rows, energy, manifest, IDs, co-residency flag) precedes all campaigns | These are unrecoverable if skipped — a campaign run without them cannot be re-analysed |
-| 2026-09-04 | No third paper from this repo; it is the instrument for `paper.md` P3/P4/P5/P6 | Two papers already share one writing window to 2027-01-25 |
+| 2026-09-04 | ~~No third paper from this repo~~ **superseded same day** — see next row | Two papers already share one writing window to 2027-01-25 |
+| 2026-09-04 | **How many papers is decided after the results exist, not now.** This repo is built as the instrument for `paper.md`'s P3/P4/P5/P6 either way; whether the benchmark data also carries a paper of its own is answered by the data | Direct user decision. The earlier row pre-committed to an answer that the campaign itself is better placed to give — and nothing in Phases 2-10 changes based on which way it goes, so there is no cost to deferring it |
+| 2026-09-04 | Prompts vary per repetition by default (`--prompt-uniqueness unique-per-run`), and the choice is a recorded schema field | Identical prompts made both backends serve every repetition from a KV-cache hit; measured 6.6x TTFT error (40.8ms vs 268.1ms p50) in the flattering direction. See Phase 2's finding |
+| 2026-09-04 | `HUGGINGFACE_HUB_CACHE`/`HF_HUB_CACHE` set explicitly in both the coordinator and compose | The image bakes in its own value that overrides `HF_HOME`, making the host cache mount inert; every vLLM run re-downloaded its weights into a `--rm` container. Measured: 156.2s -> 136.2s cold start for a 1.5GB model, and it scales with model size |
+| 2026-09-04 | Measurement continues past `--runs` until `--min-measurement-s` elapses | A vLLM cell finished 8 repetitions in 4.4s and produced an energy figure backed by 9 power samples; the sampler needs wall-clock time, not repetitions |
+| 2026-09-04 | `write_result()` refuses to overwrite an existing result | note.md §29 immutability, enforced rather than trusted — a re-run must be a new replicate, never a silent replacement of data a figure was drawn from |
 | 2026-09-04 | Apertus and Bielik stay in the matrix despite note.md not mentioning them | They are this lab's actual second/third families and its only decisive negative result |
-| 2026-09-04 | Qwen3 is gated on a real serving check, not assumed | vLLM ≥0.11 has no JetPack 6.2/CUDA 12.6 wheels; a model choice must not force a runtime upgrade |
+| 2026-09-04 | ~~Qwen3 gated because vLLM ≥0.11 has no JetPack 6.2 wheels~~ **superseded same day** — premise measured false for this path | The pip-wheel constraint does not apply to NVIDIA's container; see next row |
+| 2026-09-04 | Qwen3 stays gated on a real serving test — but as routine practice, not because of a known blocker | `GET /version` on the pinned image returns `vllm 0.19.0`, running fine on this JetPack 6.2 board. Second time a version was assumed from a name and was wrong; both times the fix was asking the running server |

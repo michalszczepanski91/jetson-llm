@@ -35,8 +35,8 @@ evaluates), so unlike that repo, nothing here does JPEG/frame encoding.
 
 ```bash
 make serve-1.5b-vllm / make serve-1.5b-llamacpp   # Start a candidate server in the foreground
-make benchmark CONFIG=<key>                        # Latency/cold-start/thermal/power
-make benchmark-streaming CONFIG=<key>               # TTFT / tokens-per-sec
+make benchmark CONFIG=<key>                        # Latency/cold-start/thermal/power (NOT yet retrofitted - see below)
+make benchmark-streaming CONFIG=<key> CONDITION=standalone   # TTFT/tok-s/memory/power/ENERGY
 make validate-tool-calling CONFIG=<key>             # BFCL tool-call judgment accuracy (needs staged data, see README)
 make validate-mmlu CONFIG=<key>                     # MMLU quantization-sanity accuracy (needs staged data, see README)
 make test                                           # Unit tests, no Docker/GPU needed
@@ -80,6 +80,66 @@ also exists but its llama.cpp build hard-errors on `tool_choice`, see
 ever image/VLM-specific. This repo is meant to `git clone` and run standalone;
 reaching back into either sibling repo's modules would break that. Port fixes by hand
 if either sibling's harness gains one worth having here.
+
+## Measurement integrity (docs/TODO.md Phase 2)
+
+`scripts/benchmark_streaming.py` is the retrofitted path and the one to use. It emits
+a document conforming to `schemas/benchmark_result.schema.json` into
+`results/raw/<experiment_id>/`, validated at write time, containing every measured
+repetition (not just percentiles), a full manifest, decomposed cold start, real token
+counts from the server's own `usage`, and **energy in J/output-token** - which was
+uncomputable from either script before, because the one with power telemetry didn't
+know token counts and the one with token counts started no sampler.
+
+Three rules the code enforces rather than trusts:
+
+- **`--execution-condition` is required and has no default.** On unified memory a
+  standalone and a co-resident number are different physical quantities. A
+  `co-resident` run must also name what ran alongside; the CLI and the schema both
+  reject it otherwise.
+- **`write_result()` refuses to overwrite.** Re-running a cell means a new replicate,
+  never a silent replacement of data a figure was drawn from (`docs/note.md` §29).
+- **Prompts vary per repetition by default.** Both backends cache by prompt prefix,
+  so an identical prompt makes every repetition after the first a cache hit rather
+  than a prefill. Measured on this device: TTFT p50 40.8ms with identical prompts vs
+  **268.1ms** with unique ones - a 6.6x error in the flattering direction, invisible
+  in the aggregates and only caught by reading llama-server's own log
+  (`prompt eval time = ... / 1 tokens` for a 40-token prompt). `--prompt-uniqueness`
+  controls it and the choice is recorded in every result.
+
+**`scripts/benchmark.py` has had none of this applied** - it still discards raw
+latencies, carries no manifest, and sends an identical prompt every repetition, so
+its numbers carry the prefix-cache error above. Don't run a campaign through it as it
+stands; `docs/TODO.md` Phase 2 has it as an open ⟨DECIDE⟩ (retrofit or retire).
+`benchmarks/harness.py` is the shared hand-maintained copy, so changing it is a
+deliberate divergence from two sibling repos; `benchmarks/manifest.py` is new and
+repo-specific, which is why the new machinery lives there instead.
+
+## Schemas
+
+`schemas/` holds JSON Schema (draft 2020-12) for the four document types this lab
+produces: a registry row (`model`), a benchmark configuration (`experiment`), a
+performance result (`benchmark_result`), and an accuracy result (`quality_result`).
+Quality and performance are deliberately separate document types, not one merged row
+- `docs/note.md` §5 keeps the measurement layers independently measurable, and they
+join at analysis time on `model_config_key`.
+
+They are enforced, not decorative: `tests/test_schemas.py` validates **every
+`configs/models.yaml` row** against `model.schema.json` on `make test`, so a
+malformed registry row fails in seconds rather than mid-campaign. That row schema is
+written to what the registry satisfies *today*; the other three describe what
+`docs/TODO.md` Phases 2/3/5 must produce, and today's script output does **not**
+conform to them yet - that gap is the work list, and `schemas/README.md` documents
+the conformance levels.
+
+Two rules worth knowing before editing them: every `$ref` is local (`#/$defs/...`),
+never cross-file, so validation needs no resolver and this repo stays clone-and-run
+- same reasoning as `benchmarks/harness.py` being a copy rather than an import; and
+`additionalProperties: false` is set everywhere, so adding a result field means
+editing the schema, which is intended (a new field in a result *is* a change to the
+experimental record). The original 2026-09-04 sketches - instance documents named
+`*.schema.json`, with nothing a validator could check - are preserved in
+`schemas/examples/`, alongside `*.target.json` files showing the conformant shapes.
 
 ## Memory constraints (critical)
 
