@@ -1,0 +1,122 @@
+{
+  "_comment": "TARGET example - a complete, schema-conformant performance result. Numbers are illustrative, NOT measured: this is the shape docs/TODO.md Phase 2 builds towards, not a real run. Every real number this lab has produced so far lives in docs/TODO.md Phase 1 and README's Current State. Compare against benchmark_result.example.json in this directory to see what the retrofit adds: raw per-run rows, a manifest, decomposed cold start, achieved token counts, energy, and an execution condition.",
+
+  "schema_version": "1.0.0",
+  "experiment_id": "2026-09-04_orin_1.5b-awq-vllm-orin_output-sweep_in512_out128_bs1_r01",
+  "label": "Qwen2.5-1.5B AWQ / vLLM / Orin - out=128",
+  "timestamp": "2026-09-04T14:22:07+02:00",
+
+  "manifest": {
+    "git_commit": "494f9a9",
+    "git_dirty": false,
+    "command": "uv run python scripts/benchmark_streaming.py --experiment configs/benchmarks/output_sweep.yaml --model-config 1.5b-awq-vllm-orin --output-tokens 128",
+    "experiment_config": "configs/benchmarks/output_sweep.yaml",
+    "model_config_key": "1.5b-awq-vllm-orin",
+    "hardware": {
+      "platform": "orin",
+      "board": "Jetson AGX Orin Developer Kit",
+      "memory_total_mb": 30698,
+      "nvpmodel_mode": "MAXN",
+      "jetson_clocks_locked": true,
+      "l4t_version": "R36.4.7"
+    },
+    "software": {
+      "backend": "vllm",
+      "backend_version": "0.10.1",
+      "container_image": "ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin",
+      "container_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "jetpack": "6.2.1",
+      "cuda": "12.6",
+      "docker": "27.5.1",
+      "python": "3.10.12"
+    }
+  },
+
+  "model": {
+    "name": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",
+    "revision": "main@0000000",
+    "family": "Qwen2.5",
+    "parameters_b": 1.5,
+    "precision": "AWQ 4-bit",
+    "quantization_method": "awq",
+    "backend": "vllm",
+    "platform": "orin",
+    "serving_args": [
+      "--gpu-memory-utilization", "0.15",
+      "--max-model-len", "2048",
+      "--enable-auto-tool-choice",
+      "--tool-call-parser", "hermes"
+    ]
+  },
+
+  "workload": {
+    "input_tokens_target": 512,
+    "output_tokens_target": 128,
+    "batch_size": 1,
+    "concurrency": 1,
+    "prompt_source": "fixed_transcript_v1",
+    "prompt_template_version": "v1",
+    "tools_attached": false,
+    "sampling": {"temperature": 0.0, "seed": 1234}
+  },
+
+  "execution_condition": "standalone",
+
+  "cold_start": {
+    "measured": true,
+    "total_s": 159.4,
+    "download_s": null,
+    "weights_cached": true,
+    "container_start_s": 3.1,
+    "model_load_s": 141.8,
+    "server_ready_s": 159.4,
+    "caveat": "weights_cached=true, so total_s excludes download entirely - not comparable with a first-pull cold start such as the 338s recorded for bielik-11b-q4-llamacpp-orin, which is mostly a 6.7GB download."
+  },
+
+  "runs": [
+    {"run_index": 0, "ttft_ms": 182.4, "e2e_latency_ms": 1994.1, "decode_ms": 1811.7, "input_tokens": 509, "output_tokens": 128, "prefill_tok_s": 2790.6, "decode_tok_s": 70.6, "finish_reason": "length", "error": null},
+    {"run_index": 1, "ttft_ms": 179.8, "e2e_latency_ms": 1981.3, "decode_ms": 1801.5, "input_tokens": 509, "output_tokens": 128, "prefill_tok_s": 2831.0, "decode_tok_s": 71.0, "finish_reason": "length", "error": null},
+    {"run_index": 2, "ttft_ms": 188.1, "e2e_latency_ms": 2033.7, "decode_ms": 1845.6, "input_tokens": 509, "output_tokens": 128, "prefill_tok_s": 2705.9, "decode_tok_s": 69.4, "finish_reason": "length", "error": null}
+  ],
+
+  "aggregates": {
+    "ttft_ms": {"min": 179.8, "p50": 182.4, "p95": 188.1, "p99": 188.1, "max": 188.1, "n": 3},
+    "e2e_latency_ms": {"min": 1981.3, "p50": 1994.1, "p95": 2033.7, "p99": 2033.7, "max": 2033.7, "n": 3},
+    "decode_tok_s": {"min": 69.4, "p50": 70.6, "p95": 71.0, "p99": 71.0, "max": 71.0, "n": 3},
+    "output_tokens": {"min": 128, "p50": 128, "p95": 128, "p99": 128, "max": 128, "n": 3}
+  },
+
+  "memory": {
+    "system_ram_used_mb": {"peak": 8214.0, "steady": 8102.5},
+    "system_ram_total_mb": 30698.0,
+    "client_rss_mb": {"before": 41.2, "peak": 48.9, "steady": 47.1},
+    "kv_cache_mb": null,
+    "attribution_caveat": "client_rss_mb is the benchmark process only - an HTTP client - and is NOT model memory; the model runs inside the vLLM container. system_ram_used_mb from tegrastats is the real figure on this unified-memory board. weights_mb/kv_cache_mb not broken out: not obtained from the server in this run."
+  },
+
+  "power": {
+    "rails_mw": {
+      "vdd_gpu_soc_mw": {"avg": 21430.0, "min": 8120.0, "max": 27980.0, "n": 62},
+      "vdd_cpu_cv_mw": {"avg": 4180.0, "min": 2010.0, "max": 6220.0, "n": 62},
+      "vin_sys_5v0_mw": {"avg": 3110.0, "min": 2890.0, "max": 3340.0, "n": 62}
+    },
+    "measurement_window_s": 31.2,
+    "energy_joules": 897.3,
+    "energy_per_request_j": 57.1,
+    "energy_per_output_token_j": 0.446,
+    "rails_included": ["vdd_gpu_soc_mw", "vdd_cpu_cv_mw"],
+    "idle_baseline_w": 9.8
+  },
+
+  "thermal": {"start_c": 51.2, "end_c": 58.4, "max_c": 59.1, "sensor": "tj"},
+
+  "validity": {
+    "warmup_runs": 7,
+    "warmup_reached_steady_state": true,
+    "measurement_runs": 3,
+    "thermal_throttling_observed": false,
+    "failed_runs": 0,
+    "flags": [],
+    "notes": "measurement_runs=3 here only to keep this example readable. A real publication cell requires >=30 (docs/note.md §48); a 3-run p99 is not a p99."
+  }
+}

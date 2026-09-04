@@ -1,11 +1,21 @@
 # Host-side deps for scripts/*.py and tests/ - these run directly (uv run),
 # not inside the vLLM/llama.cpp containers (those are prebuilt vendor
-# images, see docker-compose*.yml). pyarrow is the one addition beyond the
-# stdlib-only original scope: scripts/validate_mmlu.py reads a staged MMLU
+# images, see docker-compose*.yml). Two additions beyond the stdlib-only
+# original scope, each for one specific reason.
+#
+# pyarrow: scripts/validate_mmlu.py reads a staged MMLU
 # parquet file directly (HF Hub serves modern dataset repos as parquet
 # regardless of original format) - pulled in on its own rather than the
 # much heavier full `datasets`/`pandas` stack, since this repo only ever
 # needs to read one already-staged file, not query/stream a live dataset.
+#
+# jsonschema: makes schemas/ enforceable rather than decorative -
+# tests/test_schemas.py validates every configs/models.yaml row against
+# schemas/model.schema.json, so a malformed registry row fails in the test
+# suite instead of three months into a benchmark campaign. Pure Python, no
+# native/GPU wheel involved, so it carries none of the wheel-shadowing risk
+# docs/environment.md warns about.
 pytest==9.1.1
 pyyaml==6.0.3
 pyarrow==25.0.1
+jsonschema==4.26.0

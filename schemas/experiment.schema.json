@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mszczep/jetson-llm/schemas/experiment.schema.json",
+  "title": "Experiment configuration",
+  "description": "One file in configs/benchmarks/ - the declarative \"what to measure\", kept strictly separate from configs/models.yaml's \"which candidate\" (docs/note.md §8). An experiment names a candidate set and a grid of workload points; expanding the grid produces one benchmark_result document per cell. Deliberately expresses grids rather than single points, because docs/note.md §11/§12's context- and output-length sweeps are the core experiments and a config format that can only express one point forces the sweep back into CLI flags - which docs/TODO.md GATE 3 explicitly forbids (\"no CLI flags carrying experimental meaning\"). Self-contained (no cross-file $ref) so validation needs no resolver.",
+  "type": "object",
+  "required": ["schema_version", "name", "description", "models", "workload", "sampling", "repetitions", "execution_condition"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Version of THIS schema the file targets. Bumped when the config format changes shape; results record the version they were produced under so an old campaign stays interpretable.",
+      "examples": ["1.0.0"]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "Stable identifier, and a component of every experiment_id this config generates. Renaming it orphans the results that reference it, so treat it as append-only in the same way registry rows are.",
+      "examples": ["context_sweep", "output_sweep", "streaming_baseline", "smoke"]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required, and required to state the hypothesis. docs/note.md §57: every experiment answers \"what hypothesis does this test, what variable changed, what was held constant, what is expected to move\". A config without that sentence is a script, not an experiment."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["smoke", "regression", "full", "holdout"],
+      "description": "docs/note.md §18. smoke = 10-50 samples, catches broken serving/tokenizer/chat-template/quantization; regression = small but representative, run for every candidate; full = final candidates only; holdout = never used for tuning, final evaluation only. Mostly a sample-count and cost signal, but recorded so a headline number can never be quietly a smoke run."
+    },
+    "models": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+      "description": "Keys into configs/models.yaml. Keys, never inline model definitions: the registry stays the single place a candidate is described, so two experiments can never disagree about what `7b-awq-vllm-orin` means.",
+      "examples": [["1.5b-awq-vllm-orin", "1.5b-q4-llamacpp-orin"]]
+    },
+    "workload": {
+      "type": "object",
+      "description": "The swept grid. Every array here is a full axis: the runner takes the Cartesian product of these lists, so a two-element list doubles the campaign. docs/note.md §4 warns against the full product - keep one or two axes open per experiment and pin the rest.",
+      "required": ["input_tokens", "output_tokens", "batch_size", "concurrency"],
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "exclusiveMinimum": 0},
+          "description": "Target prompt lengths in TOKENS, not characters - the prompt must be built to hit these, and the achieved count recorded from the server's own `usage`, because a target and an achieved token count are not the same number. Canonical ladder (docs/note.md §11): 128, 512, 1024, 2048, 4096, 8192, 16384. Values above a candidate's max_model_len/ctx_size are an error, not a silent truncation.",
+          "examples": [[128, 512, 1024, 2048]]
+        },
+        "output_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "exclusiveMinimum": 0},
+          "description": "max_tokens per request (docs/note.md §12: 32/128/256/512...). Separating this axis from input_tokens is what stops a model looking fast merely because it generates less. The 16/32/64/128/256/512 ladder is also embedded-ai-chain/docs/paper.md's P3 core experiment verbatim.",
+          "examples": [[16, 32, 64, 128, 256, 512]]
+        },
+        "batch_size": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "exclusiveMinimum": 0},
+          "description": "Requests submitted together in one batch. NOT interchangeable with concurrency - docs/note.md §13 forbids mixing the terms, since they are different experimental conditions that happen to produce similar throughput curves.",
+          "examples": [[1]]
+        },
+        "concurrency": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "exclusiveMinimum": 0},
+          "description": "Independent in-flight requests. batch=1/concurrency=1 is the deployment reality for embedded-ai-chain; everything above it is characterisation and must be labelled as such.",
+          "examples": [[1]]
+        },
+        "prompt_source": {
+          "type": "string",
+          "description": "How the prompt of a given token length is constructed. Must be deterministic and versioned - a prompt that varies between runs makes prefill timings incomparable.",
+          "examples": ["fixed_transcript_v1", "lorem_tokens_v1"]
+        },
+        "prompt_template_version": {
+          "type": "string",
+          "description": "docs/note.md §21. Bumped whenever the system prompt, user template, or tool schema changes. A template change is an experimental change and must be visible in the results, not hidden in the implementation."
+        },
+        "tools": {
+          "type": ["string", "null"],
+          "description": "Tool schema set attached to each request, or null for none. Performance runs normally attach none; tool-calling behaviour is measured separately (see quality_result.schema.json). Recorded either way, because attaching tools changes prompt length and can change the decode path."
+        }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "description": "Pinned explicitly, never inherited from the server. This lab has already measured that server defaults change behaviour and not just wording: at llama.cpp's default (~0.8) Qwen2.5-1.5B emits a correct tool call 12/15 times; at 0.1 it is 15/15.",
+      "required": ["temperature"],
+      "additionalProperties": false,
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "description": "0.0 for performance benchmarking. Note that vLLM and llama.cpp do not both treat 0.0 identically in every build - if a run needs a nonzero floor, say so in `description` rather than changing it silently for one backend (docs/note.md §41)."
+        },
+        "top_p": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "top_k": {"type": "integer", "exclusiveMinimum": 0},
+        "seed": {
+          "type": ["integer", "null"],
+          "description": "Fixed seed where the backend honours one. null means the backend does not support it - record that rather than pretending the run was deterministic."
+        }
+      }
+    },
+    "repetitions": {
+      "type": "object",
+      "description": "Warmup and measurement policy. These are FLOORS, not the policy itself: benchmarks/harness.py warms up until junction temperature is flat across a rolling window and records warmup_reached_steady_state=false when it gives up. docs/note.md §4's fixed \"warmup: 5\" would be a regression against that and is deliberately not adopted.",
+      "required": ["warmup_min", "measurement_runs"],
+      "additionalProperties": false,
+      "properties": {
+        "warmup_min": {"type": "integer", "minimum": 0, "description": "Minimum warmup iterations before steady-state detection is even consulted."},
+        "warmup_max": {"type": "integer", "exclusiveMinimum": 0, "description": "Cap after which warmup stops regardless, with warmup_reached_steady_state=false recorded."},
+        "warmup_timeout_s": {"type": "number", "exclusiveMinimum": 0},
+        "measurement_runs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum measured repetitions per cell. >=30 for a publication cell (docs/note.md §48); raise it where variance is high rather than reporting a tighter interval than the data supports."
+        },
+        "min_measurement_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Wall-clock floor for the measurement window. Exists because tegrastats samples at 500ms: a cell that finishes its runs in under a couple of seconds yields too few power samples for a meaningful energy figure, regardless of how many repetitions it did."
+        },
+        "outlier_policy": {
+          "type": "string",
+          "enum": ["none", "flag-only"],
+          "description": "docs/note.md §10. Default and strong preference is `none`: raw runs are all preserved and percentiles are computed over everything. `flag-only` annotates suspected outliers without dropping them. Silent discarding is not an option in this enum on purpose."
+        }
+      }
+    },
+    "execution_condition": {
+      "type": "string",
+      "enum": ["standalone", "co-resident"],
+      "description": "docs/note.md §15, and the field that makes the whole co-residency study possible. standalone = only the LLM workload is active. co-resident = the real embedded-ai-chain pipeline is running alongside. No default is permitted anywhere in this repo: on a unified-memory board an unlabelled number is uninterpretable, and every published figure must say which condition it came from."
+    },
+    "co_resident_workload": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Required in spirit whenever execution_condition is co-resident: which components were actually running (yolo, stt, tts, vlm), so the condition is reproducible rather than a vague \"under load\".",
+      "examples": [["yolo", "stt", "tts"]]
+    },
+    "platform_state": {
+      "type": "object",
+      "description": "The hardware performance state the campaign requires. docs/note.md §39's protocol sets these BEFORE the run; the result records what was actually observed, and the two are compared. A mismatch invalidates the cell rather than being averaged in.",
+      "additionalProperties": false,
+      "properties": {
+        "nvpmodel_mode": {"type": "string", "description": "Required power mode, e.g. \"MAXN\" / \"0\". docs/note.md §27: do not assume Orin's modes transfer to Thor."},
+        "jetson_clocks": {"type": "boolean", "description": "Whether clocks must be pinned. Verified via the min==max sysfs heuristic in benchmarks/harness.py - two weaker checks were tried and both gave wrong answers live on this device."},
+        "require_reboot": {"type": "boolean", "description": "docs/note.md §39 step 1. Rarely needed; recorded when it is."}
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free text. Known confounds belong here and must be stated up front: e.g. a vLLM-vs-llama.cpp comparison at AWQ-4bit vs GGUF-Q4_K_M is not a clean precision match, and the writeup has to say so."
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "1.0.0",
+      "name": "output_sweep",
+      "description": "Hypothesis (embedded-ai-chain/docs/paper.md P3): generation budget dominates the perception budget - increasing max_tokens raises latency and energy substantially more than a comparable change to input length. Varied: output_tokens. Held constant: model, backend, platform, input length, batch, concurrency, sampling, power mode. Expected to move: e2e latency, decode time, energy per request. Expected NOT to move: TTFT, prefill throughput.",
+      "tier": "full",
+      "models": ["1.5b-awq-vllm-orin"],
+      "workload": {
+        "input_tokens": [512],
+        "output_tokens": [16, 32, 64, 128, 256, 512],
+        "batch_size": [1],
+        "concurrency": [1],
+        "prompt_source": "fixed_transcript_v1",
+        "prompt_template_version": "v1",
+        "tools": null
+      },
+      "sampling": {"temperature": 0.0, "seed": 1234},
+      "repetitions": {"warmup_min": 5, "warmup_max": 50, "measurement_runs": 30, "min_measurement_s": 10, "outlier_policy": "none"},
+      "execution_condition": "standalone",
+      "platform_state": {"nvpmodel_mode": "MAXN", "jetson_clocks": true}
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "experiment_id": "thor-qwen3-8b-vllm-fp8-context-2048",
+  "model": "Qwen3-8B",
+  "backend": "vllm",
+  "hardware": "Jetson Thor",
+  "precision": "FP8",
+  "context_length": 2048,
+  "output_tokens": 128,
+  "batch_size": 1,
+  "concurrency": 1,
+  "power_mode": "MAXN",
+  "warmup_runs": 5,
+  "measurement_runs": 30
+}
