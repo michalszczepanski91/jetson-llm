@@ -1,0 +1,113 @@
+# Registry of orchestrator-LLM candidates to benchmark, keyed by the
+# --model-config value scripts/*.py accept. `backend`, `platform`, and
+# `precision` are required fields (see docs/promotion-contract.md §2) - every
+# row must say which serving backend and which physical machine it targets,
+# since the tuning fields below (gpu_memory_utilization vs n_gpu_layers) are
+# only meaningful relative to both.
+#
+# vllm rows: gpu_memory_utilization/max_model_len are LOAD-BEARING on
+# platform: orin - do not default to vLLM's own 0.9 (see
+# embedded-ai-chain/docs/environment.md - this device has ~30GB unified
+# memory, not isolated discrete-GPU VRAM). The three orin/vllm values below
+# are copied from embedded-ai-chain/src/orchestrator_models.py's own
+# already-tuned thresholds, not re-derived - see that file's docstring for
+# the full reasoning (the 1.5b default's fixed 0.08 caused a real
+# "No available memory for the cache blocks" flake on 2026-09-03; these
+# values already account for that).
+#
+# llama-cpp rows: `quant` selects which file llama.cpp's own `-hf <repo>:
+# <quant>` downloader pulls from the model repo; `n_gpu_layers=-1` offloads
+# every layer to GPU (llama.cpp's own "all layers" sentinel); `ctx_size` is
+# llama.cpp's analogue of max_model_len. None of the llama-cpp rows are
+# benchmarked yet - this backend is new to this lab (jetson-vlm-lab never
+# used it), so every value here is a starting point, not a measured result.
+#
+# thor rows: not yet added. Add them the same way jetson-vlm-lab added its
+# own `-thor` rows (see that repo's configs/models.yaml) once real access to
+# the Thor is wired up here (docs/TODO.md Phase 2) - gpu_memory_utilization/
+# n_gpu_layers left unconfirmed until a real run against Thor's own free
+# memory happens; do not guess a number here ahead of that.
+
+1.5b-awq-vllm-orin:
+  model: Qwen/Qwen2.5-1.5B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.15
+  max_model_len: 4096
+  notes: >
+    Currently what embedded-ai-chain actually ships as its orchestrator LLM
+    default (orchestrator_models.py DEFAULT) - the known-good baseline every
+    other row here is measured against. Documented weakness (see
+    orchestrator_models.py / orchestrator.py's _FORCE_ASK_VLM): "auto"
+    tool_choice unreliably escalates to ask_vlm at this size - this is the
+    gap scripts/validate_tool_calling.py exists to quantify.
+
+3b-awq-vllm-orin:
+  model: Qwen/Qwen2.5-3B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.25
+  max_model_len: 4096
+  notes: >
+    Untested starting point (orchestrator_models.py's own "3b" option,
+    never benchmarked there either) - thresholds inherited from that file,
+    not re-derived. Re-tune if it fails to start or leaves too little KV
+    cache.
+
+7b-awq-vllm-orin:
+  model: Qwen/Qwen2.5-7B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.5
+  max_model_len: 4096
+  notes: >
+    Untested, high-risk starting point (orchestrator_models.py's own "7b"
+    option) - same rough scale as the VLM this project already struggled to
+    fit resident alongside YOLO/pose/STT. Benchmark standalone first (no
+    other pipeline components running) before drawing any co-residency
+    conclusion from it.
+
+1.5b-q4-llamacpp-orin:
+  model: Qwen/Qwen2.5-1.5B-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: orin
+  quant: Q4_K_M
+  n_gpu_layers: -1
+  ctx_size: 4096
+  notes: >
+    New backend leg, not yet benchmarked. Official Qwen-published GGUF
+    (Apache-2.0), confirmed to exist via live HF Hub search (q4_k_m/q5_k_m/
+    q6_k/q8_0/fp16 all present in the repo) - same trustworthy-provenance
+    bar as jetson-vlm-lab's model selections. Image/container tag to serve
+    it with is unverified - see src/llm_coordinator.py's
+    _DEFAULT_LLAMACPP_IMAGE comment.
+
+3b-q4-llamacpp-orin:
+  model: Qwen/Qwen2.5-3B-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: orin
+  quant: Q4_K_M
+  n_gpu_layers: -1
+  ctx_size: 4096
+  notes: >
+    New backend leg, not yet benchmarked. Official Qwen-published GGUF
+    repo confirmed to exist (HF Hub search) - exact quant file list not
+    individually enumerated the way 1.5b's was, re-check on first real run.
+
+7b-q4-llamacpp-orin:
+  model: Qwen/Qwen2.5-7B-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: orin
+  quant: Q4_K_M
+  n_gpu_layers: -1
+  ctx_size: 4096
+  notes: >
+    New backend leg, not yet benchmarked, same high-risk memory-fit caveat
+    as 7b-awq-vllm-orin above. Official Qwen-published GGUF repo confirmed
+    to exist (HF Hub search).
