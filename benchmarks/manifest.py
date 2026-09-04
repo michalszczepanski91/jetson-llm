@@ -133,24 +133,147 @@ def assert_condition_matches_reality(execution_condition: str, own_containers: s
     override flag: the fix is either to stop the other workload or to declare
     the truth, and both are one command. An override would be used.
 
-    Only container co-residency is detected. A bare-metal process holding GPU
-    memory would not be, so this narrows the gap rather than closing it -
-    which is why the message says what was found rather than promising the
-    board is clean."""
+    Checks two things, because they miss different failure modes:
+
+    1. **Other Docker containers** - `running_containers()`.
+    2. **Bare-metal processes actually holding GPU device handles** -
+       `gpu_holding_pids()`, scanning `/proc/<pid>/fd` for `nvhost`/`nvgpu`/
+       `nvmap` symlinks, the same signal used to catch the real incident this
+       function exists because of, below.
+
+    **Real incident, 2026-09-04.** The container check alone let a whole
+    Phase 4 campaign run and get labelled `standalone` while
+    `embedded-ai-chain`'s full production pipeline - YOLO perception,
+    orchestrator, STT/TTS - was running as ONE bare-metal process the entire
+    time, invisible to `docker ps`. Confirmed after the fact by
+    `docker inspect`-style reasoning applied to `/proc`: the process held
+    open `nvhost-*.gpu-fd*`/`nvgpu-*-tsg*` file descriptors, i.e. it was
+    genuinely using the GPU, not just importing GPU-capable libraries. Six
+    results had already been written and labelled `standalone` before this
+    was caught; they were deleted rather than relabelled, because the
+    co-resident workload was never declared or controlled and so cannot be
+    honestly described after the fact - not "co-resident with X", just
+    "invalid, redo it". This function is the fix, not a retrospective label.
+
+    Deliberately an error rather than a warning, and deliberately without an
+    override flag: the fix is either to stop the other workload or to declare
+    the truth, and both are one command. An override would be used.
+
+    Still not exhaustive - a GPU-idle-but-about-to-wake process, or a process
+    whose GPU access this /proc heuristic doesn't recognise, would still slip
+    through. The message reports what was found, not that the board is
+    clean."""
     if execution_condition != "standalone":
         return
-    others = running_containers(exclude=own_containers)
-    if others:
-        raise SystemExit(
-            "error: execution_condition is 'standalone' but other containers are running:\n"
-            + "".join(f"    {n}\n" for n in others)
-            + "On unified memory these compete for the same RAM and GPU, so the resulting\n"
-            "numbers are co-resident numbers. Either stop them, or declare the truth:\n"
-            "    execution_condition: co-resident\n"
-            f"    co_resident_workload: [{', '.join(others)}]\n"
-            "A mislabelled result is worse than no result - it contaminates every table\n"
-            "it is joined into (docs/note.md §15)."
-        )
+    own_pids = _own_container_pids(own_containers)
+    other_containers = running_containers(exclude=own_containers)
+    other_gpu = [(pid, cmd) for pid, cmd in gpu_holding_pids() if pid not in own_pids]
+    if not other_containers and not other_gpu:
+        return
+
+    lines = ["error: execution_condition is 'standalone' but the board is not quiet:"]
+    if other_containers:
+        lines.append("  other containers running:")
+        lines += [f"    {n}" for n in other_containers]
+    if other_gpu:
+        lines.append("  bare-metal processes actively holding a GPU device handle:")
+        lines += [f"    pid {pid}: {cmd}" for pid, cmd in other_gpu]
+    workload = other_containers + [f"pid:{pid}" for pid, _ in other_gpu]
+    lines += [
+        "On unified memory these compete for the same RAM and GPU, so the resulting",
+        "numbers are co-resident numbers. Either stop them, or declare the truth:",
+        "    execution_condition: co-resident",
+        f"    co_resident_workload: [{', '.join(workload)}]",
+        "A mislabelled result is worse than no result - it contaminates every table",
+        "it is joined into (docs/note.md §15). See this function's own docstring for",
+        "the real incident that made bare-metal detection necessary, not just Docker.",
+    ]
+    raise SystemExit("\n".join(lines))
+
+
+def _own_container_pids(container_names: set[str]) -> set[int]:
+    """Host-visible PIDs of every process inside our own containers, via
+    `docker top` - which reports HOST pids for containerized processes (Docker
+    containers share the host kernel; only the PID *namespace* differs, so a
+    process's host PID is real and visible in /proc). Used to exclude the
+    lab's own server from the GPU-holding-process check, the same way
+    `running_containers(exclude=...)` excludes it from the container check."""
+    pids: set[int] = set()
+    for name in container_names:
+        out = _run(["docker", "top", name, "-eo", "pid"])
+        if not out:
+            continue
+        for line in out.splitlines()[1:]:  # skip the "PID" header
+            line = line.strip()
+            if line.isdigit():
+                pids.add(int(line))
+    return pids
+
+
+_GPU_FD_RE = re.compile(r"^(nvhost|nvgpu|nvmap)")
+
+
+def gpu_holding_pids() -> list[tuple[int, str]]:
+    """(pid, cmdline) for every process with an open nvhost/nvgpu/nvmap file
+    descriptor - i.e. genuinely holding a GPU device handle right now, not
+    merely having a GPU-capable library importable. This is the signal that
+    caught embedded-ai-chain's production pipeline running bare-metal: see
+    `assert_condition_matches_reality`'s docstring for the incident.
+
+    Best-effort by nature: `/proc/<pid>/fd` for another user's process is
+    unreadable without privilege and is silently skipped (this lab runs as
+    the same user as the production pipeline it is checking for, so that
+    has not been a practical limit here) - so an empty result means "found
+    none", not "confirmed none"."""
+    found: list[tuple[int, str]] = []
+    self_pid = 0
+    try:
+        self_pid = int(Path("/proc/self").resolve().name)
+    except (OSError, ValueError):
+        pass
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return found
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        pid = int(entry.name)
+        if pid == self_pid:
+            continue
+        fd_dir = entry / "fd"
+        try:
+            has_gpu_fd = any(
+                _GPU_FD_RE.match(target.name)
+                for fd in fd_dir.iterdir()
+                if (target := _readlink_target(fd)) is not None
+            )
+        except (OSError, PermissionError):
+            continue
+        if has_gpu_fd:
+            cmdline = _cmdline(pid)
+            found.append((pid, cmdline))
+    return found
+
+
+def _readlink_target(fd_path: Path) -> Path | None:
+    try:
+        target = fd_path.readlink()
+    except OSError:
+        return None
+    # anon_inode targets look like "anon_inode:nvhost-17000000.gpu-fd10"
+    name = target.name
+    if name.startswith("anon_inode:"):
+        return Path(name.removeprefix("anon_inode:"))
+    return target
+
+
+def _cmdline(pid: int) -> str:
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return f"(pid {pid}, cmdline unreadable)"
+    text = raw.replace(b"\x00", b" ").decode(errors="replace").strip()
+    return text or f"(pid {pid}, no cmdline - kernel thread?)"
 
 
 # --- backend version (read from the running server) ------------------------

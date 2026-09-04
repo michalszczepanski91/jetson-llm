@@ -215,12 +215,14 @@ def test_standalone_is_refused_when_other_containers_run(monkeypatch):
 
 def test_standalone_passes_on_a_quiet_board(monkeypatch):
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
     manifest.assert_condition_matches_reality("standalone", own_containers=set())
 
 
 def test_our_own_container_does_not_count_as_co_residency(monkeypatch):
     """The lab's own server is the workload, not a co-resident neighbour."""
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: "vllm-llm-lab")
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
     manifest.assert_condition_matches_reality("standalone", own_containers={"vllm-llm-lab"})
 
 
@@ -229,3 +231,110 @@ def test_co_resident_runs_are_never_blocked(monkeypatch):
     run - a co-resident run declaring the truth is exactly what Phase 9 needs."""
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: "yolo\nstt\ntts")
     manifest.assert_condition_matches_reality("co-resident", own_containers=set())
+
+
+# --- bare-metal GPU-holding processes (not just containers) ---------------
+#
+# Real incident, 2026-09-04: a whole Phase 4 campaign ran and was labelled
+# `standalone` while embedded-ai-chain's full production pipeline (YOLO +
+# orchestrator + STT/TTS) ran as ONE bare-metal process, invisible to
+# `docker ps`. Caught only by noticing the process held open nvhost/nvgpu
+# file descriptors. Six results were written before this was caught and
+# were deleted rather than relabelled - the co-resident workload was never
+# declared, so it could not be described honestly after the fact.
+
+
+def _fake_proc_tree(tmp_path, pid_fds: dict[int, list[str]], cmdlines: dict[int, str] | None = None):
+    """Build a throwaway directory shaped like /proc: one subdir per pid,
+    each with an `fd/` holding symlinks named after GPU (or non-GPU) anon
+    inodes, plus an optional cmdline file. Exercises the real symlink-target
+    parsing rather than mocking gpu_holding_pids() itself."""
+    cmdlines = cmdlines or {}
+    for pid, targets in pid_fds.items():
+        fd_dir = tmp_path / str(pid) / "fd"
+        fd_dir.mkdir(parents=True)
+        for i, target in enumerate(targets):
+            (fd_dir / str(i)).symlink_to(f"anon_inode:{target}")
+        cmdline_path = tmp_path / str(pid) / "cmdline"
+        cmdline_path.write_bytes(cmdlines.get(pid, f"proc{pid}").encode() + b"\x00")
+    return tmp_path
+
+
+def test_gpu_holding_pids_finds_a_real_gpu_handle(tmp_path, monkeypatch):
+    _fake_proc_tree(tmp_path, {93363: ["nvhost-17000000.gpu-fd10", "nvgpu-ga10b-tsg17"]},
+                    {93363: "/home/michal/dev/embedded-ai-chain/.venv/bin/python tts_consumer.py"})
+    monkeypatch.setattr(manifest, "Path", lambda p="/proc": tmp_path if p == "/proc" else __import__("pathlib").Path(p))
+    found = manifest.gpu_holding_pids()
+    assert [pid for pid, _ in found] == [93363]
+    assert "tts_consumer.py" in found[0][1]
+
+
+def test_gpu_holding_pids_ignores_processes_with_no_gpu_fd(tmp_path, monkeypatch):
+    """A process with ordinary file descriptors (sockets, regular files) must
+    not be reported - only an actual nvhost/nvgpu/nvmap handle counts as
+    "holding the GPU", or every process on the board would trip this."""
+    _fake_proc_tree(tmp_path, {111: ["socket:[12345]", "pipe:[6789]"]})
+    monkeypatch.setattr(manifest, "Path", lambda p="/proc": tmp_path if p == "/proc" else __import__("pathlib").Path(p))
+    assert manifest.gpu_holding_pids() == []
+
+
+def test_gpu_holding_pids_degrades_on_unreadable_proc(monkeypatch):
+    """A missing/unreadable /proc must not crash the benchmark - it should
+    report "found none", the same honest-degradation rule as every other
+    probe in this module."""
+    monkeypatch.setattr(manifest, "Path", lambda p="/proc": __import__("pathlib").Path("/does/not/exist") if p == "/proc" else __import__("pathlib").Path(p))
+    assert manifest.gpu_holding_pids() == []
+
+
+def test_own_container_pids_resolves_via_docker_top(monkeypatch):
+    """docker top reports HOST pids for containerized processes - containers
+    share the host kernel and only the PID *namespace* differs - which is
+    what lets this exclude the lab's own server without excluding a
+    same-looking bare-metal process by name alone."""
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: "PID\n249955\n250287\n250288" if "top" in cmd else None)
+    assert manifest._own_container_pids({"vllm-llm-lab"}) == {249955, 250287, 250288}
+
+
+def test_standalone_is_refused_for_a_bare_metal_gpu_process(monkeypatch):
+    """The container check alone is exactly the gap that let the real
+    incident through - this pins the fix."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)  # no containers, no docker top hits
+    monkeypatch.setattr(manifest, "gpu_holding_pids",
+                        lambda: [(93363, "python tts_consumer.py")])
+    with pytest.raises(SystemExit) as exc:
+        manifest.assert_condition_matches_reality("standalone", own_containers=set())
+    message = str(exc.value)
+    assert "93363" in message
+    assert "tts_consumer.py" in message
+    assert "co-resident" in message
+
+
+def test_standalone_is_refused_when_container_and_bare_metal_both_present(monkeypatch):
+    """Both signals are surfaced together, not just the first one found - a
+    partial report would still under-declare the true co-resident workload."""
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: "vllm-orchestrator" if cmd[:2] == ["docker", "ps"] else None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [(93363, "tts_consumer.py")])
+    with pytest.raises(SystemExit) as exc:
+        manifest.assert_condition_matches_reality("standalone", own_containers=set())
+    message = str(exc.value)
+    assert "vllm-orchestrator" in message
+    assert "93363" in message
+
+
+def test_own_containers_gpu_pids_are_excluded_from_the_bare_metal_check(monkeypatch):
+    """The lab's own server legitimately holds a GPU handle - it must not
+    trip its own guard. own_container_pids() has to resolve to the SAME pids
+    gpu_holding_pids() reports for this to work."""
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: ("" if cmd[:2] == ["docker", "ps"]
+                                          else "PID\n249955" if "top" in cmd else None))
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [(249955, "vllm serve ...")])
+    manifest.assert_condition_matches_reality("standalone", own_containers={"vllm-llm-lab"})
+
+
+def test_standalone_passes_on_a_truly_quiet_board_including_bare_metal(monkeypatch):
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
+    manifest.assert_condition_matches_reality("standalone", own_containers=set())

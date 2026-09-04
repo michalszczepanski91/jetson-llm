@@ -117,12 +117,21 @@ how a measurement is taken. One server session serves every cell of a model (a v
 cold start is ~136s), and cells after the first are flagged as sharing its cold-start
 measurement.
 
-A fourth enforced rule, added when it caught a live mislabel:
-**`execution_condition: standalone` is refused when other containers are running.**
-This device runs a production `vllm-orchestrator` around the clock, so `standalone` is
-the natural thing to type and nothing about the run looks wrong - but on unified
-memory those are co-resident numbers, and a mislabelled result contaminates every
-table it joins. No override flag: stop the other workload, or declare the truth.
+A fourth enforced rule, added after it caught a live mislabel twice in one day:
+**`execution_condition: standalone` is refused unless the board is actually quiet.**
+Checked two ways, because they miss different things - `running_containers()`
+(Docker) and `gpu_holding_pids()` (bare-metal, via `/proc/<pid>/fd` for
+`nvhost`/`nvgpu`/`nvmap` handles). The second check exists because the first one
+wasn't enough: `embedded-ai-chain`'s entire production pipeline (YOLO + orchestrator +
+STT/TTS) runs as one bare-metal process (`tts_consumer.py`) invisible to `docker ps`,
+and a real campaign got labelled `standalone` while it was running the whole time -
+caught only because the user asked whether prior runs were contaminated. Those 6
+results were deleted, not relabelled (the co-resident workload was never declared, so
+there was nothing honest to write after the fact). No override flag either way: stop
+the other workload, or declare the truth. See docs/TODO.md Phase 3's incident record
+for the full sequence - stopping the `vllm-orchestrator` *container* is not sufficient
+for a real `standalone` claim on this device; `tts_consumer.py` also has to stop, and
+that is a materially bigger interruption than the container-only story assumed.
 
 **`scripts/benchmark.py` is retired** (docs/TODO.md Phase 2's ⟨DECIDE⟩, resolved
 2026-09-04) rather than retrofitted: `stream_llm()`-based measurement already covers

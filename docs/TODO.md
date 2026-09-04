@@ -539,25 +539,63 @@ started. Ladder is now 128/512/1024/**1536**, and the config says why. Note this
 also a real constraint on Phase 4: reaching 4096+ needs a per-row memory re-tune, not
 a flag bump.
 
-**A `standalone` result that wasn't.** The first real Phase 3 run declared
-`execution_condition: standalone` while this device's production `vllm-orchestrator`
-was up — because that is the natural thing to type, and nothing about the run looked
-wrong. On unified memory those are co-resident numbers. A *mislabelled* result is
-strictly worse than a missing one: it silently contaminates every table it joins.
-`assert_condition_matches_reality()` now refuses a `standalone` claim when other
-containers are running, naming them and printing the config lines that would declare
-the truth. Deliberately an error with no override flag — the fix is one command
-either way, and an override would get used. It detects containers only, so a
-bare-metal process holding GPU memory still slips through; the message says what was
-found rather than claiming the board is clean.
+**A `standalone` result that wasn't — twice, in two different ways.**
 
-The result that triggered this was deleted rather than committed, which is why
-`results/` holds no Phase 3 result: running `smoke.yaml` as written requires stopping
-the production `vllm-orchestrator`, and that is not this plan's call to make.
-⟨DECIDE⟩ — stop it for campaign runs (cleanest numbers, brief production downtime),
-or run the whole campaign co-resident and label it honestly (no downtime, but every
-figure carries the production container's memory footprint, and Phase 9's
-standalone-vs-co-resident comparison loses its baseline).
+*First (Phase 3, container-level).* The first real Phase 3 run declared
+`execution_condition: standalone` while this device's production `vllm-orchestrator`
+container was up — because that is the natural thing to type, and nothing about the
+run looked wrong. On unified memory those are co-resident numbers. A *mislabelled*
+result is strictly worse than a missing one: it silently contaminates every table it
+joins. `assert_condition_matches_reality()` was added to refuse a `standalone` claim
+when other **containers** are running, naming them and printing the config lines that
+would declare the truth. At that point it detected containers only, and its own
+docstring said so explicitly — "a bare-metal process holding GPU memory still slips
+through."
+
+That gap was real and got exercised the same day. The user later approved stopping
+`vllm-orchestrator` so a genuine standalone campaign could run
+(`output_sweep`/`context_sweep`). It was stopped, the campaign started, and — while it
+was mid-run — the user asked directly: *"does it mean that all other tests were
+contaminated?"* Checking answered no for every already-*committed* result (all five
+Phase 2 verification runs were honestly labelled `co-resident: [vllm-orchestrator]`
+from the start), but yes for the campaign in flight: `embedded-ai-chain`'s **entire
+production pipeline** — YOLO perception, orchestrator, STT/TTS — turned out to be
+running as **one bare-metal Python process** (`tts_consumer.py`, PID 93363, up since
+2026-09-03 17:20, i.e. before this repo's Phase 2 work even started), invisible to
+`docker ps` the whole time. Confirmed the same way the incident itself was noticed:
+the process held open `nvhost-*.gpu-fd*`/`nvgpu-*-tsg*` file descriptors under
+`/proc/93363/fd` — a real GPU device handle, not merely an importable GPU-capable
+library.
+
+The campaign was killed immediately (`pkill`, then the orphaned `vllm-llm-lab`
+container removed by hand — `SIGTERM` doesn't run Python `finally` blocks, so the
+campaign script's own production-restore trap did not fire; `vllm-orchestrator` was
+recreated explicitly and its `/health` reconfirmed). The 6 results it had already
+written (`output_sweep`, all labelled `standalone`) were **deleted, not relabelled** —
+the co-resident workload was never declared or controlled during that run, so there
+is nothing honest to write into `co_resident_workload` after the fact. They were never
+committed (`??` throughout), so no history needed rewriting.
+
+`assert_condition_matches_reality()` now checks **two** signals: `running_containers()`
+(Docker, as before) and `gpu_holding_pids()` (new — scans every process's
+`/proc/<pid>/fd` for `nvhost`/`nvgpu`/`nvmap` symlinks). The lab's own container is
+excluded from the bare-metal check via `docker top <name> -eo pid`, which reports
+**host** PIDs for containerized processes (containers share the host kernel; only the
+PID namespace differs) — verified: excluding `vllm-orchestrator`'s 3 host PIDs does
+not also exclude PID 93363. Still not exhaustive — a GPU-idle process about to wake,
+or a form of GPU access this heuristic misses, would still pass — so the error message
+reports what was found, not that the board is now provably clean. Same no-override
+policy as before.
+
+**This changes the cost of a genuine `standalone` claim on this device.** Stopping the
+`vllm-orchestrator` *container* is not sufficient — the production pipeline that
+actually matters runs as `tts_consumer.py`, and stopping *that* is a materially larger
+interruption (it owns the live dashboard and the real perception/dialogue loop, not
+just an LLM server) than the container-only story assumed. The former ⟨DECIDE⟩ about
+container downtime is superseded by a bigger one: whether/when to stop
+`tts_consumer.py` for a campaign is the user's call, made fresh each time, not a
+standing default — and is exactly the standalone/co-resident tension Phase 9 exists to
+characterise on purpose, rather than route around.
 
 **GATE 3** — met. A benchmark now runs from `(models.yaml key, configs/benchmarks/*.yaml,
 git SHA)` with no CLI flag carrying experimental meaning; verified by a real two-cell
