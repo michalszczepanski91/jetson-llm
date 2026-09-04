@@ -102,7 +102,9 @@ local container, pass `--target remote --remote-host <ip>` to any `scripts/*.py`
 directly (no Makefile target - the host is environment-specific):
 
 ```bash
-uv run python scripts/benchmark.py --model-config 1.5b-awq-vllm-orin --target remote --remote-host <thor-ip>
+uv run python scripts/benchmark_streaming.py --model-config 1.5b-awq-vllm-orin \
+  --execution-condition standalone --target remote --remote-host <thor-ip>
+# scripts/benchmark.py is retired (docs/TODO.md Phase 2) - see CLAUDE.md
 uv run python scripts/validate_tool_calling.py --model-config 1.5b-awq-vllm-orin --target remote --remote-host <thor-ip>
 ```
 

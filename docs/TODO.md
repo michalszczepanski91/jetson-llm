@@ -469,14 +469,19 @@ flag so a thin figure can never read as authoritative as a full one.
 
 ### Still open in this phase
 
-- [ ] `scripts/benchmark.py` (the non-streaming path through
-      `benchmarks/harness.py`) has had none of the above applied: it still discards
-      raw latencies, has no manifest or experiment ID, and sends an identical prompt
-      every repetition, so its TTFT-equivalent figures carry the prefix-cache error
-      above. Either retrofit it or retire it in favour of
-      `benchmark_streaming.py` — ⟨DECIDE⟩, but do not run a campaign through it as
-      it stands. `benchmarks/harness.py` itself is a hand-maintained copy shared with
-      two sibling repos, so any change there has to be a deliberate divergence.
+- [x] **`scripts/benchmark.py` retired 2026-09-04**, resolving the ⟨DECIDE⟩. Not
+      retrofitted: `benchmarks/runner.py:measure_cell()` (via `stream_llm()`) already
+      measures a strict superset of what it did — TTFT, decode time, AND end-to-end
+      latency, plus energy and real token counts, none of which the old script had.
+      Retrofitting would have produced a second, weaker copy of the same
+      measurement — the same mistake as `docker-compose.yml`/`VllmCoordinator`
+      drifting on `--enable-auto-tool-choice`, avoided rather than repeated. Left as
+      a shim that exits with a pointer to `run_experiment.py`/`benchmark_streaming.py`
+      rather than deleted outright, so an old `make benchmark` invocation fails
+      loudly instead of silently doing nothing. `benchmarks/harness.py` itself is
+      untouched — only this script's use of it is retired; the harness is a
+      hand-maintained copy shared with two sibling repos and stays available for
+      import by anything else that wants `run_benchmark()` directly.
 - [ ] Backfill the same treatment into `scripts/validate_tool_calling.py` /
       `validate_mmlu.py` so they emit `quality_result` documents (this is Phase 5's
       first task, listed there).
@@ -484,7 +489,7 @@ flag so a thin figure can never read as authoritative as a full one.
 **GATE 2** — met for the streaming path, 2026-09-04: a real run on
 `1.5b-q4-llamacpp-orin` produced raw per-run rows, an energy/token figure, a complete
 manifest, an experiment ID, an explicit co-resident label, and passed schema
-validation. **Not yet met for `scripts/benchmark.py`** — see "Still open" above.
+validation. `scripts/benchmark.py`'s prior gap is now moot — it is retired, not fixed.
 Remaining before the gate closes fully: re-derive published aggregates from a raw
 file as proof the raw data is sufficient.
 
@@ -782,6 +787,7 @@ Rows are never deleted, even when superseded — same convention as
 | 2026-09-04 | **How many papers is decided after the results exist, not now.** This repo is built as the instrument for `paper.md`'s P3/P4/P5/P6 either way; whether the benchmark data also carries a paper of its own is answered by the data | Direct user decision. The earlier row pre-committed to an answer that the campaign itself is better placed to give — and nothing in Phases 2-10 changes based on which way it goes, so there is no cost to deferring it |
 | 2026-09-04 | Prompts vary per repetition by default (`--prompt-uniqueness unique-per-run`), and the choice is a recorded schema field | Identical prompts made both backends serve every repetition from a KV-cache hit; measured 6.6x TTFT error (40.8ms vs 268.1ms p50) in the flattering direction. See Phase 2's finding |
 | 2026-09-04 | `HUGGINGFACE_HUB_CACHE`/`HF_HUB_CACHE` set explicitly in both the coordinator and compose | The image bakes in its own value that overrides `HF_HOME`, making the host cache mount inert; every vLLM run re-downloaded its weights into a `--rm` container. Measured: 156.2s -> 136.2s cold start for a 1.5GB model, and it scales with model size |
+| 2026-09-04 | `scripts/benchmark.py` retired rather than retrofitted, replaced by a pointer shim | `stream_llm()`-based measurement already covers a strict superset of what it measured; retrofitting would duplicate the same measurement a second, weaker way |
 | 2026-09-04 | Measurement continues past `--runs` until `--min-measurement-s` elapses | A vLLM cell finished 8 repetitions in 4.4s and produced an energy figure backed by 9 power samples; the sampler needs wall-clock time, not repetitions |
 | 2026-09-04 | `write_result()` refuses to overwrite an existing result | note.md §29 immutability, enforced rather than trusted — a re-run must be a new replicate, never a silent replacement of data a figure was drawn from |
 | 2026-09-04 | Apertus and Bielik stay in the matrix despite note.md not mentioning them | They are this lab's actual second/third families and its only decisive negative result |

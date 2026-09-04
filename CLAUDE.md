@@ -124,13 +124,15 @@ the natural thing to type and nothing about the run looks wrong - but on unified
 memory those are co-resident numbers, and a mislabelled result contaminates every
 table it joins. No override flag: stop the other workload, or declare the truth.
 
-**`scripts/benchmark.py` has had none of this applied** - it still discards raw
-latencies, carries no manifest, and sends an identical prompt every repetition, so
-its numbers carry the prefix-cache error above. Don't run a campaign through it as it
-stands; `docs/TODO.md` Phase 2 has it as an open ⟨DECIDE⟩ (retrofit or retire).
-`benchmarks/harness.py` is the shared hand-maintained copy, so changing it is a
-deliberate divergence from two sibling repos; `benchmarks/manifest.py` is new and
-repo-specific, which is why the new machinery lives there instead.
+**`scripts/benchmark.py` is retired** (docs/TODO.md Phase 2's ⟨DECIDE⟩, resolved
+2026-09-04) rather than retrofitted: `stream_llm()`-based measurement already covers
+a strict superset of what it measured (TTFT + decode + e2e, plus energy and real
+token counts, none of which it had). It is now a shim that exits with a pointer to
+the replacements, so an old invocation fails loudly rather than silently doing
+nothing. `benchmarks/harness.py` itself is untouched - only this script's use of it
+retired; the harness stays the shared hand-maintained copy across sibling repos.
+`benchmarks/manifest.py` and `benchmarks/runner.py` are new and repo-specific, which
+is why the retrofit machinery lives there instead.
 
 ## Schemas
 

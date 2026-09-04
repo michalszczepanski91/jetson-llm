@@ -29,9 +29,12 @@ stop-llamacpp:  ## Stop the llama.cpp container
 	$(COMPOSE) -f docker-compose.llamacpp.yml down
 
 # ── Benchmarking / validation (each starts+stops its own container) ────────
-benchmark:      ## Latency/cold-start/thermal/power - pass CONFIG=<model-config> (default 1.5b-awq-vllm-orin)
-	uv run python scripts/benchmark.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
-	  --results-json output/benchmark_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+benchmark:      ## RETIRED - see `make experiment` / `make benchmark-streaming` (docs/TODO.md Phase 2)
+	@echo "scripts/benchmark.py is retired - it predates the raw-runs/manifest/energy retrofit"
+	@echo "and measured a subset of what the replacements do. Use instead:"
+	@echo "  make experiment EXP=configs/benchmarks/smoke.yaml"
+	@echo "  make benchmark-streaming CONFIG=<key> CONDITION=standalone"
+	@exit 1
 
 experiment:     ## Run a full experiment from a config - EXP=configs/benchmarks/<name>.yaml [DRY=1]
 	@test -n "$(EXP)" || { \
