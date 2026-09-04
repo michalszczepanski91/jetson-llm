@@ -629,19 +629,47 @@ note.md §48's "minimum viable publication experiment", retargeted to the hardwa
 actually exists. Deliberately one platform, one backend, one precision — every other
 axis is held constant so the two swept axes mean something.
 
-- [ ] **Context-length sweep** (note.md §11): input 128 / 512 / 1024 / 2048, batch=1,
-      output=128. 4096+ only where `max_model_len` allows — every current `models.yaml`
-      row is pinned to 2048, so raising it is itself an experimental change and needs
-      its own memory re-tune, not a silent flag bump.
-- [ ] **Output-length sweep** (note.md §12): output 16 / 32 / 64 / 128 / 256 / 512 at
-      fixed input. This is *exactly* `embedded-ai-chain/docs/paper.md`'s **P3** core
-      experiment ("generative extent can dominate the perception budget") — run it in
-      the form P3 needs (total latency, decode latency, TTFT, p50/p95/p99, energy,
-      generated tokens) so one campaign serves both documents.
-- [ ] Per point measure: TTFT, prefill tok/s, decode tok/s, E2E latency, inter-token
-      latency distribution, peak system RAM, power, J/output-token.
-- [ ] ≥30 measured runs per cell, raw rows preserved, thermal state recorded, and any
-      cell flagged invalid if throttling occurred (note.md §38).
+- [x] **Output-length sweep** (note.md §12): output 16/32/64/128/256/512 @
+      input=512. **Run 2026-09-04**, both backends, 12/12 cells, 30+ reps each, zero
+      failures, board confirmed quiet before/after — see commit `0d3bf08`. Real
+      signal (one replicate, not yet a claim): J/output-token is highest at the
+      shortest output on both backends (vLLM 0.473 @ out=16 → 0.297 @ out≥128;
+      llama.cpp 0.949 @ out=16 → 0.657-0.683 @ out≥128), consistent with fixed
+      per-request overhead amortizing over more generated tokens — the expected P3
+      shape. This *is* `embedded-ai-chain/docs/paper.md`'s P3 core experiment, run
+      in the form P3 needs.
+- [x] **Context-length sweep** (note.md §11): input 128/512/1024/**1536** (not 2048 —
+      `tests/test_experiment_configs.py` caught input+output overflowing every
+      current row's 2048-token context before any server was started; see Phase 3's
+      record). **Run 2026-09-04**, both backends, 8/8 cells, 30 reps each, zero
+      failures — see commit `6c44fd5`. **Real backend-scaling finding**: TTFT scales
+      very differently by backend over this range —
+
+      | input tokens | 128 | 512 | 1024 | 1536 |
+      |---|---|---|---|---|
+      | vLLM TTFT ms | 40.8 | 66.0 | 83.2 | 81.8 |
+      | llama.cpp TTFT ms | 213.2 | 310.1 | 630.3 | 897.7 |
+
+      vLLM is close to flat (~2x over the full range); llama.cpp is clearly
+      super-linear (roughly doubles 512→1024 alone). Decode throughput stays close
+      to constant on both backends across the sweep, so this is specifically a
+      *prefill*-scaling difference, not a general speed gap — exactly the "does the
+      best runtime depend on context length" question note.md §11 and Phase 8's
+      backend study exist to answer. Confounded by quantization format (AWQ vs
+      GGUF Q4_K_M), same as every cross-backend comparison in this lab so far —
+      stated, not fixed, per this repo's own fairness rules (note.md §41).
+- [x] Both sweeps measure: TTFT, prefill tok/s, decode tok/s, E2E latency,
+      inter-token latency distribution, peak system RAM, power, J/output-token.
+- [x] ≥30 measured runs per cell (one llama.cpp cell in output_sweep reached 71 —
+      the `--min-measurement-s` floor kept it running past `--runs` at high
+      throughput). Raw rows preserved for all 20 cells. No thermal throttling
+      observed in either campaign.
+
+**Also real, not yet explained — a candidate for Phase 9, not a finding on its own.**
+llama.cpp's decode throughput in these standalone runs (36-43 tok/s) is roughly
+double Phase 2's co-resident verification measurement at the same config (21 tok/s).
+One data point against another, not a controlled comparison — but exactly the shape
+of result Phase 9's standalone-vs-co-resident design exists to produce properly.
 
 **Mapping to `embedded-ai-chain/docs/paper.md`** — the reason this phase is worth its
 cost beyond model selection:
@@ -653,8 +681,13 @@ cost beyond model selection:
 | P5 — hardware changes the optimal allocation | Phase 6 (Orin vs Thor, same models/inputs/methodology) |
 | P6 — memory is an allocation resource | Phase 9 co-resident runs + every OOM recorded as a result |
 
-**GATE 4** — both sweeps complete for at least one row, plots regenerable from raw
-data, and the P3 table drafted into `paper.md` from real numbers.
+**GATE 4** — partially met, 2026-09-04. Both sweeps are complete for one row (in
+fact for both backends, not just one), with real numbers and two findings worth
+writing up. **Not yet done**: an analysis script regenerating plots from
+`results/raw/` (that's Phase 10), and drafting the P3 table into
+`embedded-ai-chain/docs/paper.md` itself — a decision that touches the parent repo's
+paper and wasn't asked for as part of running the campaign, so it's left as an
+explicit next step rather than done unprompted.
 
 ## Phase 5 — Complete the scorecard matrix (was Phase 3)
 
