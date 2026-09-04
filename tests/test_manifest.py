@@ -193,3 +193,39 @@ def test_backend_version_reads_the_running_server(monkeypatch):
 def test_image_digest_strips_the_repo_prefix(monkeypatch):
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: "dustynv/llama_cpp@sha256:abc")
     assert manifest.image_digest("dustynv/llama_cpp:tag") == "sha256:abc"
+
+
+# --- the standalone honesty check -----------------------------------------
+
+
+def test_standalone_is_refused_when_other_containers_run(monkeypatch):
+    """docs/note.md §15's distinction is only worth anything if a `standalone`
+    claim is checked. This device runs a production vllm-orchestrator around
+    the clock, so `standalone` is the natural thing to type and nothing about
+    the run would look wrong - which is how a mislabelled result nearly got
+    committed on 2026-09-04."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: "vllm-orchestrator\nsomething-else")
+    with pytest.raises(SystemExit) as exc:
+        manifest.assert_condition_matches_reality("standalone", own_containers={"vllm-llm-lab"})
+    message = str(exc.value)
+    # The message must name what it found and show the fix, or it just blocks.
+    assert "vllm-orchestrator" in message
+    assert "co-resident" in message
+
+
+def test_standalone_passes_on_a_quiet_board(monkeypatch):
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
+    manifest.assert_condition_matches_reality("standalone", own_containers=set())
+
+
+def test_our_own_container_does_not_count_as_co_residency(monkeypatch):
+    """The lab's own server is the workload, not a co-resident neighbour."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: "vllm-llm-lab")
+    manifest.assert_condition_matches_reality("standalone", own_containers={"vllm-llm-lab"})
+
+
+def test_co_resident_runs_are_never_blocked(monkeypatch):
+    """The check exists to stop a false `standalone`, not to police what may
+    run - a co-resident run declaring the truth is exactly what Phase 9 needs."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: "yolo\nstt\ntts")
+    manifest.assert_condition_matches_reality("co-resident", own_containers=set())

@@ -490,46 +490,75 @@ file as proof the raw data is sufficient.
 
 ## Phase 3 — Experiment configuration, separated from model configuration
 
-- [x] **Done 2026-09-04.** Promoted `schemas/*.json` from example instances to real
-      JSON Schema (draft 2020-12), originals preserved verbatim as
-      `schemas/examples/*.example.json` per this file's append-only convention.
-      Four schemas now exist, not three: `model` / `experiment` /
-      `benchmark_result` / **`quality_result`** — the fourth was added because
-      note.md §5 keeps quality and performance independently measurable, which is
-      only enforceable if they are separate document types rather than one merged
-      row. `tests/test_schemas.py` (31 tests) checks that each schema is itself
-      valid (a typo'd keyword otherwise fails *open* — unknown keywords are silently
-      ignored, so a broken schema validates everything), that each schema's own
-      examples pass, and — the only one guarding live data today — that **all 9
-      `configs/models.yaml` rows validate**, including a conditional that rejects
-      llama.cpp-only args on a vLLM row and vice versa (inert in the coordinator,
-      authoritative-looking in the registry forever). Conformance levels are
-      documented in `schemas/README.md`: `model.schema.json` is written to what the
-      registry satisfies *today*, the other three to what Phases 2/3/5 produce.
-      Added `jsonschema==4.26.0` to `requirements.txt` (pure Python — none of the
-      GPU-wheel-shadowing risk `docs/environment.md` warns about).
-- [ ] Backfill `configs/models.yaml` with note.md §28's registry fields the schema
-      already defines and documents (`family`, `parameters_b`, `revision`,
-      `quantization{}`, `license`, `status`, ...), then promote them to `required`.
-      Deliberately not done at the same time as the schema: a backfill is a change
-      to the experimental record and deserves its own review, not a side effect.
-- [ ] Validate every *written result* against `benchmark_result.schema.json` /
-      `quality_result.schema.json` in the test suite, so a malformed row fails in CI
-      rather than three months into a campaign. Blocked on Phase 2 — the scripts
-      don't emit conformant documents yet; `schemas/examples/*.target.json` are the
-      shapes they must produce.
-- [ ] Add `configs/benchmarks/{smoke,latency,streaming,context,output,quality}.yaml`
-      (note.md §8) holding input/output token grids, warmup/measurement counts, and
-      sampling params. `configs/models.yaml` stays a *candidate registry* and does not
-      absorb these.
-- [ ] Pin sampling explicitly in every benchmark config (`temperature: 0.0` for
-      performance runs). Do not inherit server defaults — Phase 1 already proved
-      llama.cpp's default ~0.8 changes *behaviour*, not just wording.
-- [ ] Version the prompt/chat-template inputs (note.md §21). Record the tool schema
-      and system prompt used, with a version string, in the manifest.
+**Done 2026-09-04.**
 
-**GATE 3** — a benchmark can be re-run from `(models.yaml key, benchmarks/*.yaml,
-git SHA)` alone, with no CLI flags carrying experimental meaning.
+- [x] Promoted `schemas/*.json` from example instances to real JSON Schema
+      (draft 2020-12), originals preserved as `schemas/examples/*.example.json`.
+      Four schemas, not three: `quality_result` was added because note.md §5 keeps
+      the quality and performance layers independently measurable, which is only
+      enforceable if they are separate document types. `schemas/README.md` documents
+      the two conformance levels — `model.schema.json` is written to what the
+      registry satisfies today (so it guards live data now), the rest to what these
+      phases produce.
+- [x] `configs/benchmarks/{smoke,output_sweep,context_sweep}.yaml`, each validated
+      against `experiment.schema.json` in the test suite. `configs/models.yaml`
+      stays a candidate registry and absorbs none of this.
+- [x] Sampling pinned explicitly in every config (`temperature: 0.0`). Never
+      inherited — Phase 1 already proved llama.cpp's default ~0.8 changes
+      *behaviour*, not just wording.
+- [x] Prompt/template inputs versioned (note.md §21): `prompt_source`,
+      `prompt_template_version` and `prompt_uniqueness` are recorded in every result.
+- [x] `scripts/run_experiment.py` — the config-driven grid runner, and
+      `benchmarks/runner.py` — the shared measurement core. Both entry points now go
+      through one `measure_cell()`, so a second entry point cannot re-implement the
+      measurement loop and drift; that drift has cost this repo a debugging session
+      once already (`--enable-auto-tool-choice` in compose but not in the coordinator).
+      One server session serves every cell of a model — a 12-cell vLLM grid
+      restarting per cell would spend 27 minutes on cold starts — and cells after the
+      first carry `cold_start_shared_across_cells_in_this_server_session` so N cells
+      are never mistaken for N cold-start measurements.
+- [x] Campaigns resume: a cell whose result already exists is skipped, not
+      overwritten. A cell that fails is recorded and the rest continue — an OOM at
+      2048 context is a result (note.md §54), not a reason to abort a campaign.
+- [ ] Validate emitted `quality_result` documents in the test suite. Blocked on
+      Phase 5 — `validate_tool_calling.py`/`validate_mmlu.py` don't emit them yet.
+
+### Two bugs the tests and the runner caught before any campaign
+
+**A config asked for more context than the candidates have.** `context_sweep.yaml`'s
+first draft used the canonical 128/512/1024/**2048** ladder with `output_tokens: 128`
+— but the context window has to hold input *and* output *and* the chat template, and
+every current row pins 2048. `tests/test_experiment_configs.py` checks
+`max(input) + max(output) <= ctx` per candidate and failed before a server was ever
+started. Ladder is now 128/512/1024/**1536**, and the config says why. Note this is
+also a real constraint on Phase 4: reaching 4096+ needs a per-row memory re-tune, not
+a flag bump.
+
+**A `standalone` result that wasn't.** The first real Phase 3 run declared
+`execution_condition: standalone` while this device's production `vllm-orchestrator`
+was up — because that is the natural thing to type, and nothing about the run looked
+wrong. On unified memory those are co-resident numbers. A *mislabelled* result is
+strictly worse than a missing one: it silently contaminates every table it joins.
+`assert_condition_matches_reality()` now refuses a `standalone` claim when other
+containers are running, naming them and printing the config lines that would declare
+the truth. Deliberately an error with no override flag — the fix is one command
+either way, and an override would get used. It detects containers only, so a
+bare-metal process holding GPU memory still slips through; the message says what was
+found rather than claiming the board is clean.
+
+The result that triggered this was deleted rather than committed, which is why
+`results/` holds no Phase 3 result: running `smoke.yaml` as written requires stopping
+the production `vllm-orchestrator`, and that is not this plan's call to make.
+⟨DECIDE⟩ — stop it for campaign runs (cleanest numbers, brief production downtime),
+or run the whole campaign co-resident and label it honestly (no downtime, but every
+figure carries the production container's memory footprint, and Phase 9's
+standalone-vs-co-resident comparison loses its baseline).
+
+**GATE 3** — met. A benchmark now runs from `(models.yaml key, configs/benchmarks/*.yaml,
+git SHA)` with no CLI flag carrying experimental meaning; verified by a real two-cell
+grid on `1.5b-q4-llamacpp-orin` (one server session, per-cell documents, shared
+cold-start correctly flagged, thin-power windows correctly flagged, and a re-run
+skipping both completed cells).
 
 ## Phase 4 — Canonical Orin campaign (the first complete vertical slice)
 

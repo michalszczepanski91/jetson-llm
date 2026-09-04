@@ -109,6 +109,50 @@ def image_digest(image: str) -> str | None:
     return out.split("@", 1)[1] if "@" in out else out
 
 
+def running_containers(exclude: set[str] | None = None) -> list[str]:
+    """Names of currently running containers, minus the ones this lab starts
+    itself. Used as a pre-flight honesty check: see `assert_condition_matches_reality`."""
+    out = _run(["docker", "ps", "--format", "{{.Names}}"])
+    if not out:
+        return []
+    return [n for n in out.splitlines() if n and n not in (exclude or set())]
+
+
+def assert_condition_matches_reality(execution_condition: str, own_containers: set[str]) -> None:
+    """Refuse to record `standalone` on a board that plainly isn't.
+
+    docs/note.md §15 makes the standalone/co-resident distinction load-bearing
+    for every figure this lab produces, and a *mislabelled* result is strictly
+    worse than a missing one - it silently contaminates any table it joins.
+    The failure mode is entirely realistic: this device runs a production
+    `vllm-orchestrator` around the clock, so the natural thing to type is
+    `standalone`, and nothing about the run would have looked wrong. Caught
+    exactly that way on the first Phase 3 grid run, 2026-09-04.
+
+    Deliberately an error rather than a warning, and deliberately without an
+    override flag: the fix is either to stop the other workload or to declare
+    the truth, and both are one command. An override would be used.
+
+    Only container co-residency is detected. A bare-metal process holding GPU
+    memory would not be, so this narrows the gap rather than closing it -
+    which is why the message says what was found rather than promising the
+    board is clean."""
+    if execution_condition != "standalone":
+        return
+    others = running_containers(exclude=own_containers)
+    if others:
+        raise SystemExit(
+            "error: execution_condition is 'standalone' but other containers are running:\n"
+            + "".join(f"    {n}\n" for n in others)
+            + "On unified memory these compete for the same RAM and GPU, so the resulting\n"
+            "numbers are co-resident numbers. Either stop them, or declare the truth:\n"
+            "    execution_condition: co-resident\n"
+            f"    co_resident_workload: [{', '.join(others)}]\n"
+            "A mislabelled result is worse than no result - it contaminates every table\n"
+            "it is joined into (docs/note.md §15)."
+        )
+
+
 # --- backend version (read from the running server) ------------------------
 
 

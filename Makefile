@@ -7,7 +7,7 @@
 # against an already-running container), not for the benchmark scripts
 # themselves, which start/stop their own container via llm_coordinator.py.
 .PHONY: help serve-1.5b-vllm serve-1.5b-llamacpp stop stop-llamacpp \
-        benchmark benchmark-streaming validate-tool-calling validate-mmlu test clean clean-docker
+        benchmark experiment benchmark-streaming validate-tool-calling validate-mmlu test clean clean-docker
 
 COMPOSE := docker compose
 
@@ -32,6 +32,15 @@ stop-llamacpp:  ## Stop the llama.cpp container
 benchmark:      ## Latency/cold-start/thermal/power - pass CONFIG=<model-config> (default 1.5b-awq-vllm-orin)
 	uv run python scripts/benchmark.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
 	  --results-json output/benchmark_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+
+experiment:     ## Run a full experiment from a config - EXP=configs/benchmarks/<name>.yaml [DRY=1]
+	@test -n "$(EXP)" || { \
+	  echo "error: EXP is required, e.g."; \
+	  echo "  make experiment EXP=configs/benchmarks/smoke.yaml"; \
+	  echo "  make experiment EXP=configs/benchmarks/output_sweep.yaml DRY=1"; \
+	  echo "Available:"; ls configs/benchmarks/*.yaml | sed 's/^/  /'; \
+	  exit 1; }
+	uv run python scripts/run_experiment.py $(EXP) $(if $(DRY),--dry-run,)
 
 benchmark-streaming: ## TTFT/tok-s/memory/power/ENERGY - CONFIG=<model-config> CONDITION=standalone|co-resident [CORESIDENT="yolo stt"]
 	@test -n "$(CONDITION)" || { \

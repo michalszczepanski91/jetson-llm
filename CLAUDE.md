@@ -36,7 +36,8 @@ evaluates), so unlike that repo, nothing here does JPEG/frame encoding.
 ```bash
 make serve-1.5b-vllm / make serve-1.5b-llamacpp   # Start a candidate server in the foreground
 make benchmark CONFIG=<key>                        # Latency/cold-start/thermal/power (NOT yet retrofitted - see below)
-make benchmark-streaming CONFIG=<key> CONDITION=standalone   # TTFT/tok-s/memory/power/ENERGY
+make experiment EXP=configs/benchmarks/<name>.yaml   # Run a full experiment (the reportable path)
+make benchmark-streaming CONFIG=<key> CONDITION=standalone   # One ad-hoc cell
 make validate-tool-calling CONFIG=<key>             # BFCL tool-call judgment accuracy (needs staged data, see README)
 make validate-mmlu CONFIG=<key>                     # MMLU quantization-sanity accuracy (needs staged data, see README)
 make test                                           # Unit tests, no Docker/GPU needed
@@ -106,6 +107,22 @@ Three rules the code enforces rather than trusts:
   in the aggregates and only caught by reading llama-server's own log
   (`prompt eval time = ... / 1 tokens` for a 40-token prompt). `--prompt-uniqueness`
   controls it and the choice is recorded in every result.
+
+`scripts/run_experiment.py` is the path for anything that will be reported: it takes
+a `configs/benchmarks/*.yaml` file, so an experiment is re-runnable from (model config
+key, experiment config, git SHA) with no flag typed at a shell prompt carrying
+experimental meaning. `scripts/benchmark_streaming.py` remains for ad-hoc probing.
+Both go through `benchmarks/runner.py:measure_cell()` so they cannot disagree about
+how a measurement is taken. One server session serves every cell of a model (a vLLM
+cold start is ~136s), and cells after the first are flagged as sharing its cold-start
+measurement.
+
+A fourth enforced rule, added when it caught a live mislabel:
+**`execution_condition: standalone` is refused when other containers are running.**
+This device runs a production `vllm-orchestrator` around the clock, so `standalone` is
+the natural thing to type and nothing about the run looks wrong - but on unified
+memory those are co-resident numbers, and a mislabelled result contaminates every
+table it joins. No override flag: stop the other workload, or declare the truth.
 
 **`scripts/benchmark.py` has had none of this applied** - it still discards raw
 latencies, carries no manifest, and sends an identical prompt every repetition, so
