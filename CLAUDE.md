@@ -12,9 +12,10 @@ model/framework/family. Currently Qwen2.5-Instruct (1.5B/3B/7B), Apertus-8B-Inst
 (data-sovereignty framing - Swiss-public-funded and fully open including training
 data, vs Qwen's Alibaba origin - but **BLOCKED**: llama.cpp doesn't recognize its
 GGUF architecture at all, confirmed on two build versions, no working serving path
-exists), and Bielik-11B-v3.0-Instruct (Polish, SpeakLeash - **confirmed working**,
-the strongest llama.cpp result of any family so far). See README's "Model families"
-table for the full comparison.
+exists), and Bielik-11B-v3.0-Instruct (Polish, SpeakLeash - **llama.cpp: working**,
+the strongest llama.cpp result of any family so far; **vLLM: serves correctly but
+tool-calling doesn't work** on either of two parsers tried - the opposite pattern
+from Qwen2.5). See README's "Model families" table for the full comparison.
 
 (Named `jetson-llm-qwen` until Apertus was added - renamed once a second model family
 broadened its scope, mirroring `jetson-vlm-lab`'s own history of starting as
@@ -122,5 +123,7 @@ now pins `--temperature 0.1` by default) and a second real bug (BFCL's non-stand
 JSON-schema type names crashing llama.cpp's grammar builder) was fixed along the
 way - first real BFCL scorecard: 75% overall on a 40-case sample. Apertus-8B: blocked
 outright (llama.cpp has no support for its GGUF architecture; no AWQ exists for
-vLLM). Bielik-11B: confirmed working on llama.cpp, including a correctly structured
-tool call on the first try.
+vLLM). Bielik-11B: confirmed working on llama.cpp (correctly structured tool call on
+the first try) but tool-calling confirmed NOT working on vLLM (two parsers tried,
+`hermes` and `llama3_json`, identical failure on both) - plain completion and Polish
+work fine on vLLM, just not tool-calling, the opposite pattern from Qwen2.5.

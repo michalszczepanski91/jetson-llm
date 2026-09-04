@@ -74,6 +74,48 @@
     other pipeline components running) before drawing any co-residency
     conclusion from it.
 
+bielik-11b-awq-vllm-orin:
+  model: speakleash/Bielik-11B-v3.0-Instruct-awq
+  precision: "compressed-tensors int4, group_size=128, symmetric=false (NOT classic AWQ despite the repo name - see note)"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.3  # untested starting point - between the 3b (0.25) and 7b (0.5)
+                                # rows' fractions since this quant's ~6.2GB weights fall between
+                                # those two sizes; re-tune on first real run, same as every other
+                                # untested row here
+  max_model_len: 2048  # matches every other row's for a fair cross-family comparison
+  notes: >
+    Smoke-tested 2026-09-04. gpu_memory_utilization=0.3 works (cold start
+    ~234-274s across two runs) - no re-tuning needed. Official SpeakLeash
+    repo (219K downloads - more than their own GGUF), confirmed ungated
+    (unlike the base speakleash/Bielik-11B-v3.0-Instruct repo). Named "-awq"
+    by SpeakLeash but its own config.json shows "quant_method":
+    "compressed-tensors" (int4, group_size=128, packed via the llmcompressor
+    project's format) - a different quantization path than the classic AWQ
+    used for the Qwen rows above; vLLM auto-detected and loaded it fine, no
+    extra_args needed. Plain completion and a Polish-language sanity check
+    ("Jaka jest stolica Polski?" -> correct, coherent Polish) both work well.
+
+    Tool-calling: CONFIRMED NOT WORKING via vLLM, on two different
+    parsers - --tool-call-parser hermes (vLLM's compiled-in default for this
+    lab's VllmCoordinator) and llama3_json (tried since Bielik-v3 is
+    LlamaForCausalLM-architected) both returned an empty tool_calls list on
+    the identical get_weather/Warsaw test that vLLM+Qwen2.5 and
+    llama.cpp+Bielik both handled correctly. Not a fluke - two independent
+    parsers, identical result. Root cause, not just symptom: Bielik's own
+    GGUF README documents tool use only as a manual prompt-injection
+    convention (an Ollama Modfile asking the model to emit
+    {"name":...,"arguments":{...}} as plain text), not evidence of native
+    training on any tagged format vLLM's per-family regex parsers look for -
+    consistent with why llama.cpp's grammar-CONSTRAINED "Generic" tool-call
+    path works for this model (forces valid JSON structurally, regardless of
+    what the model was trained to emit) where vLLM's tag-DETECTION parsers
+    don't (nothing to detect if the model never emits the tag at all). Not
+    exhaustively tried: vLLM has ~30 total --tool-call-parser options: the
+    other ~28 remain untried after two failed, cheap, plausible guesses -
+    diminishing-returns territory, not attempted further without a specific
+    reason to expect a particular one would match Bielik's training.
+
 1.5b-q4-llamacpp-orin:
   model: Qwen/Qwen2.5-1.5B-Instruct-GGUF
   precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"

@@ -1,9 +1,12 @@
 # TODO — orchestrator-LLM selection lab
 
 Action list for turning this repo into a working multi-candidate orchestrator-LLM
-selection lab, per `docs/promotion-contract.md`. Phase-gated like
-`embedded-ai-chain`'s own `docs/TODO.md` and `jetson-vlm-lab`'s own `docs/TODO.md` -
-don't start a phase until the one before it is checked off.
+selection lab, per `docs/promotion-contract.md`, **and** — since 2026-09-04, per
+`docs/note.md` — into a reproducible Jetson LLM benchmark suite of which that
+selection scorecard is one subset. See "Scope change" below for how the two fit
+together and what was reconciled. Phase-gated like `embedded-ai-chain`'s own
+`docs/TODO.md` and `jetson-vlm-lab`'s own `docs/TODO.md` - don't start a phase until
+the one before it is checked off.
 
 ## Phase 0 — Framework survey (research, done before any code was written)
 
@@ -195,38 +198,302 @@ explicitly deferred with reasons recorded above (not silently dropped).
 
 **GATE 1** — met for Qwen2.5-1.5B on both backends, and for Bielik-11B on llama.cpp.
 Apertus is a closed question (blocked, documented) rather than an open one. Still
-pending before Phase 3's full matrix: the remaining Qwen sizes (3B/7B), and a real
+pending before the full matrix: the remaining Qwen sizes (3B/7B), and a real
 BFCL/MMLU scorecard run for every row that's actually able to serve at all.
 
-## Phase 2 — Thor access
+*(Written when that matrix was Phase 3; it is Phase 5 after the 2026-09-04
+renumbering below. Left as written rather than edited, per this file's append-only
+convention.)*
 
-- [ ] Confirm SSH/LAN reachability to the user's Thor the same way
-      `jetson-vlm-lab`'s Phase B did (`10.8.32.124` there - Thor's address here may
-      differ, don't assume it's the same machine)
+---
+
+# Scope change, 2026-09-04 — `docs/note.md` merged into this plan
+
+`docs/note.md` (added 2026-09-04 alongside `docs/progect.diagram.md` and the
+`schemas/` sketches) re-aims this repo from "pick one orchestrator LLM for
+`embedded-ai-chain`" to "a reproducible, publication-quality LLM benchmark suite for
+Jetson, which *also* picks that orchestrator LLM." Phases 2+ below are rewritten
+around that. Phases 0-1 above are untouched — they are the experimental record, and
+this file's own append-only convention applies to them.
+
+**What note.md asks for that this repo already has** (do not rebuild these — note.md
+§1 says so itself, and it was written without a full read of `benchmarks/harness.py`):
+
+| note.md requirement | Already implemented |
+|---|---|
+| §9 p50/p95/p99, never means | `harness.percentiles()` — mean is deliberately absent |
+| §9 cold start separate from inference | `run_benchmark()`'s `setup_fn` timing → `cold_start_ms` |
+| §9 "do not report client-process RSS as model memory" | already the case, *and* already flagged in `scripts/benchmark.py`'s `rss_mb_caveat` |
+| §9 system RAM vs process RSS on unified memory | `system_ram_mb` (tegrastats) vs `rss_mb`, separately |
+| §38 thermal stability / steady-state window | `TegrastatsSampler.is_thermally_stable()` — real `tj` flatness, plus a `warmup_reached_steady_state=False` flag when it gives up |
+| §14 power sampled *during* the measurement window only | `sampler.samples_between(t_meas_start, t_meas_end)` |
+| §3 power mode / clock state on every result | `nvpmodel_mode()`, `jetson_clocks_locked_heuristic()`, `l4t_version()` on every row |
+| §36 tool-calling eval, external dataset | `scripts/validate_tool_calling.py` against real BFCL |
+| §17 a general-capability suite | `scripts/validate_mmlu.py` |
+| §28 registry with platform/precision/backend/status-in-notes, never delete rows | `configs/models.yaml` + its own "confirmed vs untested" rule |
+| §57 research discipline / traceable record | Phase 1 above *is* that record |
+
+**Where note.md and this repo's reality disagree — resolved as follows:**
+
+- **note.md §4/§10 "warmup: 5, measurements: 30" would be a regression.** The harness
+  already warms up until junction temperature is flat across a rolling window, and
+  says so when it couldn't. Keep that. Treat note.md's numbers as *floors*
+  (`warmup_min`, `runs`), which is how `scripts/benchmark.py` already passes them.
+- **note.md §26/§48 make Thor the primary platform; this lab has no Thor access at
+  all** (old Phase 2, never started — no confirmed address, no `-thor` row in
+  `configs/models.yaml`). A first publication experiment gated on unavailable hardware
+  is not schedulable. **Decision: Orin is the platform of record; Thor is the
+  cross-platform arm.** That is also the stronger framing — "does the preferred
+  allocation change with the hardware?" is `embedded-ai-chain/docs/paper.md`'s P5,
+  and it needs *both* platforms, not Thor alone.
+- **note.md §7's example schema hardcodes `"memory_gb": 128`.** This Orin has ~30GB
+  unified (verified, see `CLAUDE.md`). Every memory-budget figure is per-platform;
+  never carry a Thor budget into an Orin analysis or vice versa.
+- **note.md §45/§46 plan a Qwen2.5-vs-Qwen3.x campaign; this repo has no Qwen3 row and
+  may not be able to serve one.** vLLM ≥0.11 has no prebuilt JetPack 6.2/CUDA 12.6
+  wheels and this lab is pinned to `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin`;
+  whether *that* build serves Qwen3 is unknown. Qwen3 is a Phase 7 task gated on a
+  real check, not a planning assumption.
+- **note.md never mentions Bielik or Apertus**, which are this lab's actual second and
+  third families and its two most interesting existing results (Apertus blocked
+  outright; Bielik the strongest llama.cpp row). They stay in the matrix. A benchmark
+  paper that drops its only decisive negative result is a worse paper.
+- **note.md's full Cartesian matrix is not schedulable.** model × size × precision ×
+  backend × platform × power-mode × context × output × batch, at ~160s vLLM cold start
+  and ≥30 runs per cell, is thousands of runs. note.md §4 already says "do not attempt
+  the complete Cartesian product"; Phases 4-9 below are the actual expansion order.
+- **note.md implies a third paper.** There are already two: `PAPER_PLAN.md`
+  (Real-Time/Embedded Systems journal, 2027-01-25) and `docs/paper.md` (Metabolic
+  Perception position paper). **Decision: this repo is not writing a third paper. It
+  is the instrument that produces `paper.md`'s P3/P4/P5/P6 evidence** — see the
+  mapping in Phase 4. Revisit only if the data turns out to justify a standalone
+  benchmark paper on its own.
+
+**The `schemas/` files added alongside note.md are examples, not schemas** — they are
+instance documents (`"experiment_id": "thor-qwen3-8b-..."`), not JSON Schema (no
+`$schema`, `type`, `properties`, `required`). Phase 3 turns them into real ones and
+keeps the examples as fixtures.
+
+---
+
+## Phase 2 — Measurement-integrity retrofit (do this first)
+
+The cheapest, highest-value work in the whole note.md plan: every task here is a small
+change to code that already exists, and every one of them is *unrecoverable if
+skipped* — a campaign run without these produces numbers that cannot be re-analysed
+later. Nothing in Phases 4+ should run until this phase is closed.
+
+- [ ] **Persist raw per-run measurements** (note.md §10 — the single biggest gap).
+      `run_benchmark()` currently computes `percentiles(latencies)` and then discards
+      `latencies`; `benchmark_streaming.py` keeps its per-run list in memory and
+      writes only percentiles. Both must write every run. Aggregates get regenerated
+      from raw, never stored as the only copy.
+- [ ] **Energy, and the split-brain that currently prevents it.** `benchmark.py` has
+      power (tegrastats, via the harness) but does not know how many tokens were
+      generated; `benchmark_streaming.py` knows the token count but never starts a
+      sampler at all. So `J/token` — note.md §14's headline metric and `paper.md`
+      §7.1's `E_decision` — is presently *uncomputable from either script*. Fix:
+      give the streaming script the harness's sampler, then derive
+      `energy_joules` (rail power integrated over the measured interval) and
+      `energy_per_output_token_j`.
+- [ ] **Real token accounting instead of counted SSE chunks.** `_stream_one()` counts
+      content deltas, which is a chunk count, not a token count, and it has no input
+      token count at all. Request `usage` from the server (`stream_options:
+      {"include_usage": true}` on vLLM; confirm llama-server's equivalent rather than
+      assuming parity — this lab has already been bitten twice by assumed
+      vLLM/llama.cpp parity). Record `input_tokens`, `output_tokens` separately.
+- [ ] **Decompose cold start** (note.md §37). Bielik's recorded 338s "cold start"
+      is mostly a 6.7GB model *download*, and the 1.5B llama.cpp row's 2.0s is a
+      warm-cache number — both already flagged in Phase 1, neither yet separated in
+      code. Split into `download_s` / `container_start_s` / `model_load_s` /
+      `server_ready_s`, and record which of them the run actually paid.
+- [ ] **Environment manifest per run** (note.md §31). Currently absent: git commit of
+      this repo, backend version, container image tag+digest, dataset version,
+      Docker version, the exact command line. Add a `manifest` block to every result
+      row. Backend version must be read from the running server, not from the image
+      tag — the tag `0.3.9-r36.4.0-cu128-24.04` is not a llama.cpp version, and this
+      lab has already had to identify builds 4579 vs 5058 vs 5283 by behaviour.
+- [ ] **Experiment IDs and a result hierarchy** (note.md §29/§30). Replace the
+      hand-passed `--results-json` path with `results/raw/<experiment_id>/`.
+      Historical outputs under `output/` are not rewritten — they are moved, not
+      reformatted, and the move is recorded here.
+- [ ] **`standalone` vs `co-resident` on every row** (note.md §15). One required
+      field, no default — a run must state which it was. This is the field that makes
+      Phase 9 possible at all, and it is the distinction `embedded-ai-chain`'s own
+      Phase 4 concurrency test depends on.
+
+**GATE 2** — one full `benchmark` + `benchmark-streaming` pair on
+`1.5b-awq-vllm-orin` produces: raw per-run rows, an energy/token figure, a complete
+manifest, an experiment ID, and an explicit standalone/co-resident label. Re-derive
+the published aggregates from the raw file as proof the raw data is sufficient.
+
+## Phase 3 — Experiment configuration, separated from model configuration
+
+- [ ] Promote `schemas/*.json` from example instances to real JSON Schema
+      (`$schema`, `type`, `properties`, `required`), keeping the current files as
+      `schemas/examples/` fixtures. Validate every written result against
+      `benchmark_result.schema.json` in the test suite, so a malformed row fails in
+      CI rather than three months into a campaign.
+- [ ] Add `configs/benchmarks/{smoke,latency,streaming,context,output,quality}.yaml`
+      (note.md §8) holding input/output token grids, warmup/measurement counts, and
+      sampling params. `configs/models.yaml` stays a *candidate registry* and does not
+      absorb these.
+- [ ] Pin sampling explicitly in every benchmark config (`temperature: 0.0` for
+      performance runs). Do not inherit server defaults — Phase 1 already proved
+      llama.cpp's default ~0.8 changes *behaviour*, not just wording.
+- [ ] Version the prompt/chat-template inputs (note.md §21). Record the tool schema
+      and system prompt used, with a version string, in the manifest.
+
+**GATE 3** — a benchmark can be re-run from `(models.yaml key, benchmarks/*.yaml,
+git SHA)` alone, with no CLI flags carrying experimental meaning.
+
+## Phase 4 — Canonical Orin campaign (the first complete vertical slice)
+
+note.md §48's "minimum viable publication experiment", retargeted to the hardware that
+actually exists. Deliberately one platform, one backend, one precision — every other
+axis is held constant so the two swept axes mean something.
+
+- [ ] **Context-length sweep** (note.md §11): input 128 / 512 / 1024 / 2048, batch=1,
+      output=128. 4096+ only where `max_model_len` allows — every current `models.yaml`
+      row is pinned to 2048, so raising it is itself an experimental change and needs
+      its own memory re-tune, not a silent flag bump.
+- [ ] **Output-length sweep** (note.md §12): output 16 / 32 / 64 / 128 / 256 / 512 at
+      fixed input. This is *exactly* `embedded-ai-chain/docs/paper.md`'s **P3** core
+      experiment ("generative extent can dominate the perception budget") — run it in
+      the form P3 needs (total latency, decode latency, TTFT, p50/p95/p99, energy,
+      generated tokens) so one campaign serves both documents.
+- [ ] Per point measure: TTFT, prefill tok/s, decode tok/s, E2E latency, inter-token
+      latency distribution, peak system RAM, power, J/output-token.
+- [ ] ≥30 measured runs per cell, raw rows preserved, thermal state recorded, and any
+      cell flagged invalid if throttling occurred (note.md §38).
+
+**Mapping to `embedded-ai-chain/docs/paper.md`** — the reason this phase is worth its
+cost beyond model selection:
+
+| paper.md proposition | Evidence this repo produces |
+|---|---|
+| P3 — generative extent dominates | Phase 4's output-length sweep, verbatim |
+| P4 — the decision to perceive has a metabolic cost | Phase 4 energy + Phase 5's BFCL "correct no-tool decision" rate: the cost of *deciding not to escalate* |
+| P5 — hardware changes the optimal allocation | Phase 6 (Orin vs Thor, same models/inputs/methodology) |
+| P6 — memory is an allocation resource | Phase 9 co-resident runs + every OOM recorded as a result |
+
+**GATE 4** — both sweeps complete for at least one row, plots regenerable from raw
+data, and the P3 table drafted into `paper.md` from real numbers.
+
+## Phase 5 — Complete the scorecard matrix (was Phase 3)
+
+Unchanged in intent from the original plan — this is what `docs/promotion-contract.md`
+needs, and it is not superseded by the benchmark framing.
+
+- [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` /
+      `validate-mmlu` for every row in `configs/models.yaml` that can serve at all:
+      the remaining Qwen sizes (3B/7B) on both backends, `bielik-11b-awq-vllm-orin`
+      (added 2026-09-04, never run — its `gpu_memory_utilization: 0.3` is an untested
+      guess), `bielik-11b-q4-llamacpp-orin`. Record an OOM as a real result, not a skip.
+- [ ] Full-corpus BFCL, not `--limit 20`. The only real scorecard so far (75% overall,
+      n=40, `1.5b-q4-llamacpp-orin`) is a sample, and Phase 1 says so.
+- [ ] Report tool-calling as a confusion matrix (note.md §36), not one percentage:
+      correct tool / correct arguments / correct no-tool / invalid call / hallucinated
+      tool / formatting failure. The existing simple+irrelevance split already
+      separates the two error directions — this makes that explicit.
+- [ ] Write the comparison up (README "Current State" or a dedicated benchmarks doc).
+
+**GATE 5** — every plausible row has a scorecard entry (pass, fail-with-reason, or
+doesn't-fit-with-reason).
+
+## Phase 6 — Thor access and the cross-platform arm (was Phase 2)
+
+Demoted from "next" to "after the Orin slice is real" — it is a hardware-availability
+dependency this repo does not control, and nothing above is blocked on it.
+
+- [ ] Confirm SSH/LAN reachability to the user's Thor the same way `jetson-vlm-lab`'s
+      Phase B did (`10.8.32.124` there — Thor's address here may differ, don't assume
+      it's the same machine)
 - [ ] Confirm what's already running on Thor (production VLM container, per
-      `embedded-ai-chain`'s `RemoteVlmCoordinator` - avoid port/GPU-memory collision
+      `embedded-ai-chain`'s `RemoteVlmCoordinator` — avoid port/GPU-memory collision
       when standing up a temporary orchestrator-LLM test container alongside it, same
       caution `jetson-vlm-lab`'s `-thor` test rows already took)
+- [ ] Record Thor's real power modes rather than assuming Orin's transfer (note.md
+      §27), and its real unified-memory size rather than note.md §7's assumed 128GB
 - [ ] Add `-thor` rows to `configs/models.yaml` for both backends once real serving
       args are confirmed there (don't guess `gpu_memory_utilization`/`n_gpu_layers`
       ahead of a real run, same rule Phase 1's orin rows already follow)
+- [ ] Re-run Phase 4's two sweeps on Thor, same methodology, and answer P5's actual
+      question: **does the ranking change**, not merely which board is faster
+- [ ] `RemoteCoordinator` runs cannot measure the remote board's power or cold start —
+      `benchmark.py` already flags this. Thor telemetry must be collected *on* Thor
+      (note.md §56 step 7), not inferred from the client side.
 
-**GATE 2** — one real run of each script against Thor succeeds end-to-end, mirroring
-jetson-vlm-lab's own Gate B.
+**GATE 6** — one real run of each script against Thor succeeds end-to-end, and at
+least one Phase 4 sweep is reproduced there with on-device telemetry.
 
-## Phase 3 — Full matrix + scorecard
+## Phase 7 — Quantization study
 
-- [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` /
-      `validate-mmlu` for every row in `configs/models.yaml` (2 backends x 3 sizes x
-      2 platforms = up to 12 runs, fewer if a size doesn't fit on a given
-      platform/backend - record the OOM as a real result, not a skip)
-- [ ] Write up the comparison (README "Current State" or a dedicated benchmarks doc),
-      same as jetson-vlm-lab's own Qwen-vs-Phi writeup
+- [ ] Same model, same backend, same hardware, different precision only (note.md §24).
+      `7b-awq-vllm-orin` vs a 7B fp16 row is the natural first pair — **if** fp16 7B
+      fits in ~30GB alongside nothing else; record the OOM as the result if not.
+- [ ] Label quantization methods precisely, never as a generic "INT4" (note.md §23).
+      `configs/models.yaml`'s `bielik-11b-awq-vllm-orin` row already does this right —
+      it records `compressed-tensors int4, group_size=128` despite the repo being
+      *named* `-awq`. Hold every future row to that bar.
+- [ ] Per quantized candidate: smoke → MMLU regression → performance → memory → power,
+      always against the same-model higher-precision baseline.
+- [ ] Qwen3 row, gated on a real check first: does the pinned
+      `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` build actually serve a Qwen3
+      checkpoint? If not, the Qwen2.5-vs-Qwen3 comparison is llama.cpp-only, and that
+      constraint must be stated in the writeup rather than worked around by upgrading
+      vLLM (which `embedded-ai-chain/CLAUDE.md` explicitly forbids: "do not let a model
+      choice force a runtime upgrade").
 
-**GATE 3** — every plausible row has a scorecard entry (pass, fail-with-reason, or
-doesn't-fit-with-reason).
+**GATE 7** — at least one same-model precision pair has quality *and* efficiency
+numbers, with the quantization method named exactly.
 
-## Phase 4 — Declare (or defer) a winner
+## Phase 8 — Backend study
+
+- [ ] Same model, same precision-class, same hardware, vLLM vs llama.cpp (note.md
+      §50). The lab already has one qualitative finding to quantify: vLLM's
+      `--tool-call-parser hermes` is temperature-robust where llama.cpp's Hermes-2-Pro
+      detection is not (Phase 1). Turn that into a measured tool-call-reliability-vs-
+      temperature curve for both backends.
+- [ ] Note honestly that AWQ-vs-GGUF-Q4_K_M is not a clean precision match; the
+      backend comparison is confounded by quantization format and must say so.
+
+**GATE 8** — a backend comparison exists that states its own confounds.
+
+## Phase 9 — Co-resident / concurrency (highest external value)
+
+This is the phase that connects the lab to both papers, and to
+`embedded-ai-chain/docs/TODO.md` Phase 4's still-unstarted concurrency-starvation
+test — described in `PAPER_PLAN.md` as "the single most important unmeasured number in
+the whole project."
+
+- [ ] Condition A (standalone) vs Condition B (co-resident with the real pipeline:
+      YOLO + STT + TTS + VLM), same model, same workload, same methodology.
+- [ ] Report both directions, not just one: what the co-resident load does to LLM
+      TTFT/decode/energy, **and** what the LLM does to `yolo_frame` p50/p95/p99. The
+      second is the number `embedded-ai-chain` actually needs.
+- [ ] Batch/concurrency sweep 1/2/4/8 (note.md §13) — but state plainly that batch=1
+      is the deployment reality here and the rest is characterization, and never mix
+      the two terms.
+- [ ] Every OOM and allocation failure is a recorded result (paper.md P6), including
+      the ones already on record: the VLM OOM at `gpu_memory_utilization=0.6`, the
+      276MB-free thin-margin finding.
+
+**GATE 9** — the concurrency-starvation number exists, whichever way it comes out.
+
+## Phase 10 — Analysis pipeline
+
+- [ ] `scripts/analyze.py` regenerating every table and plot from `results/raw/`
+      (note.md §33). Never hand-edit a plot. The parent repo's `scripts/analyze_*.py`
+      family is the pattern to follow.
+- [ ] Pareto frontier over (quality, latency, memory, energy) — identify non-dominated
+      candidates rather than inventing a weighted score (note.md §34).
+- [ ] Keep the application scorecard separate from the raw benchmark (note.md §35):
+      the promotion decision is allowed to weight axes; the benchmark is not.
+
+**GATE 10** — every published figure regenerates from raw data with one command.
+
+## Phase 11 — Declare (or defer) a winner (was Phase 4)
 
 - [ ] Declare a winner per `docs/promotion-contract.md` §4, or explicitly record "no
       clean winner, deferred + tie-breaker condition"
@@ -234,10 +501,10 @@ doesn't-fit-with-reason).
 - [ ] If a winner changes the shipping backend/model, update
       `embedded-ai-chain/src/orchestrator_models.py`'s registry and
       `configs/orchestrator-vllm-compose.yml` (or add an equivalent llama.cpp compose
-      file there) accordingly - that's `embedded-ai-chain`'s own change, made with a
+      file there) accordingly — that's `embedded-ai-chain`'s own change, made with a
       real number behind it, not this repo's to make directly
 
-**GATE 4** — a decision (or an explicit, reasoned non-decision) is recorded in both
+**GATE 11** — a decision (or an explicit, reasoned non-decision) is recorded in both
 repos, not just left in this file.
 
 ## Deferred / explicitly not doing yet
@@ -248,3 +515,46 @@ repos, not just left in this file.
 - **A declarative multi-machine launch config** — `jetson-vlm-lab`'s own TODO already
   judged this premature for a 2-machine reality; revisit together with
   `embedded-ai-chain`'s "embedded platform zoo" goal, not from this repo in isolation.
+- **A third paper from this repo.** See the scope-change section. This lab feeds
+  `paper.md` and `PAPER_PLAN.md`; it does not compete with them for the same writing
+  window.
+
+### From note.md, deliberately not scheduled yet (not forgotten)
+
+Each of these is a real note.md requirement, deferred with a reason rather than
+silently dropped:
+
+- **GSM8K / ARC-Challenge / IFEval / HumanEval / Belebele** (§17). MMLU + BFCL already
+  cover the two axes this lab's decision turns on (quantization sanity, tool-call
+  judgment). Add one at a time only when a specific claim needs it — a benchmark suite
+  nobody reads is pure campaign cost.
+- **Power-mode matrix** (§27). Every result already records its power mode; *sweeping*
+  power modes multiplies the whole matrix. Defer until one campaign is complete at a
+  single documented mode.
+- **Benchmark tiers 0-3** (§18). Worth having; cheap to add once `configs/benchmarks/`
+  exists (Phase 3) — it is essentially a sample-count field. Not a separate phase.
+- **Custom application dataset** (§19). This is `embedded-ai-chain`'s orchestrator
+  transcripts, which do not exist in reusable volume yet. Revisit after Phase 9
+  produces real co-resident traffic. BFCL stays the external-comparability anchor
+  regardless (§19 agrees).
+- **Reasoning/thinking-token accounting** (§22). No reasoning model is in the registry.
+  Becomes mandatory the moment a Qwen3 thinking-mode row is added (Phase 7) — do not
+  compare a thinking model on visible output tokens alone.
+- **Immutable `benchmark-v1.0` release** (§43). A packaging step, correct to do last.
+
+---
+
+## Decision log (append-only)
+
+Rows are never deleted, even when superseded — same convention as
+`embedded-ai-chain/docs/TODO.md`.
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-09-04 | Repo becomes a benchmark suite that also selects the orchestrator LLM, not one or the other | `docs/note.md`; the selection scorecard is a strict subset of the benchmark data |
+| 2026-09-04 | Orin is the platform of record; Thor is the cross-platform arm | No Thor access confirmed yet; and "does the ranking change across hardware" needs both boards anyway (paper.md P5) |
+| 2026-09-04 | Existing harness warmup/steady-state policy kept over note.md §4's fixed `warmup: 5` | Temperature-driven steady state with an honest `warmup_reached_steady_state` flag is strictly stronger than a guessed count |
+| 2026-09-04 | Measurement-integrity retrofit (raw rows, energy, manifest, IDs, co-residency flag) precedes all campaigns | These are unrecoverable if skipped — a campaign run without them cannot be re-analysed |
+| 2026-09-04 | No third paper from this repo; it is the instrument for `paper.md` P3/P4/P5/P6 | Two papers already share one writing window to 2027-01-25 |
+| 2026-09-04 | Apertus and Bielik stay in the matrix despite note.md not mentioning them | They are this lab's actual second/third families and its only decisive negative result |
+| 2026-09-04 | Qwen3 is gated on a real serving check, not assumed | vLLM ≥0.11 has no JetPack 6.2/CUDA 12.6 wheels; a model choice must not force a runtime upgrade |

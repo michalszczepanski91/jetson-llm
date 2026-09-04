@@ -25,7 +25,7 @@ explicitly excluded from v1, not silently skipped).
 |---|---|---|---|---|
 | Qwen2.5-Instruct (1.5B/3B/7B) | Apache-2.0 | Open, ungated | Explicitly trained for it - reliable on both backends once `temperature=0.1` is pinned for llama.cpp (see below) | 1.5B smoke-tested for real, 2026-09-04 - first real BFCL scorecard: 75% overall (85% simple / 65% irrelevance, n=40) on llama.cpp |
 | Apertus-8B-Instruct-2509 | Apache-2.0 | Original repo is **gated** (SNAI Acceptable Use Policy); the GGUF redistribution this lab actually uses (`bartowski/...-GGUF`) is not | Unconfirmed - moot for now, see Status | **BLOCKED**: llama.cpp doesn't recognize Apertus's GGUF architecture at all (`unknown model architecture: 'apertus'`), confirmed on two build versions, 2026-09-04. No AWQ exists for a vLLM row either - **no working serving path in this lab right now** |
-| Bielik-11B-v3.0-Instruct | Apache-2.0 | Original repo is gated; SpeakLeash's own official GGUF repo is not | **Confirmed working**, 2026-09-04 - correctly returned a structured tool call on the first real test | Smoke-tested for real, 2026-09-04 - the strongest first result of any llama.cpp row so far |
+| Bielik-11B-v3.0-Instruct | Apache-2.0 | Original repo is gated; SpeakLeash's own official GGUF and "-awq" repos are not | **llama.cpp: working** (structured call on the first try). **vLLM: NOT working** - two parsers tried (`hermes`, `llama3_json`), both fail identically | Both backends smoke-tested for real, 2026-09-04 |
 
 Apertus and Bielik were added for different reasons. Apertus for `embedded-ai-chain`'s
 own stated data-sovereignty goal: Qwen2.5 is Alibaba-origin, where Apertus is
@@ -186,6 +186,15 @@ full record:
   strongest first-look llama.cpp result - cold start 338s (incl. first download),
   plain completion succeeded, and a tool-calling completion correctly returned a
   structured call on the first try.
+- **Bielik-11B on vLLM** (`bielik-11b-awq-vllm-orin`): serves correctly at
+  `gpu_memory_utilization=0.3` (cold start 234-274s), plain completion and a
+  Polish-language sanity check both correct - but **tool-calling does not work**.
+  Tried two parsers (`--tool-call-parser hermes` and `llama3_json`), both returned
+  an empty `tool_calls` list on the same prompt that worked on vLLM+Qwen2.5 and
+  llama.cpp+Bielik. Root cause: Bielik's own docs only describe tool use as a
+  manual prompt-injection convention, not training on a tagged format any of
+  vLLM's per-family parsers detect - the opposite pattern from Qwen2.5, which
+  works on both backends.
 
 Real BFCL numbers now exist for one row (`1.5b-q4-llamacpp-orin`, above, small
 sample). Everything else in `docs/TODO.md` Phase 3's full matrix is still pending.
