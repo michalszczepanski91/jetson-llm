@@ -139,7 +139,17 @@ apertus-8b-q4-llamacpp-orin:
   n_gpu_layers: -1
   ctx_size: 2048  # matches the Qwen rows' for a fair cross-family comparison
   notes: >
-    Not yet run. `model` points at bartowski's GGUF redistribution, not the
+    BLOCKED, confirmed 2026-09-04: llama.cpp does not recognize Apertus's
+    GGUF architecture at all - "error loading model architecture: unknown
+    model architecture: 'apertus'" - checked on both this lab's confirmed
+    tag (dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04, build 5058) and the
+    newest available jetson-containers tag at the time
+    (b5283-r36.4-cu128-24.04, build 5283) - not a config/tuning issue,
+    upstream llama.cpp itself has no Apertus support in either build. Not
+    attempted: building llama.cpp from source with Apertus support merged
+    (unknown effort/whether it has landed upstream at all yet) - out of
+    scope for a smoke test, revisit if this candidate turns out to matter.
+    `model` points at bartowski's GGUF redistribution, not the
     original swiss-ai/Apertus-8B-Instruct-2509 repo - that original IS gated
     (SNAI's Acceptable Use Policy, confirmed live 2026-09-04 via its model
     card) but bartowski's re-hosted GGUF repo shows no gated field in its
@@ -154,3 +164,51 @@ apertus-8b-q4-llamacpp-orin:
     scripts/validate_tool_calling.py's result against this row is a genuine
     open question, not an expected pass. Q4_K_M file confirmed to exist in
     bartowski's repo (~5.06GB, HF Hub ls, 2026-09-04).
+
+# --- Third model family: Bielik (SpeakLeash / ACK Cyfronet AGH, Poland) ---
+# Added 2026-09-04 per direct user request. Same trustworthy-provenance bar
+# as the other families, but a stronger starting position than Apertus on
+# both fronts that matter here: `model` points at SpeakLeash's OWN official
+# GGUF repo (not a third-party redistribution like Apertus's bartowski
+# quant), and that repo's own README documents a real tool-calling template
+# (an Ollama Modfile showing ChatML-style <|im_start|>/<|im_end|> markers
+# plus a Hermes-like {"name":..., "arguments":{...}} JSON tool-call format -
+# the same general family of format vLLM's --tool-call-parser hermes and
+# llama.cpp's Hermes-2-Pro detection already handle for Qwen2.5) - read
+# live, 2026-09-04, not assumed from the model name alone. No official/
+# trustworthy AWQ found (same HF Hub search convention as the other
+# families) - llama.cpp/GGUF only, same reasoning as Apertus's row above.
+# Largest candidate in this registry so far (11B, Q4_K_M ~6.7GB weights vs
+# Apertus-8B's ~5.06GB and Qwen-7B's smaller GGUF) - worth watching memory
+# fit closely on its first real run, same caution the 7b-*/orin rows above
+# already carry.
+bielik-11b-q4-llamacpp-orin:
+  model: speakleash/Bielik-11B-v3.0-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: orin
+  quant: Q4_K_M
+  n_gpu_layers: -1
+  ctx_size: 2048  # matches every other row's for a fair cross-family comparison
+  notes: >
+    Smoke-tested 2026-09-04, WORKING - the strongest first result of any
+    llama-cpp row so far: cold start 338s (includes the ~6.7GB first-time
+    GGUF download, not just server startup), plain completion succeeded,
+    AND a tool-calling completion correctly returned a structured
+    get_weather({"city":"Warsaw"}) call - unlike the same test against
+    Qwen2.5-1.5B on llama.cpp, where the model described wanting to call
+    the tool in free text instead (see 1.5b-q4-llamacpp-orin's own
+    docs/TODO.md entry). llama-server's own log reported "Chat format:
+    Generic" for this model (a JSON-schema-grammar-based tool-call path),
+    not "Hermes 2 Pro" the way Qwen was detected - a real, useful signal
+    that the earlier Qwen finding may be model-specific (or size-specific -
+    this is a much larger 11B model) rather than a llama.cpp-backend-wide
+    limitation. One real data point, not yet a trend - the full BFCL run is
+    still what actually settles this. Polish-focused (SpeakLeash, Apache-2.0,
+    multilingual with Polish as its primary optimization target) - added at
+    direct user request. `model` points at SpeakLeash's own official GGUF
+    repo (speakleash/Bielik-11B-v3.0-Instruct-GGUF) - confirmed accessible
+    without a token even though the base speakleash/Bielik-11B-v3.0-Instruct
+    repo IS gated (HF_FS_ACCESS_DENIED confirmed live on the base repo,
+    2026-09-04) - same "base gated, official GGUF repo isn't" pattern as
+    Apertus, but here the GGUF repo is SpeakLeash's own, not a third party's.

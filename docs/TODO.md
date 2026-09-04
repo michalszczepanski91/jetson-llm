@@ -132,9 +132,40 @@ explicitly deferred with reasons recorded above (not silently dropped).
       "second model family arrived, so did jetson-vlm-lab's own rename" reasoning
       that repo's `docs/TODO.md` already used. Not yet run - it needs its own smoke
       test before any of its numbers are trusted, same bar every Qwen row was held to
+- [x] Bielik-11B-v3.0-Instruct added as a third model family
+      (`bielik-11b-q4-llamacpp-orin`), 2026-09-04, per direct user request (Polish
+      model, SpeakLeash/ACK Cyfronet AGH) - llama.cpp/GGUF via SpeakLeash's own
+      official GGUF repo (not a third party's, unlike Apertus's bartowski quant).
+- [x] Real smoke tests, 2026-09-04, for both new families:
+      - **Apertus (`apertus-8b-q4-llamacpp-orin`) - BLOCKED.** llama.cpp does not
+        recognize Apertus's GGUF architecture at all: `error loading model
+        architecture: unknown model architecture: 'apertus'`. Checked on two
+        builds - this lab's confirmed tag (`0.3.9-r36.4.0-cu128-24.04`, llama.cpp
+        build 5058) and the newest jetson-containers tag available at the time
+        (`b5283-r36.4-cu128-24.04`, build 5283) - same failure on both, so this is
+        genuinely missing upstream support, not a stale-image problem this lab can
+        fix by bumping a tag again. Not attempted: building llama.cpp from source
+        with Apertus support (unknown whether/when that's landed upstream) - out
+        of scope for a smoke test. No vllm/orin row exists either (no trustworthy
+        AWQ, see the row's own notes), so **Apertus currently has no working
+        serving path in this lab at all** - a real, decisive negative result, not
+        a gap to paper over.
+      - **Bielik (`bielik-11b-q4-llamacpp-orin`) - WORKING, and a genuinely useful
+        result.** Cold start 338s (includes the ~6.7GB first-download, not just
+        server startup), plain completion succeeded, AND a tool-calling completion
+        correctly returned a structured `get_weather({"city":"Warsaw"})` call -
+        where the *identical test* against Qwen2.5-1.5B on llama.cpp (this same
+        Phase 1, above) had the model describe wanting to call the tool in free
+        text instead of emitting one. llama-server logged "Chat format: Generic"
+        for Bielik (a JSON-schema-grammar tool-call path) vs "Hermes 2 Pro" for
+        Qwen - real evidence the earlier llama.cpp tool-calling gap may be
+        model/size-specific rather than a backend-wide limitation, though this is
+        one data point, not a trend - the real BFCL run is still what settles it.
 
-**GATE 1** — met for Qwen2.5-1.5B on both backends. Apertus and the remaining
-Qwen sizes (3B/7B) still need their own smoke tests before Phase 3's full matrix.
+**GATE 1** — met for Qwen2.5-1.5B on both backends, and for Bielik-11B on llama.cpp.
+Apertus is a closed question (blocked, documented) rather than an open one. Still
+pending before Phase 3's full matrix: the remaining Qwen sizes (3B/7B), and a real
+BFCL/MMLU scorecard run for every row that's actually able to serve at all.
 
 ## Phase 2 — Thor access
 

@@ -2,9 +2,9 @@
 
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, and eventually Thor -
 see `configs/models.yaml`'s `platform` field). Compares candidate models - currently
-Qwen2.5-Instruct at 1.5B/3B/7B, with Apertus-8B-Instruct being added as a second model
-family (see "Model families" below) - across two serving backends, vLLM and
-llama.cpp, so `embedded-ai-chain`'s Phase 3 orchestrator LLM (currently a hardcoded
+Qwen2.5-Instruct at 1.5B/3B/7B, plus Apertus-8B-Instruct and Bielik-11B-v3.0-Instruct
+as additional model families (see "Model families" below) - across two serving
+backends, vLLM and llama.cpp, so `embedded-ai-chain`'s Phase 3 orchestrator LLM (currently a hardcoded
 Qwen2.5-1.5B-Instruct-AWQ on vLLM, chosen because it was "the only option actually
 verified working," not because it was benchmarked) can be picked with real numbers.
 See `docs/promotion-contract.md` for exactly how a candidate here becomes that.
@@ -23,23 +23,27 @@ explicitly excluded from v1, not silently skipped).
 
 | Family | License | Access | Function-calling | Status |
 |---|---|---|---|---|
-| Qwen2.5-Instruct (1.5B/3B/7B) | Apache-2.0 | Open, ungated | Explicitly trained for it (vLLM's `--tool-call-parser hermes` works out of the box) | 1.5B smoke-tested for real, 2026-09-04 |
-| Apertus-8B-Instruct-2509 | Apache-2.0 | Original repo is **gated** (SNAI Acceptable Use Policy); the GGUF redistribution this lab actually uses (`bartowski/...-GGUF`) is not | **Unconfirmed** - not advertised as a headline feature, no mention found in its model card | Registered in `configs/models.yaml`, not yet run |
+| Qwen2.5-Instruct (1.5B/3B/7B) | Apache-2.0 | Open, ungated | Explicitly trained for it (vLLM's `--tool-call-parser hermes` works out of the box) | 1.5B smoke-tested for real, 2026-09-04 - vLLM confirmed working, llama.cpp has an open tool-calling reliability question |
+| Apertus-8B-Instruct-2509 | Apache-2.0 | Original repo is **gated** (SNAI Acceptable Use Policy); the GGUF redistribution this lab actually uses (`bartowski/...-GGUF`) is not | Unconfirmed - moot for now, see Status | **BLOCKED**: llama.cpp doesn't recognize Apertus's GGUF architecture at all (`unknown model architecture: 'apertus'`), confirmed on two build versions, 2026-09-04. No AWQ exists for a vLLM row either - **no working serving path in this lab right now** |
+| Bielik-11B-v3.0-Instruct | Apache-2.0 | Original repo is gated; SpeakLeash's own official GGUF repo is not | **Confirmed working**, 2026-09-04 - correctly returned a structured tool call on the first real test | Smoke-tested for real, 2026-09-04 - the strongest first result of any llama.cpp row so far |
 
-Apertus was added as a second family for a reason beyond curiosity: `embedded-ai-chain`
-states data-sovereignty as an explicit project goal, and Qwen2.5 is Alibaba-origin,
-where Apertus is Swiss-public-funded (ETH Zurich/EPFL) and fully open including its
-*training data*, not just its weights - a better philosophical fit if it turns out to
-be a viable substitute. Its tool-calling reliability is a genuinely open question this
-lab exists to answer, not an assumption either way. No official/trustworthy AWQ
-quantization was found for it (see `configs/models.yaml`'s row for what was checked),
-so only a llama.cpp/GGUF row exists for it so far - not a vLLM row, to avoid asserting
-a fp16-only ~16GB candidate is workable on this device before it's been tried. That
-GGUF row uses `bartowski`'s redistribution rather than the original `swiss-ai` repo -
-the original is gated behind SNAI's Acceptable Use Policy, but `bartowski`'s re-hosted
-GGUF repo is not (confirmed live, not assumed), so staging this row needs no HF
-token/gate acceptance at all. A future vLLM row using the original fp16 weights
-directly would still need that gate accepted.
+Apertus and Bielik were added for different reasons. Apertus for `embedded-ai-chain`'s
+own stated data-sovereignty goal: Qwen2.5 is Alibaba-origin, where Apertus is
+Swiss-public-funded (ETH Zurich/EPFL) and fully open including its *training data*,
+not just its weights - a better philosophical fit if it had turned out to be a viable
+substitute, though its llama.cpp path is currently blocked outright (see table).
+Bielik was added at direct user request as a Polish-developed model (SpeakLeash/ACK
+Cyfronet AGH) and turned out to be this lab's best llama.cpp result yet - see
+`docs/TODO.md` Phase 1 for the full comparison against Qwen's own llama.cpp attempt.
+
+Neither Apertus nor Bielik has an official/trustworthy AWQ quantization (checked via
+HF Hub search for both), so neither has a vLLM row - only llama.cpp/GGUF, to avoid
+asserting an untested fp16-only candidate is workable on this device. Both GGUF rows
+use a redistribution rather than each family's original (gated) repo: Apertus via
+`bartowski`'s third-party quant, Bielik via SpeakLeash's own official GGUF repo -
+neither redistribution is gated (confirmed live for both, not assumed), so staging
+either needs no HF token/gate acceptance. A future vLLM row using either family's
+original fp16 weights directly would still need that family's own gate accepted.
 
 ## Quick start
 
@@ -80,12 +84,15 @@ Both scripts fail fast with a clear message (not a stack trace) if the expected
 files aren't at those paths - same convention as jetson-vlm-lab's TextVQA staging.
 Staged for real on this device, 2026-09-04.
 
-Apertus's GGUF row (`apertus-8b-q4-llamacpp-orin`) needs no separate staging step or
-HF token - it downloads via `bartowski`'s ungated GGUF redistribution, not the
-original gated `swiss-ai` repo (see `configs/models.yaml`'s row for how that was
-confirmed). Only a future vLLM row using the original fp16 weights directly would
-need SNAI's Acceptable Use Policy accepted first at
-https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509.
+Apertus's and Bielik's GGUF rows need no separate staging step or HF token - both
+download via an ungated GGUF redistribution rather than each family's original gated
+repo (see `configs/models.yaml` for how that was confirmed for each). Only a future
+vLLM row using either family's original fp16 weights directly would need that
+family's own gate accepted first (SNAI's Acceptable Use Policy for Apertus at
+https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509; SpeakLeash's gate for
+Bielik at https://huggingface.co/speakleash/Bielik-11B-v3.0-Instruct). Apertus's row
+is moot regardless for now - see "Model families" above, it's blocked at the
+llama.cpp level entirely, not a staging problem.
 
 To measure against an already-running remote server (e.g. Thor) instead of starting a
 local container, pass `--target remote --remote-host <ip>` to any `scripts/*.py`
@@ -142,29 +149,36 @@ repo in this fleet follows.
 ## Watermark / license notice
 
 Qwen2.5: Apache-2.0 (Qwen team), for both the AWQ and GGUF weight sources used here.
-Apertus-8B-Instruct-2509: Apache-2.0. The original repo additionally carries SNAI's
-Acceptable Use Policy gate; the GGUF redistribution this lab actually uses does not -
-see "Dataset staging" above. No watermarking on output mentioned for either family's
-model card.
+Apertus-8B-Instruct-2509 and Bielik-11B-v3.0-Instruct: both Apache-2.0. Both original
+repos additionally carry their own gate (SNAI's Acceptable Use Policy for Apertus,
+SpeakLeash's own gate for Bielik); the GGUF redistributions this lab actually uses do
+not - see "Dataset staging" above. No watermarking on output mentioned for any
+family's model card.
 
 This wrapper: no separate license claimed here (internal eval tooling).
 
 ## Current State
 
-Real Docker/GPU smoke tests done, 2026-09-04 (Qwen2.5-1.5B only so far - see
-`docs/TODO.md` Phase 1 for the full record):
+Real Docker/GPU smoke tests done, 2026-09-04 - see `docs/TODO.md` Phase 1 for the
+full record:
 
-- **vLLM** (`1.5b-awq-vllm-orin`): cold start ~160s, plain completion and a
-  tool-calling completion both succeeded. Two real bugs found and fixed in the
+- **Qwen2.5-1.5B on vLLM** (`1.5b-awq-vllm-orin`): cold start ~160s, plain completion
+  and a tool-calling completion both succeeded. Two real bugs found and fixed in the
   process (missing `--enable-auto-tool-choice --tool-call-parser hermes` flags on the
   Python coordinator path; a wrong `max_model_len` value in the registry).
-- **llama.cpp** (`1.5b-q4-llamacpp-orin`): plain completion succeeded. Tool-calling
-  is an **open, unresolved finding** - the server accepted the request (after fixing
-  the image tag to one with a new-enough llama.cpp build) but the model described
-  wanting to call the tool in free text rather than emitting a structured response,
-  where the identical prompt worked correctly on vLLM. Not yet explained by a config
-  fix - `make validate-tool-calling` against this row is what will actually quantify
-  whether this is a real, consistent gap.
+- **Qwen2.5-1.5B on llama.cpp** (`1.5b-q4-llamacpp-orin`): plain completion succeeded.
+  Tool-calling is an **open, unresolved finding** - the server accepted the request
+  (after fixing the image tag to one with a new-enough llama.cpp build) but the model
+  described wanting to call the tool in free text rather than emitting a structured
+  response, where the identical prompt worked correctly on vLLM.
+- **Apertus-8B on llama.cpp** (`apertus-8b-q4-llamacpp-orin`): **BLOCKED** - llama.cpp
+  doesn't recognize Apertus's GGUF architecture at all, confirmed on two build
+  versions. No vLLM path exists either (no AWQ). No working serving path in this lab
+  right now.
+- **Bielik-11B on llama.cpp** (`bielik-11b-q4-llamacpp-orin`): **working**, and the
+  strongest llama.cpp result so far - cold start 338s (incl. first download), plain
+  completion succeeded, and a tool-calling completion correctly returned a structured
+  call, unlike the Qwen-on-llama.cpp attempt above with the identical test prompt.
 
-No BFCL/MMLU scorecard numbers exist yet, and Apertus hasn't been run at all (gated -
-see "Dataset staging"). Full matrix is `docs/TODO.md` Phase 3.
+No BFCL/MMLU scorecard numbers exist yet for anything. Full matrix is
+`docs/TODO.md` Phase 3.

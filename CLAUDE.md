@@ -8,11 +8,13 @@ this repository.
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, eventually Thor) -
 tests candidate models across two serving backends (vLLM, llama.cpp; see
 `docs/TODO.md` Phase 0 for why TensorRT is explicitly excluded), not one fixed
-model/framework/family. Currently Qwen2.5-Instruct (1.5B/3B/7B) plus
-Apertus-8B-Instruct-2509 as a second model family - see README's "Model families"
-section for why Apertus specifically (data-sovereignty framing: Swiss-public-funded
-and fully open including training data, vs Qwen's Alibaba origin) and what's still
-unconfirmed about it (gated download, unconfirmed tool-calling support).
+model/framework/family. Currently Qwen2.5-Instruct (1.5B/3B/7B), Apertus-8B-Instruct-2509
+(data-sovereignty framing - Swiss-public-funded and fully open including training
+data, vs Qwen's Alibaba origin - but **BLOCKED**: llama.cpp doesn't recognize its
+GGUF architecture at all, confirmed on two build versions, no working serving path
+exists), and Bielik-11B-v3.0-Instruct (Polish, SpeakLeash - **confirmed working**,
+the strongest llama.cpp result of any family so far). See README's "Model families"
+table for the full comparison.
 
 (Named `jetson-llm-qwen` until Apertus was added - renamed once a second model family
 broadened its scope, mirroring `jetson-vlm-lab`'s own history of starting as
@@ -112,8 +114,10 @@ having no OpenAI-compatible server at all) and what's still pending (Thor access
 
 ## Current State
 
-Real vLLM + llama.cpp smoke tests done for Qwen2.5-1.5B, 2026-09-04 - see README's
-"Current State" for the summary and `docs/TODO.md` Phase 1 for the full record,
-including two real bugs those tests caught and fixed, and an open, unresolved
-tool-calling-reliability question on the llama.cpp side. Apertus is registered in
-`configs/models.yaml` but not yet run (gated download, see README).
+Real smoke tests done 2026-09-04 for all three families - see README's "Current
+State" for the summary and `docs/TODO.md` Phase 1 for the full record. Qwen2.5-1.5B:
+vLLM confirmed working (two real bugs found and fixed along the way), llama.cpp has
+an open tool-calling-reliability question. Apertus-8B: blocked outright (llama.cpp
+has no support for its GGUF architecture; no AWQ exists for vLLM). Bielik-11B:
+confirmed working on llama.cpp, including a correctly structured tool call - the
+strongest result of any llama.cpp row so far.
