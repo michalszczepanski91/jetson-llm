@@ -36,18 +36,29 @@ def call_llm(
     max_tokens: int = 128,
     tools: list[dict[str, Any]] | None = None,
     tool_choice: Any = "auto",
+    temperature: float | None = None,
     timeout: float = 120.0,
 ) -> dict[str, Any]:
     """One blocking chat-completion round trip against coordinator's
     already-running server. Returns the assistant message dict as-is
     (content, possibly tool_calls) - raises on a non-2xx response or
     malformed body, same "caller decides how to handle/retry" contract as
-    vlm_client.py's call_vlm()."""
+    vlm_client.py's call_vlm().
+
+    `temperature=None` omits the field entirely (server default - vLLM
+    ~0.7, llama.cpp ~0.8) - deliberately not defaulted to a fixed value
+    here, since scripts/benchmark.py/benchmark_streaming.py want the
+    server's own default (that's what a real deployment would see) while
+    scripts/validate_tool_calling.py deliberately pins a low value on every
+    call (see that script for why: a real, measured finding, not a
+    guess - see docs/TODO.md Phase 1's temperature diagnostic)."""
     payload: dict[str, Any] = {
         "model": coordinator.model,
         "messages": messages,
         "max_tokens": max_tokens,
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools is not None:
         payload["tools"] = tools
         payload["tool_choice"] = tool_choice

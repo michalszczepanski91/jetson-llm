@@ -33,6 +33,32 @@ def test_bfcl_function_to_openai_tool_renames_dict_to_object():
     assert tool["function"]["name"] == "calculate_triangle_area"
 
 
+def test_bfcl_function_to_openai_tool_renames_float_to_number():
+    # Real bug found live 2026-09-04: llama.cpp's server hard-errors
+    # ("JSON schema conversion failed: Unrecognized schema") on BFCL's
+    # own "float" type name, which isn't valid JSON Schema - vLLM
+    # tolerated it silently, masking the bug until llama.cpp was tried.
+    func = {"name": "f", "parameters": {"type": "dict", "properties": {"x": {"type": "float"}}}}
+    tool = _bfcl_function_to_openai_tool(func)
+    assert tool["function"]["parameters"]["properties"]["x"]["type"] == "number"
+
+
+def test_bfcl_function_to_openai_tool_renames_tuple_to_array():
+    func = {"name": "f", "parameters": {"type": "dict", "properties": {"x": {"type": "tuple"}}}}
+    tool = _bfcl_function_to_openai_tool(func)
+    assert tool["function"]["parameters"]["properties"]["x"]["type"] == "array"
+
+
+def test_bfcl_function_to_openai_tool_drops_any_type_entirely():
+    # "any" has no JSON-schema equivalent - the idiomatic way to express
+    # "unconstrained" is omitting `type`, not inventing a fake type name.
+    func = {"name": "f", "parameters": {"type": "dict", "properties": {"x": {"type": "any", "description": "d"}}}}
+    tool = _bfcl_function_to_openai_tool(func)
+    prop = tool["function"]["parameters"]["properties"]["x"]
+    assert "type" not in prop
+    assert prop["description"] == "d"  # only `type` is touched, nothing else dropped
+
+
 def test_bfcl_function_to_openai_tool_renames_nested_dict_types_too():
     func = {
         "name": "f",

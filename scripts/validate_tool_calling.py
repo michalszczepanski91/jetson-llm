@@ -32,6 +32,17 @@ simplified reimplementation, good enough for *relative* comparison across
 this lab's own candidates (does 7B beat 1.5B, does llama.cpp's parser beat
 vLLM's), not for submitting a leaderboard-comparable score.
 
+`--temperature` defaults to 0.1, not the server's own default sampling
+temperature (~0.7-0.8) - a real, measured fix, not an arbitrary choice:
+repeated identical Qwen2.5-1.5B/llama.cpp tool-calling calls at default
+temperature produced a structured tool call only 80% of the time (12/15),
+100% (15/15) at 0.1; the same repeated test against vLLM was 100% at BOTH
+settings, so pinning this low costs vLLM nothing while fixing a real
+llama.cpp gap. See `docs/TODO.md` Phase 1 for the full diagnostic
+(including why raising `max_tokens` alone did NOT fix it - the failures
+weren't truncation, the model genuinely chose not to call the tool at that
+sampling temperature on some fraction of calls).
+
 Dataset staging - not bundled (BFCL is thousands of samples across
 categories, several MB total). Download the three files this script
 actually uses:
@@ -78,17 +89,37 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
+# BFCL's function defs use several non-standard JSON-schema type names
+# (its own convention, predating widespread OpenAI-schema tooling) that
+# aren't valid JSON Schema types (object, array, string, number, integer,
+# boolean, null). vLLM tolerates these silently, but llama.cpp's server
+# hard-errors building its tool-call grammar - confirmed live 2026-09-04:
+# "JSON schema conversion failed: Unrecognized schema: {"type":"float",...}"
+# on every BFCL case using a float-typed parameter (215 of ~1400 type
+# occurrences across the staged simple+irrelevance files - common enough to
+# silently wreck a huge fraction of any llama.cpp scorecard run if left
+# unfixed, not a rare edge case). Counted every type actually present in
+# the staged corpus (`python3 -c "..."` one-off scan, 2026-09-04) rather
+# than guessing which ones might appear: dict(658), float(215), tuple(2),
+# any(1) beyond the standard types.
+_BFCL_TYPE_RENAMES = {"dict": "object", "float": "number", "tuple": "array"}
+
+
 def _bfcl_function_to_openai_tool(func: dict[str, Any]) -> dict[str, Any]:
-    """BFCL's function defs use `"type": "dict"` for an object-typed JSON
-    schema node (its own convention, predating widespread OpenAI-schema
-    tooling) where OpenAI's tool-calling format expects `"type": "object"`.
-    Recursively renames every such node - not just the top-level
-    `parameters` - since a param could itself be object-typed."""
+    """Recursively normalizes every BFCL-specific type name to a valid
+    JSON-schema one - not just at the top-level `parameters` node, since a
+    nested param can carry its own `type` too. `"any"` has no JSON-schema
+    equivalent (the idiomatic way to express "unconstrained" is to omit
+    `type` entirely, not invent a fake type name for it), so that key is
+    dropped rather than renamed."""
     def _convert(node):
         if isinstance(node, dict):
             converted = {k: _convert(v) for k, v in node.items()}
-            if converted.get("type") == "dict":
-                converted["type"] = "object"
+            node_type = converted.get("type")
+            if node_type in _BFCL_TYPE_RENAMES:
+                converted["type"] = _BFCL_TYPE_RENAMES[node_type]
+            elif node_type == "any":
+                del converted["type"]
             return converted
         if isinstance(node, list):
             return [_convert(v) for v in node]
@@ -156,12 +187,14 @@ def _questions_to_messages(case: dict[str, Any]) -> list[dict[str, str]]:
     return [message for turn in case["question"] for message in turn]
 
 
-def _run_simple(coordinator, cases, answers_by_id, max_tokens) -> list[dict[str, Any]]:
+def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
-        message = call_llm(coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto")
+        message = call_llm(
+            coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+        )
         actual_name, actual_args = _first_tool_call(message)
 
         ground_truth_row = answers_by_id.get(case["id"])
@@ -176,12 +209,14 @@ def _run_simple(coordinator, cases, answers_by_id, max_tokens) -> list[dict[str,
     return outcomes
 
 
-def _run_irrelevance(coordinator, cases, max_tokens) -> list[dict[str, Any]]:
+def _run_irrelevance(coordinator, cases, max_tokens, temperature) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
-        message = call_llm(coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto")
+        message = call_llm(
+            coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+        )
         actual_name, _ = _first_tool_call(message)
         outcomes.append({
             "id": case["id"], "category": "irrelevance", "actual_tool": actual_name, "correct": actual_name is None,
@@ -196,6 +231,11 @@ def parse_args():
     p.add_argument("--limit", type=int, default=50, help="cases per category (simple/irrelevance each); BFCL has "
                    "hundreds per category, full runs are slow on-device - use a higher value for a final scorecard")
     p.add_argument("--max-tokens", type=int, default=200)
+    p.add_argument("--temperature", type=float, default=0.1, help="pinned low by default - a real, measured "
+                   "finding, not a guess: repeated identical calls at default sampling temperature (~0.7-0.8) "
+                   "produced structured tool calls only 80%% of the time on llama.cpp/Qwen2.5-1.5B (12/15), "
+                   "100%% (15/15) at 0.1 - vLLM was 100%% at both, so pinning this low costs nothing there and "
+                   "fixes the llama.cpp gap. See docs/TODO.md Phase 1 for the full diagnostic.")
     p.add_argument("--ready-timeout", type=float, default=600.0)
     p.add_argument("--results-json", default=None)
     add_target_args(p)
@@ -221,9 +261,9 @@ def main():
             raise TimeoutError(f"{variant['backend']} server did not become ready")
 
         print(f"Running {len(simple_cases)} BFCL 'simple' cases...")
-        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens)
+        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens, args.temperature)
         print(f"Running {len(irrelevance_cases)} BFCL 'irrelevance' cases...")
-        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens)
+        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature)
 
         def _accuracy(category):
             subset = [o for o in outcomes if o["category"] == category]
@@ -237,6 +277,7 @@ def main():
             "target": args.target,
             "dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
             "n_cases": len(outcomes),
+            "temperature": args.temperature,
             "simple_accuracy": _accuracy("simple"),
             "irrelevance_accuracy": _accuracy("irrelevance"),
             "overall_accuracy": (sum(1 for o in outcomes if o["correct"]) / len(outcomes)) if outcomes else None,
@@ -244,7 +285,11 @@ def main():
                 "simplified AST match, not the official bfcl-eval checker; "
                 "tool_choice='auto' throughout - does NOT use orchestrator.py's "
                 "forced tool_choice workaround, since the point is measuring "
-                "unforced judgment - see module docstring"
+                "unforced judgment - see module docstring. temperature pinned "
+                "low (see --temperature's own help text for why - a measured "
+                "fix for a real llama.cpp reliability gap, not an arbitrary "
+                "default) so scores reflect tool-call judgment, not sampling "
+                "noise"
             ),
             "outcomes": outcomes,
         }

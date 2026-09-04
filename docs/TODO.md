@@ -103,17 +103,48 @@ explicitly deferred with reasons recorded above (not silently dropped).
         mount both function as expected). Cold start reported as 2.0s on a *second*
         run only because the GGUF was already cached at `/opt/llama-cache` from the
         first attempt - not a real cold-start number, don't reuse it as one.
-      - **Open finding, not yet resolved**: with `--jinja`, this build accepts
-        `tool_choice` (no more 500) and reports `Chat format: Hermes 2 Pro` in its
-        logs, but on the one test prompt tried (`"What's the weather like in
-        Warsaw?"` against a `get_weather` tool), the model described *wanting* to
-        call the tool in free-text content instead of emitting a structured
-        `tool_calls` response - where the *same prompt* against
-        `1.5b-awq-vllm-orin` (vLLM, `--tool-call-parser hermes`) correctly returned
-        a structured call. One anecdote, not a measurement - this is exactly what
-        `scripts/validate_tool_calling.py`'s real BFCL run against this row needs to
-        quantify properly before any conclusion is drawn about llama.cpp's
-        tool-calling reliability at this model size.
+      - **RESOLVED, 2026-09-04** (was: "open finding, not yet resolved" - see below
+        for the full diagnostic, kept rather than deleted per this file's own
+        append-only convention). The original single test (`"What's the weather
+        like in Warsaw?"` against a `get_weather` tool) failed once, but repeating
+        the *identical* call 15 times at default sampling temperature succeeded
+        12/15 (80%) - not a hard failure, real stochastic variance. Isolated the
+        cause: at the server's default sampling temperature (~0.8), the model
+        sometimes narrates in prose instead of calling the tool; **at
+        `temperature=0.1`, 15/15 (100%) succeeded**. Ran the same 30-call
+        comparison against `1.5b-awq-vllm-orin` (vLLM): **15/15 at both default
+        temperature AND 0.1** - vLLM's `--tool-call-parser hermes` is
+        temperature-robust (likely grammar-constrained), llama.cpp's Hermes-2-Pro
+        detection is not, so llama.cpp genuinely needs a pinned low temperature
+        where vLLM doesn't. Ruled out `max_tokens` as the cause first (raising it
+        64->256 did NOT improve the rate - the failures weren't truncated
+        responses, the model completed a full non-tool-call answer some fraction
+        of the time regardless of budget). Fix applied: `llm_client.call_llm()`
+        gained an optional `temperature` parameter (`None` = omit, server
+        default - unaffected for `scripts/benchmark.py`/`benchmark_streaming.py`,
+        which don't pass one), and `scripts/validate_tool_calling.py` now pins
+        `--temperature 0.1` by default (costs vLLM nothing, fixes llama.cpp).
+      - **Second real bug found while re-running the real script (not just the
+        ad-hoc diagnostic) against actual BFCL data**: llama.cpp's server
+        hard-errors (`HTTP 500: JSON schema conversion failed: Unrecognized
+        schema`) on several of BFCL's own non-standard JSON-schema type names -
+        `"float"` (215 occurrences across the staged simple+irrelevance files,
+        common enough to silently wreck most of a real run), `"tuple"` (2), and
+        `"any"` (1) - vLLM tolerates these silently, which is exactly why this
+        went undetected until llama.cpp was actually run against real BFCL data
+        rather than the ad-hoc `get_weather` schema (which only ever used
+        `"string"`, a valid type, so it never triggered this). Counted every type
+        actually present in the staged corpus rather than guessing which might
+        appear. Fixed: `_bfcl_function_to_openai_tool()` now renames
+        `float`->`number` and `tuple`->`array`, and drops `any` entirely (no
+        JSON-schema equivalent - the idiomatic way to express "unconstrained" is
+        omitting `type`, not inventing a fake name), alongside the existing
+        `dict`->`object` rename.
+      - **First real, working BFCL scorecard for any row in this lab**, after both
+        fixes above, `1.5b-q4-llamacpp-orin`, `--limit 20` (40 total cases):
+        simple 85% (17/20), irrelevance 65% (13/20), overall 75% (30/40). Small
+        sample (`--limit 20`, not the full ~400+239 corpus) - a real number, not
+        yet the final scorecard Phase 3 will run.
       - No GPU/port collision with the real production `vllm-orchestrator` container
         (confirmed `docker ps`/`free -h` before and after) or with
         `embedded-ai-chain`'s own dashboard (moved this lab's llama.cpp default port

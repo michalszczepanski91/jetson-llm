@@ -88,9 +88,17 @@
     HF Hub search (q4_k_m/q5_k_m/q6_k/q8_0/fp16 all present in the repo) -
     same trustworthy-provenance bar as jetson-vlm-lab's model selections.
     Serving image confirmed working (dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04,
-    see src/llm_coordinator.py's _DEFAULT_LLAMACPP_IMAGE comment), but
-    tool-calling reliability at this size is an open question, not yet a
-    measured result - see that same Phase 1 entry for why.
+    see src/llm_coordinator.py's _DEFAULT_LLAMACPP_IMAGE comment). Tool-calling
+    reliability RESOLVED, 2026-09-04 (see docs/TODO.md Phase 1's diagnostic in
+    full): default sampling temperature (~0.8) only produced a structured tool
+    call 80% of the time (12/15 repeated identical calls); temperature=0.1 hit
+    100% (15/15) - vLLM was 100% at both temperatures, so this is a real
+    llama.cpp-specific sensitivity, fixed by scripts/validate_tool_calling.py
+    now pinning --temperature 0.1 by default. First real BFCL scorecard for
+    this row (--limit 20, 40 cases, after also fixing a second real bug -
+    BFCL's non-standard "float"/"tuple"/"any" schema types crashing llama.cpp's
+    grammar builder): simple 85% (17/20), irrelevance 65% (13/20), overall 75%
+    (30/40) - small sample, not yet the full-corpus Phase 3 scorecard.
 
 3b-q4-llamacpp-orin:
   model: Qwen/Qwen2.5-3B-Instruct-GGUF

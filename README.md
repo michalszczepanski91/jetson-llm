@@ -23,7 +23,7 @@ explicitly excluded from v1, not silently skipped).
 
 | Family | License | Access | Function-calling | Status |
 |---|---|---|---|---|
-| Qwen2.5-Instruct (1.5B/3B/7B) | Apache-2.0 | Open, ungated | Explicitly trained for it (vLLM's `--tool-call-parser hermes` works out of the box) | 1.5B smoke-tested for real, 2026-09-04 - vLLM confirmed working, llama.cpp has an open tool-calling reliability question |
+| Qwen2.5-Instruct (1.5B/3B/7B) | Apache-2.0 | Open, ungated | Explicitly trained for it - reliable on both backends once `temperature=0.1` is pinned for llama.cpp (see below) | 1.5B smoke-tested for real, 2026-09-04 - first real BFCL scorecard: 75% overall (85% simple / 65% irrelevance, n=40) on llama.cpp |
 | Apertus-8B-Instruct-2509 | Apache-2.0 | Original repo is **gated** (SNAI Acceptable Use Policy); the GGUF redistribution this lab actually uses (`bartowski/...-GGUF`) is not | Unconfirmed - moot for now, see Status | **BLOCKED**: llama.cpp doesn't recognize Apertus's GGUF architecture at all (`unknown model architecture: 'apertus'`), confirmed on two build versions, 2026-09-04. No AWQ exists for a vLLM row either - **no working serving path in this lab right now** |
 | Bielik-11B-v3.0-Instruct | Apache-2.0 | Original repo is gated; SpeakLeash's own official GGUF repo is not | **Confirmed working**, 2026-09-04 - correctly returned a structured tool call on the first real test | Smoke-tested for real, 2026-09-04 - the strongest first result of any llama.cpp row so far |
 
@@ -167,18 +167,25 @@ full record:
   process (missing `--enable-auto-tool-choice --tool-call-parser hermes` flags on the
   Python coordinator path; a wrong `max_model_len` value in the registry).
 - **Qwen2.5-1.5B on llama.cpp** (`1.5b-q4-llamacpp-orin`): plain completion succeeded.
-  Tool-calling is an **open, unresolved finding** - the server accepted the request
-  (after fixing the image tag to one with a new-enough llama.cpp build) but the model
-  described wanting to call the tool in free text rather than emitting a structured
-  response, where the identical prompt worked correctly on vLLM.
+  The initial tool-calling failure (model narrating instead of calling the tool) was
+  **resolved** - 15 repeated identical calls at default sampling temperature (~0.8)
+  succeeded only 12/15 (80%), 15/15 (100%) at `temperature=0.1`. vLLM was 100% at
+  both temperatures, so this is a real llama.cpp-specific sensitivity, not a
+  framework-wide limitation - `scripts/validate_tool_calling.py` now pins
+  `--temperature 0.1` by default to fix it (costs vLLM nothing). A second real bug
+  found while re-running the real script against actual BFCL data: llama.cpp
+  hard-errors on BFCL's non-standard `"float"`/`"tuple"`/`"any"` schema type names
+  (vLLM tolerates them silently) - fixed in `_bfcl_function_to_openai_tool()`. First
+  real scorecard after both fixes (`--limit 20`, 40 cases): **75% overall** (85%
+  simple / 65% irrelevance) - a small sample, not yet the full-corpus number.
 - **Apertus-8B on llama.cpp** (`apertus-8b-q4-llamacpp-orin`): **BLOCKED** - llama.cpp
   doesn't recognize Apertus's GGUF architecture at all, confirmed on two build
   versions. No vLLM path exists either (no AWQ). No working serving path in this lab
   right now.
 - **Bielik-11B on llama.cpp** (`bielik-11b-q4-llamacpp-orin`): **working**, and the
-  strongest llama.cpp result so far - cold start 338s (incl. first download), plain
-  completion succeeded, and a tool-calling completion correctly returned a structured
-  call, unlike the Qwen-on-llama.cpp attempt above with the identical test prompt.
+  strongest first-look llama.cpp result - cold start 338s (incl. first download),
+  plain completion succeeded, and a tool-calling completion correctly returned a
+  structured call on the first try.
 
-No BFCL/MMLU scorecard numbers exist yet for anything. Full matrix is
-`docs/TODO.md` Phase 3.
+Real BFCL numbers now exist for one row (`1.5b-q4-llamacpp-orin`, above, small
+sample). Everything else in `docs/TODO.md` Phase 3's full matrix is still pending.

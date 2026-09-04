@@ -116,8 +116,11 @@ having no OpenAI-compatible server at all) and what's still pending (Thor access
 
 Real smoke tests done 2026-09-04 for all three families - see README's "Current
 State" for the summary and `docs/TODO.md` Phase 1 for the full record. Qwen2.5-1.5B:
-vLLM confirmed working (two real bugs found and fixed along the way), llama.cpp has
-an open tool-calling-reliability question. Apertus-8B: blocked outright (llama.cpp
-has no support for its GGUF architecture; no AWQ exists for vLLM). Bielik-11B:
-confirmed working on llama.cpp, including a correctly structured tool call - the
-strongest result of any llama.cpp row so far.
+vLLM confirmed working; llama.cpp's initial tool-calling failure was resolved (a
+real, llama.cpp-specific temperature sensitivity - `scripts/validate_tool_calling.py`
+now pins `--temperature 0.1` by default) and a second real bug (BFCL's non-standard
+JSON-schema type names crashing llama.cpp's grammar builder) was fixed along the
+way - first real BFCL scorecard: 75% overall on a 40-case sample. Apertus-8B: blocked
+outright (llama.cpp has no support for its GGUF architecture; no AWQ exists for
+vLLM). Bielik-11B: confirmed working on llama.cpp, including a correctly structured
+tool call on the first try.

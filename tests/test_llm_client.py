@@ -59,6 +59,24 @@ def test_call_llm_includes_tools_and_tool_choice_when_given():
     assert payload["tool_choice"] == "auto"
 
 
+def test_call_llm_omits_temperature_by_default():
+    coordinator = _fake_coordinator()
+    with patch("llm_client.urllib.request.urlopen", return_value=_fake_response({"content": "ok"})) as mock_urlopen:
+        call_llm(coordinator, [{"role": "user", "content": "hi"}])
+
+    payload = json.loads(mock_urlopen.call_args[0][0].data)
+    assert "temperature" not in payload
+
+
+def test_call_llm_includes_temperature_when_given():
+    coordinator = _fake_coordinator()
+    with patch("llm_client.urllib.request.urlopen", return_value=_fake_response({"content": "ok"})) as mock_urlopen:
+        call_llm(coordinator, [{"role": "user", "content": "hi"}], temperature=0.1)
+
+    payload = json.loads(mock_urlopen.call_args[0][0].data)
+    assert payload["temperature"] == 0.1
+
+
 def test_call_llm_returns_tool_calls_when_present():
     message = {
         "role": "assistant",
