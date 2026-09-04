@@ -67,9 +67,28 @@ explicitly deferred with reasons recorded above (not silently dropped).
       check (not a ranking signal) using `cais/mmlu`'s `all/test` split - generative
       letter-parsing scoring (works identically across vLLM/llama.cpp, unlike
       logprob-based scoring which would need a backend-specific API)
-- [ ] Real Docker/GPU smoke test: `make serve-1.5b-vllm` + curl `/health` +
-      `/v1/chat/completions`, confirming the known-good vllm/1.5b row actually starts
-      the way `configs/models.yaml`'s notes claim
+- [x] Real Docker/GPU smoke test, 2026-09-04, `1.5b-awq-vllm-orin` on this Orin
+      (`VllmCoordinator` directly, not through `make serve-1.5b-vllm`'s foreground
+      compose target): cold start 158-162s, `/health` 200, a plain completion and a
+      tool-calling completion (`get_weather({"city": "Warsaw"})`, correctly
+      structured) both succeeded. Ran alongside the real production
+      `vllm-orchestrator` container (port 8001, untouched) with no collision -
+      confirmed `free -h`/`docker ps` before starting, per this file's own
+      standing caution. Two real bugs this test caught and fixed before it passed:
+      1. `configs/models.yaml`'s `1.5b-awq-vllm-orin` row claimed `max_model_len:
+         4096` as "known-good" - `docker inspect vllm-orchestrator` showed
+         production actually runs `2048`. Fixed to match the real value; the
+         4096 guess was never sourced from `orchestrator_models.py` (that file has
+         no `max_model_len` field at all) and shouldn't have been asserted as
+         "known-good" unverified.
+      2. `VllmCoordinator.start()`'s own command never included
+         `--enable-auto-tool-choice --tool-call-parser hermes` - only
+         `docker-compose.yml` had them. Every real tool-calling request failed
+         with HTTP 400 until this was fixed (this class's own smoke test caught
+         the mismatch between its two ways of starting the container).
+      Also found (unrelated to vLLM): `LlamaCppCoordinator`'s default port 8080
+      collides with `embedded-ai-chain`'s own live dashboard on this device -
+      changed the default to 8090 before this was ever run for real.
 - [ ] Real Docker/GPU smoke test: `make serve-1.5b-llamacpp` - **first real use of
       the unverified `dustynv/llama_cpp` image tag** (see
       `src/llm_coordinator.py`'s `_DEFAULT_LLAMACPP_IMAGE` comment) - confirm the tag,

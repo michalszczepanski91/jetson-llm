@@ -34,7 +34,11 @@
   backend: vllm
   platform: orin
   gpu_memory_utilization: 0.15
-  max_model_len: 4096
+  max_model_len: 2048  # matches the real production container exactly - confirmed live
+                        # via `docker inspect vllm-orchestrator`, 2026-09-04 (an earlier
+                        # version of this row guessed 4096, which orchestrator_models.py
+                        # never actually specifies - fixed to the real value before this
+                        # row's "known-good" claim was trusted for the Phase 1 smoke test)
   notes: >
     Currently what embedded-ai-chain actually ships as its orchestrator LLM
     default (orchestrator_models.py DEFAULT) - the known-good baseline every

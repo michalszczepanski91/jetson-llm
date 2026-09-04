@@ -111,6 +111,16 @@ class VllmCoordinator:
             "--gpu-memory-utilization", str(self._gpu_memory_utilization),
             "--max-model-len", str(self._max_model_len),
             "--trust-remote-code",
+            "--enable-auto-tool-choice", "--tool-call-parser", "hermes",
+            # required for tools/tool_choice requests to work at all - confirmed
+            # live 2026-09-04: without these, vLLM returns a 400 on any request
+            # carrying "tools". Every real caller here (validate_tool_calling.py)
+            # needs structured tool calls, so this isn't optional the way it might
+            # be for a plain-chat-only server. Matches embedded-ai-chain's own
+            # production orchestrator-vllm-compose.yml, which already has this -
+            # this file previously did not (an earlier version had it only in
+            # docker-compose.yml, not here, and this class's own smoke test is
+            # what caught the mismatch).
         ]
         if not self._enable_prefix_caching:
             cmd.append("--no-enable-prefix-caching")
@@ -194,7 +204,13 @@ class LlamaCppCoordinator:
         self,
         model: str,
         quant: str = "Q4_K_M",
-        port: int = 8080,
+        port: int = 8090,  # NOT llama.cpp's own conventional 8080 default -
+        # confirmed live on this device (2026-09-04) that 8080 is already
+        # bound by embedded-ai-chain's own live dashboard
+        # (tts_consumer.py's dashboard.py, port 8080) - a real collision,
+        # not a hypothetical one, so this lab picks a different default
+        # rather than risk silently fighting the production pipeline for
+        # that port.
         n_gpu_layers: int = -1,  # -1 = offload every layer to GPU
         ctx_size: int = 4096,
         image: str = _DEFAULT_LLAMACPP_IMAGE,

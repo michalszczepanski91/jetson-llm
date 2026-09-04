@@ -22,7 +22,7 @@ make serve-1.5b-vllm                             # start vLLM serving Qwen2.5-1.
 curl http://localhost:8000/health
 
 make serve-1.5b-llamacpp                         # start llama-server serving the Q4_K_M GGUF
-curl http://localhost:8080/health
+curl http://localhost:8090/health  # not llama.cpp's conventional 8080 - see llm_coordinator.py's port comment
 
 make benchmark CONFIG=1.5b-awq-vllm-orin           # latency/cold-start/thermal/power
 make benchmark CONFIG=1.5b-q4-llamacpp-orin

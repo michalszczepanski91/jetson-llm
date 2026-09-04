@@ -33,7 +33,8 @@ services:
       - --host
       - "0.0.0.0"
       - --port
-      - "8080"
+      - "8090"  # not llama.cpp's conventional 8080 - already bound by embedded-ai-chain's
+                # live dashboard on this device, see llm_coordinator.py's port comment
       - -ngl
       - ${N_GPU_LAYERS:--1}
       - -c

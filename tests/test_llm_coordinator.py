@@ -104,6 +104,24 @@ def test_vllm_command_includes_gpu_memory_utilization_and_model():
     assert "0.15" in cmd
 
 
+def test_vllm_command_enables_structured_tool_calls():
+    # Regression test: confirmed live 2026-09-04 that without these two
+    # flags, vLLM returns HTTP 400 on any request carrying "tools" - an
+    # earlier version of this file omitted them (they existed only in
+    # docker-compose.yml), caught by this class's own real smoke test.
+    proc = _fake_proc()
+    with patch("llm_coordinator.subprocess.Popen", return_value=proc) as mock_popen, \
+         patch("llm_coordinator.urllib.request.urlopen", side_effect=urllib.error.URLError("refused")), \
+         patch("llm_coordinator.subprocess.run"):
+        coordinator = VllmCoordinator(model="fake/model")
+        coordinator.start()
+        coordinator.stop()
+
+    cmd = mock_popen.call_args[0][0]
+    assert "--enable-auto-tool-choice" in cmd
+    assert cmd[cmd.index("--tool-call-parser") + 1] == "hermes"
+
+
 # ── LlamaCppCoordinator ──────────────────────────────────────────────────
 
 def test_llamacpp_wait_ready_true_once_health_responds():
@@ -117,9 +135,11 @@ def test_llamacpp_wait_ready_true_once_health_responds():
         coordinator.stop()
 
 
-def test_llamacpp_base_url_defaults_to_8080():
+def test_llamacpp_base_url_defaults_to_8090_not_8080():
+    # Not llama.cpp's conventional 8080 - confirmed live on this device that
+    # port is already bound by embedded-ai-chain's own dashboard.
     coordinator = LlamaCppCoordinator(model="fake/model")
-    assert coordinator.base_url == "http://127.0.0.1:8080"
+    assert coordinator.base_url == "http://127.0.0.1:8090"
 
 
 def test_llamacpp_command_uses_hf_downloader_and_jinja():
