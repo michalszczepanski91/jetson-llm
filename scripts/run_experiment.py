@@ -106,7 +106,9 @@ def main():
     # results contaminate every table they join.
     if args.target == "local":
         assert_condition_matches_reality(
-            condition, own_containers={"vllm-llm-lab", "llamacpp-llm-lab"}
+            condition,
+            own_containers={"vllm-llm-lab", "llamacpp-llm-lab"},
+            declared_co_resident=co_resident,
         )
     reps = cfg["repetitions"]
     command = shlex.join([sys.executable, *sys.argv])

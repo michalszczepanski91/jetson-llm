@@ -226,11 +226,14 @@ def test_our_own_container_does_not_count_as_co_residency(monkeypatch):
     manifest.assert_condition_matches_reality("standalone", own_containers={"vllm-llm-lab"})
 
 
-def test_co_resident_runs_are_never_blocked(monkeypatch):
-    """The check exists to stop a false `standalone`, not to police what may
+def test_co_resident_runs_are_never_blocked_when_the_declaration_is_complete(monkeypatch):
+    """The check exists to stop a false/incomplete label, not to police what may
     run - a co-resident run declaring the truth is exactly what Phase 9 needs."""
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: "yolo\nstt\ntts")
-    manifest.assert_condition_matches_reality("co-resident", own_containers=set())
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
+    manifest.assert_condition_matches_reality(
+        "co-resident", own_containers=set(), declared_co_resident=["yolo", "stt", "tts"]
+    )
 
 
 # --- bare-metal GPU-holding processes (not just containers) ---------------
@@ -260,10 +263,28 @@ def _fake_proc_tree(tmp_path, pid_fds: dict[int, list[str]], cmdlines: dict[int,
     return tmp_path
 
 
+def _patch_proc_root(monkeypatch, tmp_path):
+    """Redirect every /proc-prefixed path manifest.py touches (gpu_holding_pids'
+    own Path("/proc") AND _cmdline's Path(f"/proc/{pid}/cmdline")) into the fake
+    tree, so both functions see the same fake filesystem consistently."""
+    import pathlib
+    real_path = pathlib.Path
+
+    def fake_path(p="/proc"):
+        p = str(p)
+        if p == "/proc":
+            return tmp_path
+        if p.startswith("/proc/"):
+            return tmp_path / p[len("/proc/"):]
+        return real_path(p)
+
+    monkeypatch.setattr(manifest, "Path", fake_path)
+
+
 def test_gpu_holding_pids_finds_a_real_gpu_handle(tmp_path, monkeypatch):
     _fake_proc_tree(tmp_path, {93363: ["nvhost-17000000.gpu-fd10", "nvgpu-ga10b-tsg17"]},
                     {93363: "/home/michal/dev/embedded-ai-chain/.venv/bin/python tts_consumer.py"})
-    monkeypatch.setattr(manifest, "Path", lambda p="/proc": tmp_path if p == "/proc" else __import__("pathlib").Path(p))
+    _patch_proc_root(monkeypatch, tmp_path)
     found = manifest.gpu_holding_pids()
     assert [pid for pid, _ in found] == [93363]
     assert "tts_consumer.py" in found[0][1]
@@ -274,7 +295,7 @@ def test_gpu_holding_pids_ignores_processes_with_no_gpu_fd(tmp_path, monkeypatch
     not be reported - only an actual nvhost/nvgpu/nvmap handle counts as
     "holding the GPU", or every process on the board would trip this."""
     _fake_proc_tree(tmp_path, {111: ["socket:[12345]", "pipe:[6789]"]})
-    monkeypatch.setattr(manifest, "Path", lambda p="/proc": tmp_path if p == "/proc" else __import__("pathlib").Path(p))
+    _patch_proc_root(monkeypatch, tmp_path)
     assert manifest.gpu_holding_pids() == []
 
 
@@ -338,3 +359,71 @@ def test_standalone_passes_on_a_truly_quiet_board_including_bare_metal(monkeypat
     monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
     monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
     manifest.assert_condition_matches_reality("standalone", own_containers=set())
+
+
+# --- co-resident declarations can be incomplete, not just standalone false -
+#
+# Real incident, 2026-09-04, on already-COMMITTED data: 5 results correctly
+# said co-resident: [vllm-orchestrator], but PID 93363 (tts_consumer.py) was
+# running throughout every one of them and was never declared. Found only
+# because the user asked about one specific committed result by name - no
+# check caught it at write time, because none existed yet.
+
+
+def test_co_resident_declaration_missing_a_bare_metal_process_is_refused(monkeypatch):
+    """Pins the exact incident: 'co-resident: [vllm-orchestrator]' declared,
+    but a bare-metal GPU process is also running and not named."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids",
+                        lambda: [(93363, "python tts_consumer.py")])
+    with pytest.raises(SystemExit) as exc:
+        manifest.assert_condition_matches_reality(
+            "co-resident", own_containers=set(), declared_co_resident=["vllm-orchestrator"]
+        )
+    message = str(exc.value)
+    assert "93363" in message
+    assert "incomplete" in message
+
+
+def test_co_resident_declaration_missing_a_container_is_refused(monkeypatch):
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: "vllm-orchestrator" if cmd[:2] == ["docker", "ps"] else None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
+    with pytest.raises(SystemExit) as exc:
+        manifest.assert_condition_matches_reality(
+            "co-resident", own_containers=set(), declared_co_resident=["something-else"]
+        )
+    assert "vllm-orchestrator" in str(exc.value)
+
+
+def test_co_resident_declaration_matching_reality_passes(monkeypatch):
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: "vllm-orchestrator" if cmd[:2] == ["docker", "ps"] else None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids",
+                        lambda: [(93363, "python tts_consumer.py")])
+    manifest.assert_condition_matches_reality(
+        "co-resident", own_containers=set(),
+        declared_co_resident=["vllm-orchestrator", "pid:93363"],
+    )
+
+
+def test_co_resident_declaration_check_ignores_own_containers(monkeypatch):
+    """The lab's own server must not have to be declared as part of its own
+    co-resident workload - it's the thing being measured, not a neighbour."""
+    monkeypatch.setattr(manifest, "_run",
+                        lambda cmd, **k: ("" if cmd[:2] == ["docker", "ps"]
+                                          else "PID\n249955" if "top" in cmd else None))
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [(249955, "vllm serve ...")])
+    manifest.assert_condition_matches_reality(
+        "co-resident", own_containers={"vllm-llm-lab"}, declared_co_resident=["something"]
+    )
+
+
+def test_co_resident_with_no_declaration_and_nothing_running_passes(monkeypatch):
+    """A co-resident label with an empty declared list is only valid if the
+    board genuinely has nothing else on it - degenerate but not a crash."""
+    monkeypatch.setattr(manifest, "_run", lambda *a, **k: None)
+    monkeypatch.setattr(manifest, "gpu_holding_pids", lambda: [])
+    manifest.assert_condition_matches_reality(
+        "co-resident", own_containers=set(), declared_co_resident=None
+    )

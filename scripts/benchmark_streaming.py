@@ -91,7 +91,9 @@ def main():
 
     if args.target == "local":
         assert_condition_matches_reality(
-            args.execution_condition, own_containers={"vllm-llm-lab", "llamacpp-llm-lab"}
+            args.execution_condition,
+            own_containers={"vllm-llm-lab", "llamacpp-llm-lab"},
+            declared_co_resident=args.co_resident,
         )
 
     variant = load_model_config(args.model_config)

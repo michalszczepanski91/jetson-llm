@@ -587,6 +587,26 @@ or a form of GPU access this heuristic misses, would still pass — so the error
 reports what was found, not that the board is now provably clean. Same no-override
 policy as before.
 
+**Third incident, same day, on already-committed data — an incomplete `co-resident`
+label, not a false `standalone` one.** The user asked about one specific committed
+result by name (`..._phase2-verify_out128_bs1_r01`) and whether it was standalone.
+It wasn't — it correctly said `co-resident: [vllm-orchestrator]` — but PID 93363 was
+running throughout its entire measurement window too (started 2026-09-03, the result
+was written 2026-09-04 afternoon) and had never been declared. All 5 committed Phase 2
+verification results had this same gap. **Corrected in place, not deleted**: by this
+point the archive-don't-delete policy already applied, and unlike the first
+incident's 6 results, this data wasn't uncontrolled — exactly what was running is
+known, so an honest correction was possible. Each file's `co_resident_workload` was
+updated and a `_comment` field added explaining what changed, when, and why, with the
+pre-correction content recoverable from git history (`6f898f5`).
+
+`assert_condition_matches_reality()` gained a third signal for this: a
+`declared_co_resident` parameter, checked for **completeness** against the same two
+detectors (containers, bare-metal GPU handles) — not just consulted for the
+`standalone` case. A `co-resident` label that is merely not literally false is not
+the same as one that is complete, and only the second is what `co_resident_workload`
+promises a reader. Wired into both `run_experiment.py` and `benchmark_streaming.py`.
+
 **This changes the cost of a genuine `standalone` claim on this device.** Stopping the
 `vllm-orchestrator` *container* is not sufficient — the production pipeline that
 actually matters runs as `tts_consumer.py`, and stopping *that* is a materially larger
@@ -833,3 +853,4 @@ Rows are never deleted, even when superseded — same convention as
 | 2026-09-04 | Qwen3 stays gated on a real serving test — but as routine practice, not because of a known blocker | `GET /version` on the pinned image returns `vllm 0.19.0`, running fine on this JetPack 6.2 board. Second time a version was assumed from a name and was wrong; both times the fix was asking the running server |
 | 2026-09-04 | `assert_condition_matches_reality()` also scans `/proc/<pid>/fd` for bare-metal GPU-holding processes, not just Docker containers | The container-only check passed a real campaign labelled `standalone` while `embedded-ai-chain`'s full production pipeline ran as one bare-metal process (`tts_consumer.py`, PID 93363) the entire time. Caught only because the user asked directly whether prior runs were contaminated |
 | 2026-09-04 | ~~Contaminated results are deleted, not relabelled~~ **corrected same day, by direct user instruction** — archive to `results/invalid/`, never delete | Deleting discards evidence `docs/note.md` says to keep; a contaminated run is still data even when it isn't a clean measurement. The 7 files from the incident above were deleted before this correction and are genuinely gone (never committed, not recoverable) — the policy applies from here forward |
+| 2026-09-04 | `assert_condition_matches_reality()` also checks `co-resident` declarations for completeness, not just refusing false `standalone` | 5 already-committed results correctly said co-resident but declared only `[vllm-orchestrator]`, missing PID 93363 (running throughout every one of them). Corrected in place with a `_comment`, not deleted — the workload was known, just undeclared |

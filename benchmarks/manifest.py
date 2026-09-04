@@ -118,8 +118,14 @@ def running_containers(exclude: set[str] | None = None) -> list[str]:
     return [n for n in out.splitlines() if n and n not in (exclude or set())]
 
 
-def assert_condition_matches_reality(execution_condition: str, own_containers: set[str]) -> None:
-    """Refuse to record `standalone` on a board that plainly isn't.
+def assert_condition_matches_reality(
+    execution_condition: str,
+    own_containers: set[str],
+    declared_co_resident: list[str] | None = None,
+) -> None:
+    """Refuse a `standalone` claim on a board that isn't, and refuse an
+    incomplete `co-resident` claim on one that is - both failure modes have
+    happened on this repo's real data in one day.
 
     docs/note.md §15 makes the standalone/co-resident distinction load-bearing
     for every figure this lab produces, and a *mislabelled* result is strictly
@@ -133,13 +139,21 @@ def assert_condition_matches_reality(execution_condition: str, own_containers: s
     override flag: the fix is either to stop the other workload or to declare
     the truth, and both are one command. An override would be used.
 
-    Checks two things, because they miss different failure modes:
+    Detects two signals, because they miss different failure modes:
 
     1. **Other Docker containers** - `running_containers()`.
     2. **Bare-metal processes actually holding GPU device handles** -
        `gpu_holding_pids()`, scanning `/proc/<pid>/fd` for `nvhost`/`nvgpu`/
-       `nvmap` symlinks, the same signal used to catch the real incident this
-       function exists because of, below.
+       `nvmap` symlinks, the same signal used to catch both incidents below.
+
+    Then applies them two ways:
+
+    - `execution_condition == "standalone"`: any detected signal is an error
+      (the board must be quiet).
+    - `execution_condition == "co-resident"`: every detected signal must
+      already be named in `declared_co_resident`, or it's an error too - a
+      declared workload a reader trusts to be complete is exactly as load-
+      bearing as the top-level label itself.
 
     **Real incident, 2026-09-04.** The container check alone let a whole
     Phase 4 campaign run and get labelled `standalone` while
@@ -150,10 +164,31 @@ def assert_condition_matches_reality(execution_condition: str, own_containers: s
     open `nvhost-*.gpu-fd*`/`nvgpu-*-tsg*` file descriptors, i.e. it was
     genuinely using the GPU, not just importing GPU-capable libraries. Six
     results had already been written and labelled `standalone` before this
-    was caught; they were deleted rather than relabelled, because the
-    co-resident workload was never declared or controlled and so cannot be
-    honestly described after the fact - not "co-resident with X", just
-    "invalid, redo it". This function is the fix, not a retrospective label.
+    was caught. That first version of this function only checked containers,
+    and its own docstring said so.
+
+    **Second incident, same day, on already-committed data.** The user asked
+    about one specific committed result (`..._phase2-verify_out128_bs1_r01`,
+    correctly labelled `co-resident: [vllm-orchestrator]`) and whether it was
+    contaminated. It wasn't mislabelled at the TOP level - but PID 93363 was
+    running throughout that result's entire measurement window too (started
+    2026-09-03, the result was written 2026-09-04 afternoon) and was never
+    added to `co_resident_workload`. Five committed results had this gap.
+    They were corrected in place (the field value fixed, a `_comment`
+    explaining what changed and why, git history holding the original) rather
+    than deleted - by then the archive-don't-delete policy below already
+    applied, and unlike the six `standalone` results, there was nothing
+    uncontrolled about this data: exactly what was running is known, so an
+    honest correction was possible where the first incident's wasn't.
+
+    The `declared_co_resident` completeness check exists because of this
+    second incident: a co-resident label that's merely *not literally false*
+    is not the same as one that's *complete*, and only the second is what a
+    reader actually needs from `co_resident_workload`.
+
+    Both incidents' contaminated/incomplete results are recorded in
+    `docs/TODO.md`'s Phase 3 incident log, not just in this docstring - this
+    function is the code fix, not a substitute for the record of why.
 
     Deliberately an error rather than a warning, and deliberately without an
     override flag: the fix is either to stop the other workload or to declare
@@ -163,30 +198,61 @@ def assert_condition_matches_reality(execution_condition: str, own_containers: s
     whose GPU access this /proc heuristic doesn't recognise, would still slip
     through. The message reports what was found, not that the board is
     clean."""
-    if execution_condition != "standalone":
-        return
     own_pids = _own_container_pids(own_containers)
     other_containers = running_containers(exclude=own_containers)
     other_gpu = [(pid, cmd) for pid, cmd in gpu_holding_pids() if pid not in own_pids]
-    if not other_containers and not other_gpu:
-        return
 
-    lines = ["error: execution_condition is 'standalone' but the board is not quiet:"]
-    if other_containers:
-        lines.append("  other containers running:")
-        lines += [f"    {n}" for n in other_containers]
-    if other_gpu:
-        lines.append("  bare-metal processes actively holding a GPU device handle:")
-        lines += [f"    pid {pid}: {cmd}" for pid, cmd in other_gpu]
-    workload = other_containers + [f"pid:{pid}" for pid, _ in other_gpu]
+    if execution_condition == "standalone":
+        if not other_containers and not other_gpu:
+            return
+        lines = ["error: execution_condition is 'standalone' but the board is not quiet:"]
+        if other_containers:
+            lines.append("  other containers running:")
+            lines += [f"    {n}" for n in other_containers]
+        if other_gpu:
+            lines.append("  bare-metal processes actively holding a GPU device handle:")
+            lines += [f"    pid {pid}: {cmd}" for pid, cmd in other_gpu]
+        workload = other_containers + [f"pid:{pid}" for pid, _ in other_gpu]
+        lines += [
+            "On unified memory these compete for the same RAM and GPU, so the resulting",
+            "numbers are co-resident numbers. Either stop them, or declare the truth:",
+            "    execution_condition: co-resident",
+            f"    co_resident_workload: [{', '.join(workload)}]",
+            "A mislabelled result is worse than no result - it contaminates every table",
+            "it is joined into (docs/note.md §15). See this function's own docstring for",
+            "the real incident that made bare-metal detection necessary, not just Docker.",
+        ]
+        raise SystemExit("\n".join(lines))
+
+    # execution_condition == "co-resident": a declared list can be INCOMPLETE
+    # even when the top-level label is correct. Real incident, 2026-09-04: 5
+    # results correctly said co-resident but declared only
+    # ["vllm-orchestrator"], missing tts_consumer.py (PID 93363) - which was
+    # running throughout every one of them. Caught by the user asking about a
+    # SPECIFIC already-committed result, not by any check that existed then.
+    # This closes that half of the gap the same way the standalone half was
+    # closed: compare what's actually running against what was declared.
+    declared = set(declared_co_resident or [])
+    undeclared_containers = [n for n in other_containers if n not in declared]
+    undeclared_gpu = [
+        (pid, cmd) for pid, cmd in other_gpu
+        if not any(str(pid) in d for d in declared)
+    ]
+    if not undeclared_containers and not undeclared_gpu:
+        return
+    lines = ["error: execution_condition is 'co-resident' but the declared workload is incomplete:"]
+    if undeclared_containers:
+        lines.append("  running but NOT in co_resident_workload:")
+        lines += [f"    {n}" for n in undeclared_containers]
+    if undeclared_gpu:
+        lines.append("  bare-metal GPU-holding processes NOT in co_resident_workload:")
+        lines += [f"    pid {pid}: {cmd}" for pid, cmd in undeclared_gpu]
     lines += [
-        "On unified memory these compete for the same RAM and GPU, so the resulting",
-        "numbers are co-resident numbers. Either stop them, or declare the truth:",
-        "    execution_condition: co-resident",
-        f"    co_resident_workload: [{', '.join(workload)}]",
-        "A mislabelled result is worse than no result - it contaminates every table",
-        "it is joined into (docs/note.md §15). See this function's own docstring for",
-        "the real incident that made bare-metal detection necessary, not just Docker.",
+        "An incomplete co-resident declaration is the same failure as a false",
+        "standalone claim, one step removed: a reader trusts co_resident_workload",
+        "to name everything that could have affected the numbers. Add the missing",
+        "entries to co_resident_workload (docs/TODO.md Phase 3's incident record",
+        "has the full story of how this was found on already-committed data).",
     ]
     raise SystemExit("\n".join(lines))
 

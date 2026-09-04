@@ -1417,6 +1417,8 @@
     "notes": "token_source: server usage (stream_options.include_usage)"
   },
   "co_resident_workload": [
-    "vllm-orchestrator"
-  ]
+    "vllm-orchestrator",
+    "pid:93363 (tts_consumer.py, bare-metal production pipeline: YOLO+orchestrator+STT/TTS)"
+  ],
+  "_comment": "CORRECTED 2026-09-04: co_resident_workload originally listed only vllm-orchestrator. PID 93363 (tts_consumer.py, embedded-ai-chain's full bare-metal production pipeline) was also running throughout this result's measurement window (started 2026-09-03T17:20:05+02:00, still running when this correction was made) but was not detected or declared at write time - the co-residency check that existed then covered Docker containers only. Caught by direct user question after a separate incident (see docs/TODO.md Phase 3's incident record) surfaced that this process runs continuously. The top-level execution_condition (co-resident) was already correct; only the declared workload list was incomplete. Corrected in place with this note rather than silently rewritten, per this repo's immutability convention - the original file content before this edit is recoverable from git history."
 }
