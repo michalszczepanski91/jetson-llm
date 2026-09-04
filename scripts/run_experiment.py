@@ -35,6 +35,11 @@ from pathlib import Path
 
 import yaml
 
+sys.stdout.reconfigure(line_buffering=True)  # a redirected/backgrounded run fully
+# buffers stdout otherwise, which silently hid a live campaign's progress from a
+# `tail -f` monitor for 20+ minutes on 2026-09-04 - the process was fine, only the
+# log looked idle.
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
