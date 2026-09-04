@@ -525,6 +525,14 @@ file as proof the raw data is sufficient.
 - [x] Campaigns resume: a cell whose result already exists is skipped, not
       overwritten. A cell that fails is recorded and the rest continue — an OOM at
       2048 context is a result (note.md §54), not a reason to abort a campaign.
+- [ ] Backfill `configs/models.yaml` with the note.md §28 registry fields
+      `schemas/model.schema.json` already defines and documents (`family`,
+      `parameters_b`, `revision`, `quantization{}`, `license`, `status`, ...), then
+      promote them from documented-but-optional to `required`. Deliberately not done
+      alongside the schema itself — a backfill is a change to the experimental
+      record and deserves its own review, not a side effect of writing the schema.
+      `schemas/README.md`'s conformance-level note and every "Phase 3 target" field
+      description in `model.schema.json` point back at this task.
 - [ ] Validate emitted `quality_result` documents in the test suite. Blocked on
       Phase 5 — `validate_tool_calling.py`/`validate_mmlu.py` don't emit them yet.
 

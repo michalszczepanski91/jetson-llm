@@ -117,21 +117,37 @@ how a measurement is taken. One server session serves every cell of a model (a v
 cold start is ~136s), and cells after the first are flagged as sharing its cold-start
 measurement.
 
-A fourth enforced rule, added after it caught a live mislabel twice in one day:
-**`execution_condition: standalone` is refused unless the board is actually quiet.**
-Checked two ways, because they miss different things - `running_containers()`
-(Docker) and `gpu_holding_pids()` (bare-metal, via `/proc/<pid>/fd` for
-`nvhost`/`nvgpu`/`nvmap` handles). The second check exists because the first one
-wasn't enough: `embedded-ai-chain`'s entire production pipeline (YOLO + orchestrator +
-STT/TTS) runs as one bare-metal process (`tts_consumer.py`) invisible to `docker ps`,
-and a real campaign got labelled `standalone` while it was running the whole time -
-caught only because the user asked whether prior runs were contaminated. Those 6
-results were deleted, not relabelled (the co-resident workload was never declared, so
-there was nothing honest to write after the fact). No override flag either way: stop
-the other workload, or declare the truth. See docs/TODO.md Phase 3's incident record
-for the full sequence - stopping the `vllm-orchestrator` *container* is not sufficient
-for a real `standalone` claim on this device; `tts_consumer.py` also has to stop, and
-that is a materially bigger interruption than the container-only story assumed.
+A fourth enforced rule, `assert_condition_matches_reality()`, grew from three
+incidents in one day - each caught a different way a labelled result can lie:
+
+1. **`standalone` refused when a Docker container is running.** The natural mistake:
+   this device runs a production `vllm-orchestrator` around the clock, so typing
+   `standalone` looks fine until you check.
+2. **`standalone` refused when a bare-metal process holds a GPU device handle.**
+   Container check alone wasn't enough: `embedded-ai-chain`'s entire production
+   pipeline (YOLO + orchestrator + STT/TTS) runs as one bare-metal process
+   (`tts_consumer.py`) invisible to `docker ps`, and a real campaign got labelled
+   `standalone` while it was running the whole time - caught only because the user
+   asked whether prior runs were contaminated. Detected via `/proc/<pid>/fd` scans
+   for `nvhost`/`nvgpu`/`nvmap` handles. The 6 results already written that way were
+   deleted (the co-resident workload was never declared or controlled, so there was
+   nothing honest to write after the fact).
+3. **`co-resident` refused when the *declared* workload is incomplete.** Subtler,
+   found on already-committed data: 5 results correctly said
+   `co-resident: [vllm-orchestrator]`, but `tts_consumer.py` was running throughout
+   every one of them too and was never named. Unlike incident 2, this data wasn't
+   uncontrolled - exactly what was running is known - so those 5 were **corrected in
+   place** (field fixed, a `_comment` explaining what changed, pre-correction content
+   recoverable from git history) rather than deleted.
+
+No override flag on any of the three: the fix is either to stop the other workload or
+to declare the truth, and both are one command. **Anything caught this way after the
+fact that can't be honestly corrected in place goes to `results/invalid/`, never
+`rm -rf`** - archived with a note on what was actually true, per `results/invalid/README.md`.
+Full incident record in docs/TODO.md Phase 3 - stopping the `vllm-orchestrator`
+*container* is not sufficient for a real `standalone` claim on this device;
+`tts_consumer.py` also has to stop, and that is a materially bigger interruption than
+the container-only story assumed.
 
 **`scripts/benchmark.py` is retired** (docs/TODO.md Phase 2's ⟨DECIDE⟩, resolved
 2026-09-04) rather than retrofitted: `stream_llm()`-based measurement already covers
@@ -203,8 +219,17 @@ having no OpenAI-compatible server at all) and what's still pending (Thor access
 
 ## Current State
 
-Real smoke tests done 2026-09-04 for all three families - see README's "Current
-State" for the summary and `docs/TODO.md` Phase 1 for the full record. Qwen2.5-1.5B:
+**Phase 2-4 (measurement integrity + a real campaign)**: done 2026-09-04. See
+README's "Current State" for the two real findings (J/output-token amortization with
+generation length; a backend-specific context-scaling gap - vLLM's TTFT stays near
+flat 128->1536 input tokens, llama.cpp's is clearly super-linear) and
+`docs/project.diagram.md` §6 for the full tables. `docs/TODO.md` Phases 2-4 have the
+complete record, including the three measurement-integrity incidents this section's
+"Measurement integrity" above summarizes.
+
+**Phase 1 (candidate serving/tool-calling)**: real smoke tests done 2026-09-04 for
+all three families - see README's "Current State" for the summary and `docs/TODO.md`
+Phase 1 for the full record. Qwen2.5-1.5B:
 vLLM confirmed working; llama.cpp's initial tool-calling failure was resolved (a
 real, llama.cpp-specific temperature sensitivity - `scripts/validate_tool_calling.py`
 now pins `--temperature 0.1` by default) and a second real bug (BFCL's non-standard

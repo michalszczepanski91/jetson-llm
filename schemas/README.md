@@ -7,9 +7,9 @@ Docker/GPU needed).
 | File | Describes | Validated against live data today? |
 |---|---|---|
 | `model.schema.json` | one row of `configs/models.yaml` — a candidate (model × precision × backend × platform) | **Yes** — every one of the 9 current rows |
-| `experiment.schema.json` | one file in `configs/benchmarks/` — the declarative "what to measure" | Not yet; `configs/benchmarks/` is created in `docs/TODO.md` Phase 3 |
-| `benchmark_result.schema.json` | one performance cell: candidate × workload point, raw runs + aggregates | Not yet; it is the contract Phase 2 implements |
-| `quality_result.schema.json` | one accuracy evaluation (BFCL, MMLU) | Not yet; Phase 5 brings the scripts into conformance |
+| `experiment.schema.json` | one file in `configs/benchmarks/` — the declarative "what to measure" | **Yes** — all 3 shipped configs (`smoke`, `output_sweep`, `context_sweep`), `tests/test_experiment_configs.py` |
+| `benchmark_result.schema.json` | one performance cell: candidate × workload point, raw runs + aggregates | **Yes** — 25 real results under `results/raw/` as of 2026-09-04 (5 Phase 2 verification runs, 20 from the Phase 4 `output_sweep`/`context_sweep` campaigns), validated at write time by `scripts/run_experiment.py`/`scripts/benchmark_streaming.py` |
+| `quality_result.schema.json` | one accuracy evaluation (BFCL, MMLU) | Not yet; Phase 5 brings `validate_tool_calling.py`/`validate_mmlu.py` into conformance |
 
 ## Why these exist
 
@@ -20,9 +20,11 @@ lists are aimed at:
 
 - **Aggregates without raw data.** `benchmark_result` requires a `runs` array
   holding every measured repetition. Percentiles can always be recomputed from
-  raw runs; raw runs cannot be recovered from percentiles. Today's
-  `benchmarks/harness.py` computes `percentiles(latencies)` and then discards
-  `latencies` — which is exactly the loss this requirement prevents.
+  raw runs; raw runs cannot be recovered from percentiles. `benchmarks/harness.py`
+  (unchanged, shared with sibling repos) still computes `percentiles(latencies)`
+  and discards `latencies` — exactly the loss this requirement prevents, which is
+  why `benchmarks/runner.py:measure_cell()` is a separate implementation that
+  keeps every raw record rather than routing through the harness's own loop.
 - **Unlabelled execution conditions.** `execution_condition` (`standalone` /
   `co-resident`) has no default anywhere in these schemas. On a unified-memory
   board those are different physical quantities, and a table that silently mixes
@@ -30,23 +32,27 @@ lists are aimed at:
 
 ## Conformance levels
 
-The schemas are written as the **target**, not as a description of today's
-output — with one deliberate exception.
+The schemas were originally written as the **target**, not as a description of
+what existed yet. Two of the four have since crossed over into level-1 as the
+code that produces them was built (Phases 2-3); `quality_result.schema.json`
+remains the one still describing a gap rather than reality.
 
-- **`model.schema.json` is level-1 today.** Its `required` list is exactly what
-  all 9 existing `configs/models.yaml` rows already satisfy (`model`,
-  `precision`, `backend`, `platform`, `notes`), so the test suite guards live
-  data from the first commit rather than failing until a backfill lands. The
-  `docs/note.md` §28 additions — `family`, `parameters_b`, `revision`, `status`,
-  `license`, `quantization{}` — are present, documented, and marked "Phase 3
-  target" in their own `description`. They become `required` when the registry
-  is backfilled, not before.
-- **The other three are level-2.** They describe what `docs/TODO.md` Phases 2/3/5
-  produce. Validating today's output against them would fail, which is the
+- **`model.schema.json`, `experiment.schema.json`, `benchmark_result.schema.json`
+  are level-1.** Every current registry row, every shipped experiment config, and
+  every result `scripts/run_experiment.py`/`scripts/benchmark_streaming.py` write
+  conforms and is checked in `make test`. `model.schema.json`'s `required` list is
+  still deliberately narrower than `docs/note.md` §28's full field set (`family`,
+  `parameters_b`, `revision`, `status`, `license`, `quantization{}` are present,
+  documented, and marked "Phase 3 target" in their own `description`, but not yet
+  `required`) — that backfill is still open.
+- **`quality_result.schema.json` is level-2.** It describes what Phase 5 must
+  produce once `validate_tool_calling.py`/`validate_mmlu.py` are brought into
+  conformance. Validating today's output against it would fail, which is the
   point: the gap is the work list.
 
 Writing a schema that merely describes today's output would have made it a
-report rather than a contract.
+report rather than a contract — the first three didn't start that way, they
+grew into it as the code caught up.
 
 ## Design rules
 

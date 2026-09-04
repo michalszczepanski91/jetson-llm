@@ -56,12 +56,22 @@ curl http://localhost:8000/health
 make serve-1.5b-llamacpp                         # start llama-server serving the Q4_K_M GGUF
 curl http://localhost:8090/health  # not llama.cpp's conventional 8080 - see llm_coordinator.py's port comment
 
-make benchmark CONFIG=1.5b-awq-vllm-orin           # latency/cold-start/thermal/power
-make benchmark CONFIG=1.5b-q4-llamacpp-orin
-make benchmark-streaming CONFIG=1.5b-awq-vllm-orin CONDITION=standalone  # TTFT/tok-s/memory/power/energy
+make experiment EXP=configs/benchmarks/smoke.yaml    # the reportable path - config-driven
+make experiment EXP=configs/benchmarks/output_sweep.yaml DRY=1   # see it expand without starting
+# One config file defines the whole campaign (candidates, workload grid, sampling,
+# warmup/repetition floors, standalone/co-resident) - no CLI flag carries experimental
+# meaning. See configs/benchmarks/ for what ships: smoke (Tier 0), output_sweep
+# (the P3 experiment - see "Current State"), context_sweep.
+
+make benchmark-streaming CONFIG=1.5b-awq-vllm-orin CONDITION=standalone  # one ad-hoc cell
 # CONDITION is required and has no default: on unified memory a standalone and a
-# co-resident number are different physical quantities. Results land in
-# results/raw/<experiment_id>/ and are schema-validated at write time.
+# co-resident number are different physical quantities. Refused outright (no override
+# flag) if a Docker container OR a bare-metal process is found holding a GPU handle
+# and wasn't declared - see CLAUDE.md's "Measurement integrity" for why that bare-metal
+# check exists. Results land in results/raw/<experiment_id>/, schema-validated at
+# write time; a result caught as mislabelled after the fact is archived to
+# results/invalid/, never silently deleted.
+
 make validate-tool-calling CONFIG=1.5b-awq-vllm-orin  # BFCL tool-call judgment accuracy (needs staged data, see below)
 make validate-mmlu CONFIG=1.5b-awq-vllm-orin          # MMLU quantization-sanity accuracy (needs staged data, see below)
 make test                                          # unit tests, no Docker/GPU needed
@@ -164,6 +174,63 @@ This wrapper: no separate license claimed here (internal eval tooling).
 
 ## Current State
 
+### Phase 2-4: measurement integrity, then a real campaign (2026-09-04)
+
+This repo grew from a candidate-selection lab into a reproducible benchmark suite the
+same day the Phase 1 smoke tests below were done - see `docs/note.md` for the
+methodology and `docs/TODO.md` for the phased plan. The short version: three
+measurement bugs were found and fixed by actually running the instrument, then a real
+campaign ran clean on both backends.
+
+**What got fixed, in the order it was found:**
+
+1. **Prefix-cache contamination - a 6.6x TTFT error.** Sending the identical prompt
+   every repetition meant both backends served every rep after the first from a
+   cached prefill. TTFT p50 went 40.8ms -> **268.1ms** once prompts vary per run
+   (now the default, `--prompt-uniqueness unique-per-run`).
+2. **An inert HF cache mount.** `HUGGINGFACE_HUB_CACHE` baked into the vLLM image
+   overrode `HF_HOME`, so the `/opt/hf-cache` volume did nothing and every vLLM run
+   re-downloaded its weights into a `--rm` container. Cold start: 156.2s -> **136.2s**
+   once fixed (both `VllmCoordinator` and `docker-compose.yml`).
+3. **A `standalone` claim that wasn't - twice.** A container-only check let a real
+   campaign run labelled `standalone` while `embedded-ai-chain`'s entire production
+   pipeline (YOLO + orchestrator + STT/TTS) ran as one bare-metal process the whole
+   time, invisible to `docker ps`. A second, subtler version of the same gap: 5
+   already-committed `co-resident` results had *correctly* said co-resident but
+   named only `vllm-orchestrator`, missing that same bare-metal process. Both are now
+   closed: `assert_condition_matches_reality()` checks Docker containers **and**
+   bare-metal GPU-holding processes (`/proc/<pid>/fd` for `nvhost`/`nvgpu`/`nvmap`
+   handles), and checks a `co-resident` declaration for **completeness**, not just
+   whether `standalone` is literally false. No override flag on either check. Full
+   incident record in `docs/TODO.md` Phase 3.
+
+Energy (J/output-token) also went from uncomputable to real: the script with power
+telemetry didn't know token counts, the one with token counts started no sampler.
+`benchmarks/runner.py:measure_cell()` merges the two paths.
+
+**The campaign itself**, once the board was confirmed genuinely quiet (containers
+stopped, bare-metal pipeline stopped, by direct user confirmation - this device's
+production system is not this repo's to touch unilaterally): `output_sweep` (12
+cells) and `context_sweep` (8 cells), both backends, `standalone`, zero failures, zero
+errors, all schema-conformant. Two real signals, one replicate each:
+
+- **J/output-token amortizes with generation length**, both backends - highest at the
+  shortest output (16 tokens: 0.473 J/tok vLLM, 0.949 llama.cpp), settling lower by
+  128+ tokens (~0.297 / ~0.66). The shape `embedded-ai-chain/docs/paper.md`'s P3
+  predicts, reproduced cleanly on real hardware.
+- **A backend-specific context-scaling difference.** TTFT vs input length (128 to
+  1536 tokens): vLLM stays close to flat (40.8ms -> 81.8ms), llama.cpp is clearly
+  super-linear (213.2ms -> 897.7ms, roughly doubling from 512->1024 alone). Decode
+  throughput is flat on both, so this is specifically a *prefill* difference.
+  Confounded by quantization format (AWQ vs GGUF Q4_K_M) like every cross-backend
+  comparison in this lab so far - stated, not fixed.
+
+See `docs/project.diagram.md` §6 for the full tables and `docs/TODO.md` Phase 4 for
+the complete record, including what's *not* yet done (an analysis script generating
+plots from `results/raw/`, and drafting these numbers into `paper.md` itself).
+
+### Phase 1: candidate serving/tool-calling smoke tests (2026-09-04)
+
 Real Docker/GPU smoke tests done, 2026-09-04 - see `docs/TODO.md` Phase 1 for the
 full record:
 
@@ -202,4 +269,7 @@ full record:
   works on both backends.
 
 Real BFCL numbers now exist for one row (`1.5b-q4-llamacpp-orin`, above, small
-sample). Everything else in `docs/TODO.md` Phase 3's full matrix is still pending.
+sample). Everything else in `docs/TODO.md` Phase 5's full scorecard matrix (renumbered
+from "Phase 3" once the benchmark-suite plan above was merged in) is still pending -
+Bielik has smoke-test results (above) but no performance/BFCL/MMLU run through the
+Phase 2-4 pipeline yet, and neither does the remaining Qwen2.5 3B/7B.

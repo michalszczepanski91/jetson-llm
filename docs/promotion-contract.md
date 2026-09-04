@@ -59,13 +59,20 @@ winner:
 
 | Axis | Source |
 |---|---|
-| Cold start | `benchmarks/harness.py` |
-| Latency p50/p95/p99 (never mean) | `benchmarks/harness.py` |
-| TTFT p50, steady tokens/sec | `make benchmark-streaming` |
+| Cold start (decomposed: container start / model load / server ready, and whether weights were cached) | `make experiment` / `make benchmark-streaming`, via `benchmarks/runner.py` |
+| Latency p50/p95/p99 (never mean), TTFT, prefill/decode tok/s | `make experiment EXP=configs/benchmarks/output_sweep.yaml` (or `context_sweep.yaml`) - the reportable path; `make benchmark-streaming` for one ad-hoc cell |
+| **Energy, J/output-token** | same runs as above - `benchmarks/runner.py:measure_cell()` merges token counts and power telemetry into one figure; see CLAUDE.md's "Measurement integrity" for why this needed a real fix, not just a schema field |
 | **BFCL tool-call judgment accuracy** (`simple` + `irrelevance` categories) | `make validate-tool-calling` |
 | **MMLU accuracy** (quantization-regression sanity check only, not a ranking signal - see caveat below) | `make validate-mmlu` |
 | KV-cache / context headroom at the tuned serving args | server startup log / harness |
 | Qualitative spot-check | same fixed transcript/scene-context set across every candidate |
+
+A candidate's performance axes are only comparable across `execution_condition` values
+that match - `benchmarks/manifest.py:assert_condition_matches_reality()` refuses to let
+a `standalone` run be labelled that way (or a `co-resident` run under-declare what was
+running alongside it) when the board says otherwise, so a scorecard number's condition
+label can be trusted rather than merely trusted-in-good-faith. See `docs/TODO.md`
+Phase 3 for the incidents that made that check necessary.
 
 BFCL tool-call judgment accuracy is the axis that didn't exist in `jetson-vlm-lab`'s
 scorecard (GQA/TextVQA measure visual QA, not applicable here) and is arguably the
@@ -83,9 +90,13 @@ a backend/precision pair against its own same-size sibling (e.g. does the GGUF Q
 config before it contaminates the other axes' numbers.
 
 Every number must record which `platform` it was measured on and whether it was
-standalone or under the same co-resident load the real pipeline puts on that machine
-(YOLO + STT + TTS all resident) - an unqualified number is not a valid result, same
-rule `embedded-ai-chain/docs/TODO.md` applies to its own latency numbers.
+standalone or under the same co-resident load the real pipeline puts on that machine.
+That load is concretely `embedded-ai-chain/src/tts_consumer.py` - the production
+pipeline's YOLO producer, orchestrator, STT bridge and TTS consumer all run as one
+bare-metal process, not separate containers, which is why the standalone/co-resident
+check in this repo has to detect bare-metal GPU usage and not just Docker containers
+(see CLAUDE.md's "Measurement integrity"). An unqualified number is not a valid
+result, same rule `embedded-ai-chain/docs/TODO.md` applies to its own latency numbers.
 
 ## 4. Declaring a winner
 
