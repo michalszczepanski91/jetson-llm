@@ -81,14 +81,16 @@
   platform: orin
   quant: Q4_K_M
   n_gpu_layers: -1
-  ctx_size: 4096
+  ctx_size: 2048  # matches the vllm rows' max_model_len for a fair cross-backend comparison
   notes: >
-    New backend leg, not yet benchmarked. Official Qwen-published GGUF
-    (Apache-2.0), confirmed to exist via live HF Hub search (q4_k_m/q5_k_m/
-    q6_k/q8_0/fp16 all present in the repo) - same trustworthy-provenance
-    bar as jetson-vlm-lab's model selections. Image/container tag to serve
-    it with is unverified - see src/llm_coordinator.py's
-    _DEFAULT_LLAMACPP_IMAGE comment.
+    Smoke-tested 2026-09-04 (docs/TODO.md Phase 1): plain completion works.
+    Official Qwen-published GGUF (Apache-2.0), confirmed to exist via live
+    HF Hub search (q4_k_m/q5_k_m/q6_k/q8_0/fp16 all present in the repo) -
+    same trustworthy-provenance bar as jetson-vlm-lab's model selections.
+    Serving image confirmed working (dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04,
+    see src/llm_coordinator.py's _DEFAULT_LLAMACPP_IMAGE comment), but
+    tool-calling reliability at this size is an open question, not yet a
+    measured result - see that same Phase 1 entry for why.
 
 3b-q4-llamacpp-orin:
   model: Qwen/Qwen2.5-3B-Instruct-GGUF
@@ -97,7 +99,7 @@
   platform: orin
   quant: Q4_K_M
   n_gpu_layers: -1
-  ctx_size: 4096
+  ctx_size: 2048  # matches the vllm rows' max_model_len for a fair cross-backend comparison
   notes: >
     New backend leg, not yet benchmarked. Official Qwen-published GGUF
     repo confirmed to exist (HF Hub search) - exact quant file list not
@@ -110,7 +112,7 @@
   platform: orin
   quant: Q4_K_M
   n_gpu_layers: -1
-  ctx_size: 4096
+  ctx_size: 2048  # matches the vllm rows' max_model_len for a fair cross-backend comparison
   notes: >
     New backend leg, not yet benchmarked, same high-risk memory-fit caveat
     as 7b-awq-vllm-orin above. Official Qwen-published GGUF repo confirmed

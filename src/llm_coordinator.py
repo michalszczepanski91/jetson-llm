@@ -31,16 +31,23 @@ import urllib.request
 _DEFAULT_VLLM_IMAGE = "ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin"
 _DEFAULT_HF_CACHE = "/opt/hf-cache"
 
-# NOT YET VERIFIED against a real run - dusty-nv/jetson-containers is the
-# right *source* for a Jetson llama.cpp build (see docs/TODO.md's Phase 0
-# research notes: the alternative community image only targets Orin Nano
-# 8GB, not this AGX Orin), but the exact tag for this device's JetPack
-# 6.2/L4T r36.4.7 needs confirming via `jetson-containers run
-# $(autotag llama_cpp)` (or an explicit tag from
-# https://github.com/dusty-nv/jetson-containers/pkgs/container/llama_cpp)
-# before the first real benchmark - update this constant then, don't trust
-# it blind.
-_DEFAULT_LLAMACPP_IMAGE = "dustynv/llama_cpp:r36.4.0"
+# Confirmed live on this device, 2026-09-04. The bare "r36.4.0" tag exists
+# but ships an old llama.cpp build (version 4579) whose server hard-errors
+# on any request carrying tool_choice ({"code":500,"message":"Unsupported
+# param: tool_choice"}) - useless for this lab's purpose. This tag (labeled
+# cu128/24.04, i.e. built against a newer CUDA/Ubuntu base than this
+# device's actual CUDA 12.6/Ubuntu 22.04) nonetheless runs correctly here -
+# nvidia-container-runtime's driver mount is backward-compatible, GPU
+# detected fine (`Orin, compute capability 8.7`) - and its much newer
+# llama.cpp build (version 5058) accepts tool_choice without erroring and
+# recognizes the model's Hermes-2-Pro tool format. Real, still-open finding
+# from that first run: it accepted the param but the 1.5B model described
+# wanting to call the tool in free text rather than emitting a structured
+# tool_calls response - a reliability gap vs vLLM's grammar-constrained
+# --tool-call-parser hermes, not a config error here. See docs/TODO.md
+# Phase 1 for the full record; scripts/validate_tool_calling.py's real BFCL
+# run is what actually quantifies this, not further one-off probing.
+_DEFAULT_LLAMACPP_IMAGE = "dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04"
 _DEFAULT_LLAMA_CACHE = "/opt/llama-cache"  # separate from _DEFAULT_HF_CACHE -
 # llama.cpp's `-hf` downloader (LLAMA_CACHE env var) uses its own on-disk
 # layout, not the transformers/vLLM HF_HOME cache format - sharing one dir

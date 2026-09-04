@@ -3,14 +3,12 @@
 # compose file from docker-compose.yml (different image/entrypoint/cache
 # volume/port than the vLLM service, not a variant of the same service).
 #
-# IMAGE TAG NOT YET VERIFIED - dustynv/llama_cpp is the right *source*
-# (dusty-nv/jetson-containers, the standard prebuilt-image project for
-# Jetson ML packages), but the exact tag for this device's JetPack
-# 6.2/L4T r36.4.7 needs confirming via `jetson-containers run
-# $(autotag llama_cpp)` before the first real run - see
-# src/llm_coordinator.py's _DEFAULT_LLAMACPP_IMAGE comment for the same
-# caveat (this file and that constant must be kept in sync by hand once
-# confirmed).
+# Image tag confirmed live on this device, 2026-09-04 - see
+# src/llm_coordinator.py's _DEFAULT_LLAMACPP_IMAGE comment for the full
+# story (the bare "r36.4.0" tag exists but its old llama.cpp build
+# hard-errors on tool_choice; this newer tag works despite its
+# cu128/24.04 label not matching this device's actual CUDA 12.6/Ubuntu
+# 22.04 base). Keep this file and that constant in sync by hand.
 #
 # --jinja: required for OpenAI-style tool_calls to come back structured -
 # without it the model can still emit tool-call-shaped text but
@@ -18,7 +16,7 @@
 # scripts/validate_tool_calling.py's scoring.
 services:
   llamacpp:
-    image: dustynv/llama_cpp:r36.4.0
+    image: dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04
     runtime: nvidia
     network_mode: host
     ipc: host

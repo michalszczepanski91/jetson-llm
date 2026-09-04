@@ -89,12 +89,35 @@ explicitly deferred with reasons recorded above (not silently dropped).
       Also found (unrelated to vLLM): `LlamaCppCoordinator`'s default port 8080
       collides with `embedded-ai-chain`'s own live dashboard on this device -
       changed the default to 8090 before this was ever run for real.
-- [ ] Real Docker/GPU smoke test: `make serve-1.5b-llamacpp` - **first real use of
-      the unverified `dustynv/llama_cpp` image tag** (see
-      `src/llm_coordinator.py`'s `_DEFAULT_LLAMACPP_IMAGE` comment) - confirm the tag,
-      update the constant/compose file if it's wrong, and confirm `--jinja` actually
-      produces structured `tool_calls` for Qwen2.5's chat template before trusting
-      `validate_tool_calling.py`'s results against this backend at all
+- [x] Real Docker/GPU smoke test, 2026-09-04, `1.5b-q4-llamacpp-orin` on this Orin:
+      - The guessed tag `dustynv/llama_cpp:r36.4.0` does exist but ships an old
+        llama.cpp build (version 4579) whose server hard-errors on any request
+        carrying `tool_choice` (`HTTP 500: Unsupported param: tool_choice`) -
+        useless for this lab. Switched to `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04`
+        (version 5058) - confirmed to run correctly on this device's actual driver
+        despite its cu128/24.04 label (built against a newer CUDA/Ubuntu base than
+        this device's real CUDA 12.6/Ubuntu 22.04; `nvidia-container-runtime`'s
+        driver mount is backward-compatible here, GPU detected fine). Fixed
+        `_DEFAULT_LLAMACPP_IMAGE`/`docker-compose.llamacpp.yml` to this tag.
+      - Cold start with this tag: plain completion worked (`-hf` downloader + cache
+        mount both function as expected). Cold start reported as 2.0s on a *second*
+        run only because the GGUF was already cached at `/opt/llama-cache` from the
+        first attempt - not a real cold-start number, don't reuse it as one.
+      - **Open finding, not yet resolved**: with `--jinja`, this build accepts
+        `tool_choice` (no more 500) and reports `Chat format: Hermes 2 Pro` in its
+        logs, but on the one test prompt tried (`"What's the weather like in
+        Warsaw?"` against a `get_weather` tool), the model described *wanting* to
+        call the tool in free-text content instead of emitting a structured
+        `tool_calls` response - where the *same prompt* against
+        `1.5b-awq-vllm-orin` (vLLM, `--tool-call-parser hermes`) correctly returned
+        a structured call. One anecdote, not a measurement - this is exactly what
+        `scripts/validate_tool_calling.py`'s real BFCL run against this row needs to
+        quantify properly before any conclusion is drawn about llama.cpp's
+        tool-calling reliability at this model size.
+      - No GPU/port collision with the real production `vllm-orchestrator` container
+        (confirmed `docker ps`/`free -h` before and after) or with
+        `embedded-ai-chain`'s own dashboard (moved this lab's llama.cpp default port
+        to 8090 before running anything, once the 8080 collision was found).
 - [ ] `uv venv && uv pip install -r requirements.txt && make test` on real hardware
       (currently only written/self-consistent, not yet run)
 - [ ] Stage BFCL + MMLU on-device per README's "Dataset staging" section (neither is

@@ -57,10 +57,10 @@ contexts the way the coordinator/client primitives are.
 **No custom Dockerfile for either backend**: both `docker-compose.yml` (vLLM) and
 `docker-compose.llamacpp.yml` (llama.cpp) run a prebuilt vendor/community image as-is
 - `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` (confirmed working, reused from
-`jetson-vlm-lab`) and `dustynv/llama_cpp:r36.4.0` (from `dusty-nv/jetson-containers` -
-**tag not yet verified against this device's real JetPack/L4T version**, see
-`src/llm_coordinator.py`'s `_DEFAULT_LLAMACPP_IMAGE` comment and `docs/TODO.md`
-Phase 1's pending smoke test).
+`jetson-vlm-lab`) and `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` (from
+`dusty-nv/jetson-containers` - confirmed live 2026-09-04; an older bare `r36.4.0` tag
+also exists but its llama.cpp build hard-errors on `tool_choice`, see
+`src/llm_coordinator.py`'s `_DEFAULT_LLAMACPP_IMAGE` comment for the full story).
 
 **`benchmarks/harness.py` is a hand-maintained copy**, not an import, of
 `jetson-vlm-lab/benchmarks/harness.py` (itself a copy of
