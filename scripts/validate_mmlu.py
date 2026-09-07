@@ -54,6 +54,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+sys.stdout.reconfigure(line_buffering=True)  # a redirected/backgrounded run fully
+# buffers stdout otherwise, hiding a multi-hour campaign's progress from a live monitor
+# - see scripts/run_experiment.py's own comment for the incident this fixes.
+
 from manifest import SCHEMA_VERSION, assert_condition_matches_reality, quality_manifest, write_result  # noqa: E402
 
 from llm_client import call_llm  # noqa: E402
