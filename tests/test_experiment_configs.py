@@ -32,7 +32,7 @@ MODEL_KEYS = set(yaml.safe_load((REPO_ROOT / "configs" / "models.yaml").read_tex
 
 def test_configs_exist():
     """Zero-parameter parametrisation passes silently, so assert the set."""
-    assert {p.stem for p in CONFIGS} == {"smoke", "output_sweep", "context_sweep"}
+    assert {p.stem for p in CONFIGS} == {"smoke", "output_sweep", "context_sweep", "scorecard"}
 
 
 @pytest.mark.parametrize("path", CONFIGS, ids=lambda p: p.name)
