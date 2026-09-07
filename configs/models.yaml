@@ -85,6 +85,17 @@ bielik-11b-awq-vllm-orin:
                                 # untested row here
   max_model_len: 2048  # matches every other row's for a fair cross-family comparison
   notes: >
+    EXCLUDED from active experimentation (Phase 5 onward), 2026-09-07 decision -
+    tool-calling is confirmed broken on two parsers (see below), which is the
+    axis this lab's scorecard cares about most; the working llama.cpp sibling
+    row (bielik-11b-q4-llamacpp-orin) carries this family forward instead. Row
+    and conclusion kept per this file's append-only convention (§2 above,
+    docs/promotion-contract.md) - this is exclusion from future campaigns, not
+    erasure of the finding. Still benchmarkable for raw performance (serves
+    correctly) if a future phase wants a non-tool-calling comparison point; just
+    not carried into the tool-calling scorecard. See docs/TODO.md's decision
+    log for the exclusion decision itself.
+
     Smoke-tested 2026-09-04. gpu_memory_utilization=0.3 works (cold start
     ~234-274s across two runs) - no re-tuning needed. Official SpeakLeash
     repo (219K downloads - more than their own GGUF), confirmed ungated
@@ -189,6 +200,14 @@ apertus-8b-q4-llamacpp-orin:
   n_gpu_layers: -1
   ctx_size: 2048  # matches the Qwen rows' for a fair cross-family comparison
   notes: >
+    EXCLUDED from active experimentation (Phase 5 onward), 2026-09-07 decision -
+    no working serving path exists on any backend (see BLOCKED finding below),
+    so there is nothing left to run a scorecard against. Row and conclusion kept
+    per this file's append-only convention (§2 above, docs/promotion-contract.md)
+    and docs/TODO.md's own rule that historical candidates are never deleted -
+    this is exclusion from future campaigns, not erasure of the finding. See
+    docs/TODO.md's decision log for the exclusion decision itself.
+
     BLOCKED, confirmed 2026-09-04: llama.cpp does not recognize Apertus's
     GGUF architecture at all - "error loading model architecture: unknown
     model architecture: 'apertus'" - checked on both this lab's confirmed

@@ -702,14 +702,63 @@ explicit next step rather than done unprompted.
 Unchanged in intent from the original plan — this is what `docs/promotion-contract.md`
 needs, and it is not superseded by the benchmark framing.
 
+### Scope decision, 2026-09-07 — Apertus and Bielik-vLLM excluded
+
+Direct user decision, made when confirming Phase 1 was finished and before opening
+Phase 5: **Apertus-8B and `bielik-11b-awq-vllm-orin` are excluded from active
+experimentation from here on.** Apertus has no working serving path on any backend at
+all — nothing to run a scorecard against. `bielik-11b-awq-vllm-orin` serves correctly
+but tool-calling is confirmed broken on two parsers, which is the axis this lab's
+scorecard cares about most; `bielik-11b-q4-llamacpp-orin` (working, the strongest
+llama.cpp result so far) carries the family forward instead.
+
+**Rows are NOT deleted from `configs/models.yaml`** — both are marked excluded in
+their own `notes` field with the reason, per this file's and
+`docs/promotion-contract.md`'s append-only convention: historical candidates and their
+findings stay part of the record even when excluded from future work. This is
+exclusion from campaigns, not erasure of the finding.
+
+Active matrix for this phase, after exclusion: `1.5b-awq-vllm-orin`,
+`3b-awq-vllm-orin`, `7b-awq-vllm-orin`, `1.5b-q4-llamacpp-orin`,
+`3b-q4-llamacpp-orin`, `7b-q4-llamacpp-orin`, `bielik-11b-q4-llamacpp-orin` — 7 rows,
+down from 9.
+
+### Step 0 — smoke-test Qwen2.5-3B/7B first (both backends, 4 rows, untested)
+
+**Never run through the Phase 2-4 pipeline, or any pipeline — 3B/7B have no smoke
+test on record at all** (Phase 1's gate was met on the strength of 1.5B + Bielik
+only; see that phase's own text). Same bar every other row here was held to before
+its first real benchmark: does it serve, does a plain completion work, does a
+tool-calling completion return a structured call. Doing this now, before the rest of
+Phase 5, for the same reason Phase 1 came before Phase 2 — a heavy measurement
+pipeline run against a candidate that doesn't even serve is wasted device time, and
+`7b-awq-vllm-orin`'s own notes already flag it as "same rough scale as the VLM this
+project already struggled to fit resident" — worth knowing before committing 30+ reps
+per workload cell to it.
+
+- [ ] `3b-awq-vllm-orin`, `3b-q4-llamacpp-orin`, `7b-awq-vllm-orin`,
+      `7b-q4-llamacpp-orin`: real Docker/GPU smoke test each — plain completion +
+      tool-calling completion (`get_weather`/Warsaw, same fixed test as every prior
+      row) — **on a board confirmed quiet first** (`gpu_holding_pids()` and
+      `running_containers()` both empty; see Phase 3's incident record for why this
+      check exists and is not optional).
+- [ ] Record real cold start and whether the untested `gpu_memory_utilization`
+      (0.25 / 0.5) and `n_gpu_layers=-1` starting points actually work, per each
+      row's own "re-tune if it fails" note — don't assume the untested values are
+      fine just because the smoke test otherwise passes.
+- [ ] An OOM or a serving failure here is itself a valid Phase 1-style result (see
+      Apertus) — record it in this row's `notes` and in this file, not just a retry
+      until something works.
+
+**GATE 5** — every plausible row has a scorecard entry (pass, fail-with-reason, or
+doesn't-fit-with-reason). Gated on Step 0 above for 3B/7B — a row with no smoke test
+cannot yet have a scorecard entry of any kind.
+
+### Step 1 — the scorecard itself, once Step 0 clears each row
+
 - [ ] Run `benchmark` / `benchmark-streaming` / `validate-tool-calling` /
-      `validate-mmlu` for every row in `configs/models.yaml` that can serve at all:
-      the remaining Qwen sizes (3B/7B) on both backends, and both Bielik rows.
-      Record an OOM as a real result, not a skip. Note `bielik-11b-awq-vllm-orin`
-      needs no `benchmark`/`benchmark-streaming` caveat (smoke-tested 2026-09-04,
-      `gpu_memory_utilization: 0.3` confirmed working) but **cannot produce a
-      tool-calling scorecard at all** — see Phase 1's record. That is a
-      fail-with-reason entry, which GATE 5 accepts.
+      `validate-mmlu` for every row in `configs/models.yaml` that can serve at all,
+      from the active matrix above. Record an OOM as a real result, not a skip.
 - [ ] Full-corpus BFCL, not `--limit 20`. The only real scorecard so far (75% overall,
       n=40, `1.5b-q4-llamacpp-orin`) is a sample, and Phase 1 says so.
 - [ ] Report tool-calling as a confusion matrix (note.md §36), not one percentage:
@@ -717,9 +766,6 @@ needs, and it is not superseded by the benchmark framing.
       tool / formatting failure. The existing simple+irrelevance split already
       separates the two error directions — this makes that explicit.
 - [ ] Write the comparison up (README "Current State" or a dedicated benchmarks doc).
-
-**GATE 5** — every plausible row has a scorecard entry (pass, fail-with-reason, or
-doesn't-fit-with-reason).
 
 ## Phase 6 — Thor access and the cross-platform arm (was Phase 2)
 
@@ -895,3 +941,5 @@ Rows are never deleted, even when superseded — same convention as
 | 2026-09-04 | `assert_condition_matches_reality()` also scans `/proc/<pid>/fd` for bare-metal GPU-holding processes, not just Docker containers | The container-only check passed a real campaign labelled `standalone` while `embedded-ai-chain`'s full production pipeline ran as one bare-metal process (`tts_consumer.py`, PID 93363) the entire time. Caught only because the user asked directly whether prior runs were contaminated |
 | 2026-09-04 | ~~Contaminated results are deleted, not relabelled~~ **corrected same day, by direct user instruction** — archive to `results/invalid/`, never delete | Deleting discards evidence `docs/note.md` says to keep; a contaminated run is still data even when it isn't a clean measurement. The 7 files from the incident above were deleted before this correction and are genuinely gone (never committed, not recoverable) — the policy applies from here forward |
 | 2026-09-04 | `assert_condition_matches_reality()` also checks `co-resident` declarations for completeness, not just refusing false `standalone` | 5 already-committed results correctly said co-resident but declared only `[vllm-orchestrator]`, missing PID 93363 (running throughout every one of them). Corrected in place with a `_comment`, not deleted — the workload was known, just undeclared |
+| 2026-09-07 | Apertus-8B and `bielik-11b-awq-vllm-orin` excluded from active experimentation (Phase 5+); rows kept in `configs/models.yaml`, not deleted | Apertus has no working serving path on any backend; Bielik-vLLM's tool-calling is confirmed broken, and this lab's scorecard weighs that axis most. Append-only convention preserved — exclusion from future campaigns, not erasure of the finding |
+| 2026-09-07 | Qwen2.5-3B/7B get a real smoke test (Step 0, both backends, 4 rows) before Phase 5's scorecard touches them | Never smoke-tested at all — Phase 1's gate was met on 1.5B + Bielik alone. Same bar every other row was held to before its first heavy benchmark; running 30+-rep campaigns against an unconfirmed candidate wastes device time if it doesn't even serve |
