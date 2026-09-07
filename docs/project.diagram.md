@@ -79,7 +79,7 @@ below are now `[✓]` with a real run behind them, not a guess.
 
 This was the most important structural gap in the repo when this diagram was first
 drawn; it's closed as of the same day. Kept here as the record of what was wrong and
-why the fix looks the way it does — `docs/TODO.md` Phase 2's own record has the full
+why the fix looks the way it does — `docs/HISTORY.md`'s Phase 2 record has the full
 incident list.
 
 ```
@@ -284,7 +284,7 @@ of those four is a recorded field in `schemas/`.
 Not the candidate matrix above (that's Phase 1, tool-calling/serving) — this is
 `output_sweep`/`context_sweep`, the performance sweeps, both for `1.5b-awq-vllm-orin`
 and `1.5b-q4-llamacpp-orin` only, `standalone`, board confirmed quiet before and after
-both campaigns (see docs/TODO.md Phase 3's incident record for what it took to be
+both campaigns (see docs/HISTORY.md's Phase 3 record for what it took to be
 able to say that with confidence). 20 cells, zero failures, zero errors.
 
 **Output-length sweep — J/output-token amortizes, both backends:**

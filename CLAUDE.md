@@ -144,7 +144,7 @@ No override flag on any of the three: the fix is either to stop the other worklo
 to declare the truth, and both are one command. **Anything caught this way after the
 fact that can't be honestly corrected in place goes to `results/invalid/`, never
 `rm -rf`** - archived with a note on what was actually true, per `results/invalid/README.md`.
-Full incident record in docs/TODO.md Phase 3 - stopping the `vllm-orchestrator`
+Full incident record in docs/HISTORY.md's Phase 3 section - stopping the `vllm-orchestrator`
 *container* is not sufficient for a real `standalone` claim on this device;
 `tts_consumer.py` also has to stop, and that is a materially bigger interruption than
 the container-only story assumed.

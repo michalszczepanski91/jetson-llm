@@ -202,7 +202,7 @@ campaign ran clean on both backends.
    bare-metal GPU-holding processes (`/proc/<pid>/fd` for `nvhost`/`nvgpu`/`nvmap`
    handles), and checks a `co-resident` declaration for **completeness**, not just
    whether `standalone` is literally false. No override flag on either check. Full
-   incident record in `docs/TODO.md` Phase 3.
+   incident record in `docs/HISTORY.md`, "Phase 3".
 
 Energy (J/output-token) also went from uncomputable to real: the script with power
 telemetry didn't know token counts, the one with token counts started no sampler.
