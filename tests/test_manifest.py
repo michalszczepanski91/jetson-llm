@@ -490,3 +490,30 @@ def test_build_manifest_threads_target_through(monkeypatch):
     )
     assert "Orin" not in m["hardware"]["board"]
     assert "docker" not in m["software"]
+
+
+# --- quality_manifest() (docs/TODO.md Phase 5's retrofit) ------------------
+
+
+def test_quality_manifest_matches_the_schemas_manifest_shape(monkeypatch):
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    m = manifest.quality_manifest(
+        backend="vllm", platform="orin", base_url="http://127.0.0.1:8000",
+        image="ghcr.io/x:tag", command="cmd", model_config_key="1.5b-awq-vllm-orin",
+    )
+    assert m["backend"] == "vllm"
+    assert m["backend_version"] == "vllm 0.19.0"
+    assert m["container_image"] == "ghcr.io/x:tag"
+    assert m["platform"] == "orin"
+    assert m["target"] == "local"
+    assert "git_commit" in m and "git_dirty" in m
+
+
+def test_quality_manifest_remote_target_flag_is_recorded(monkeypatch):
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    m = manifest.quality_manifest(
+        backend="vllm", platform="thor", base_url="http://thor:8000",
+        image=None, command="cmd", model_config_key="k", target="remote",
+    )
+    assert m["target"] == "remote"
+    assert "n/a" in m["container_image"]

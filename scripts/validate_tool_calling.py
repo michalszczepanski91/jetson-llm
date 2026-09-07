@@ -38,10 +38,16 @@ repeated identical Qwen2.5-1.5B/llama.cpp tool-calling calls at default
 temperature produced a structured tool call only 80% of the time (12/15),
 100% (15/15) at 0.1; the same repeated test against vLLM was 100% at BOTH
 settings, so pinning this low costs vLLM nothing while fixing a real
-llama.cpp gap. See `docs/TODO.md` Phase 1 for the full diagnostic
-(including why raising `max_tokens` alone did NOT fix it - the failures
-weren't truncation, the model genuinely chose not to call the tool at that
-sampling temperature on some fraction of calls).
+llama.cpp gap. See `docs/HISTORY.md` Phase 1 for the full diagnostic
+(including why raising `max_tokens` alone did NOT fix it).
+
+Emits a document conforming to schemas/quality_result.schema.json into
+results/raw/<result_id>/ (docs/TODO.md Phase 5's first task) - a per-case
+failure (server error, malformed response) is recorded in that case's
+outcome and counted as `server_error`, not allowed to crash the whole run,
+same "a failure is a result" rule benchmarks/runner.py already follows.
+Per-case outcomes are written to a sibling outcomes.jsonl rather than
+embedded inline (a full corpus is 640+ cases).
 
 Dataset staging - not bundled (BFCL is thousands of samples across
 categories, several MB total). Download the three files this script
@@ -60,24 +66,38 @@ Fails fast with a clear message if missing, same convention as
 jetson-vlm-lab's validate_textvqa.py.
 
 Usage:
-    uv run python scripts/validate_tool_calling.py --model-config 1.5b-awq-vllm-orin --limit 50
-    uv run python scripts/validate_tool_calling.py --model-config 1.5b-q4-llamacpp-orin --limit 50 \\
-        --results-json output/tool_calling_1.5b_llamacpp.json
+    uv run python scripts/validate_tool_calling.py --model-config 1.5b-awq-vllm-orin \\
+        --execution-condition standalone --limit 50
+    uv run python scripts/validate_tool_calling.py --model-config 1.5b-q4-llamacpp-orin \\
+        --execution-condition standalone --limit 1000   # >= full corpus (400+240)
 """
 
 import argparse
+import datetime
 import json
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from manifest import SCHEMA_VERSION, assert_condition_matches_reality, quality_manifest, write_result  # noqa: E402
+
 from llm_client import call_llm  # noqa: E402
 from llm_coordinator import add_target_args, build_coordinator  # noqa: E402
 from model_config import load_model_config  # noqa: E402
 
 _META_KEYS = {"model", "backend", "platform", "precision", "notes", "extra_args"}
 _DEFAULT_DATA_DIR = "/opt/datasets/BFCL"
+_DATASET_VERSION = "v3"
+#: Bumped whenever _bfcl_function_to_openai_tool()'s normalization changes what
+#: the model actually sees - a real change to the eval, not bookkeeping
+#: (docs/note.md §20/§21). "v2" = the float/tuple/any type-rename fix, 2026-09-04.
+_PREPROCESSING_VERSION = "v2-typefix"
+_PROMPT_TEMPLATE_VERSION = "v1"
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -187,25 +207,53 @@ def _questions_to_messages(case: dict[str, Any]) -> list[dict[str, str]]:
     return [message for turn in case["question"] for message in turn]
 
 
+def _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature):
+    """A per-case failure (HTTP 500, malformed schema, timeout) is a result,
+    not a reason to abort a 600+ case run - the exact "a failure is a
+    result" rule benchmarks/runner.py already follows. Returns
+    (message_dict, error_str_or_None)."""
+    try:
+        message = call_llm(
+            coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+        )
+        return message, None
+    except Exception as exc:  # noqa: BLE001 - captured as a per-case outcome, not a crash
+        return {}, f"{type(exc).__name__}: {exc}"
+
+
 def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
+        offered_name = tool["function"]["name"]
         messages = _questions_to_messages(case)
-        message = call_llm(
-            coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
-        )
-        actual_name, actual_args = _first_tool_call(message)
+        message, error = _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature)
+        actual_name, actual_args = (None, None) if error else _first_tool_call(message)
 
         ground_truth_row = answers_by_id.get(case["id"])
-        if ground_truth_row is None:
-            correct = False
-        else:
+        expected_name = None
+        args_match = False
+        if ground_truth_row is not None:
             [expected] = ground_truth_row["ground_truth"]
             expected_name, expected_params = next(iter(expected.items()))
-            correct = actual_name == expected_name and _params_match(expected_params, actual_args or {})
+            if actual_name == expected_name:
+                args_match = _params_match(expected_params, actual_args or {})
 
-        outcomes.append({"id": case["id"], "category": "simple", "actual_tool": actual_name, "correct": correct})
+        tool_called = actual_name is not None
+        correct_tool = tool_called and actual_name == expected_name
+        # Only one tool is ever offered per BFCL case (tools=[tool]) - a
+        # call naming anything else is a genuinely invented name, not a
+        # selection among real alternatives (there are none).
+        hallucinated = tool_called and actual_name != offered_name
+
+        outcomes.append({
+            "id": case["id"], "category": "simple",
+            "expected_tool": expected_name, "actual_tool": actual_name,
+            "tool_called": tool_called, "correct_tool": correct_tool,
+            "correct_arguments": correct_tool and args_match,
+            "hallucinated": hallucinated,
+            "correct": correct_tool and args_match, "error": error,
+        })
     return outcomes
 
 
@@ -214,14 +262,65 @@ def _run_irrelevance(coordinator, cases, max_tokens, temperature) -> list[dict[s
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
-        message = call_llm(
-            coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
-        )
-        actual_name, _ = _first_tool_call(message)
+        message, error = _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature)
+        actual_name, _ = (None, None) if error else _first_tool_call(message)
+        tool_called = actual_name is not None
         outcomes.append({
-            "id": case["id"], "category": "irrelevance", "actual_tool": actual_name, "correct": actual_name is None,
+            "id": case["id"], "category": "irrelevance",
+            "expected_tool": None, "actual_tool": actual_name,
+            "tool_called": tool_called,
+            "correct": (not tool_called) and not error, "error": error,
         })
     return outcomes
+
+
+def confusion_matrix_and_taxonomy(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
+    """docs/note.md §36 - a confusion matrix plus failure taxonomy, not one
+    percentage. TP/FN come from "simple" cases (tool expected); FP/TN from
+    "irrelevance" cases (no tool expected). A per-case error is counted as
+    `server_error` and excluded from the confusion matrix entirely - it's a
+    backend defect, not a model judgment, and folding it into FN/FP would
+    blame the model for an infrastructure failure."""
+    tp = fp = fn = tn = 0
+    correct_tool = correct_arguments = wrong_tool = hallucinated_tool = 0
+    invalid_call = formatting_failure = server_error = 0
+    for o in outcomes:
+        if o.get("error"):
+            server_error += 1
+            continue
+        if o["category"] == "simple":
+            if o["tool_called"]:
+                tp += 1
+                if o["correct_tool"]:
+                    correct_tool += 1
+                    if o["correct_arguments"]:
+                        correct_arguments += 1
+                    else:
+                        invalid_call += 1
+                elif o.get("hallucinated"):
+                    hallucinated_tool += 1
+                else:
+                    wrong_tool += 1
+            else:
+                fn += 1
+                formatting_failure += 1
+        else:  # irrelevance
+            if o["tool_called"]:
+                fp += 1
+            else:
+                tn += 1
+    return {
+        "confusion_matrix": {
+            "true_positive": tp, "false_positive": fp, "false_negative": fn, "true_negative": tn,
+        },
+        "correct_tool": correct_tool,
+        "correct_arguments": correct_arguments,
+        "wrong_tool": wrong_tool,
+        "hallucinated_tool": hallucinated_tool,
+        "invalid_call": invalid_call,
+        "formatting_failure": formatting_failure,
+        "server_error": server_error,
+    }
 
 
 def parse_args():
@@ -229,25 +328,46 @@ def parse_args():
     p.add_argument("--model-config", default="1.5b-awq-vllm-orin", help="key into configs/models.yaml")
     p.add_argument("--data-dir", default=_DEFAULT_DATA_DIR, help="staged BFCL directory, see module docstring")
     p.add_argument("--limit", type=int, default=50, help="cases per category (simple/irrelevance each); BFCL has "
-                   "hundreds per category, full runs are slow on-device - use a higher value for a final scorecard")
+                   "hundreds per category - pass a value >= 400 for the full corpus")
     p.add_argument("--max-tokens", type=int, default=200)
     p.add_argument("--temperature", type=float, default=0.1, help="pinned low by default - a real, measured "
                    "finding, not a guess: repeated identical calls at default sampling temperature (~0.7-0.8) "
                    "produced structured tool calls only 80%% of the time on llama.cpp/Qwen2.5-1.5B (12/15), "
                    "100%% (15/15) at 0.1 - vLLM was 100%% at both, so pinning this low costs nothing there and "
-                   "fixes the llama.cpp gap. See docs/TODO.md Phase 1 for the full diagnostic.")
+                   "fixes the llama.cpp gap. See docs/HISTORY.md Phase 1 for the full diagnostic.")
+    p.add_argument("--execution-condition", choices=["standalone", "co-resident"], required=True,
+                   help="REQUIRED, no default - a tool-calling score is as backend/board-state-dependent as a "
+                        "latency number")
+    p.add_argument("--co-resident", nargs="*", default=[],
+                   help="which components ran alongside, e.g. --co-resident yolo stt tts")
     p.add_argument("--ready-timeout", type=float, default=600.0)
-    p.add_argument("--results-json", default=None)
+    p.add_argument("--results-root", default=None, help="default: <repo>/results")
     add_target_args(p)
     return p.parse_args()
 
 
 def main():
     args = parse_args()
+    if args.execution_condition == "co-resident" and not args.co_resident:
+        raise SystemExit(
+            'error: --execution-condition co-resident requires --co-resident naming what ran alongside. '
+            '"Under load" is not a reproducible condition.'
+        )
+    if args.target == "local":
+        assert_condition_matches_reality(
+            args.execution_condition,
+            own_containers={"vllm-llm-lab", "llamacpp-llm-lab"},
+            declared_co_resident=args.co_resident,
+        )
+
     data_dir = Path(args.data_dir)
-    simple_cases = _load_jsonl(data_dir / "BFCL_v3_simple.json")[: args.limit]
+    simple_cases = _load_jsonl(data_dir / "BFCL_v3_simple.json")
     simple_answers = {row["id"]: row for row in _load_jsonl(data_dir / "possible_answer" / "BFCL_v3_simple.json")}
-    irrelevance_cases = _load_jsonl(data_dir / "BFCL_v3_irrelevance.json")[: args.limit]
+    irrelevance_cases = _load_jsonl(data_dir / "BFCL_v3_irrelevance.json")
+    n_available = len(simple_cases) + len(irrelevance_cases)
+    simple_cases = simple_cases[: args.limit]
+    irrelevance_cases = irrelevance_cases[: args.limit]
+    n_evaluated = len(simple_cases) + len(irrelevance_cases)
 
     variant = load_model_config(args.model_config)
     local_kwargs = {k: v for k, v in variant.items() if k not in _META_KEYS}
@@ -266,48 +386,87 @@ def main():
         outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature)
 
         def _accuracy(category):
-            subset = [o for o in outcomes if o["category"] == category]
-            return (sum(1 for o in subset if o["correct"]) / len(subset)) if subset else None
+            subset = [o for o in outcomes if o["category"] == category and not o.get("error")]
+            n_correct = sum(1 for o in subset if o["correct"])
+            return {"accuracy": (n_correct / len(subset)) if subset else None, "n": len(subset), "n_correct": n_correct}
 
-        row = {
-            "model_config": args.model_config,
-            "model": variant["model"],
-            "backend": variant["backend"],
-            "platform": variant["platform"],
-            "target": args.target,
-            "dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
-            "n_cases": len(outcomes),
-            "temperature": args.temperature,
-            "simple_accuracy": _accuracy("simple"),
-            "irrelevance_accuracy": _accuracy("irrelevance"),
-            "overall_accuracy": (sum(1 for o in outcomes if o["correct"]) / len(outcomes)) if outcomes else None,
-            "note": (
-                "simplified AST match, not the official bfcl-eval checker; "
-                "tool_choice='auto' throughout - does NOT use orchestrator.py's "
-                "forced tool_choice workaround, since the point is measuring "
-                "unforced judgment - see module docstring. temperature pinned "
-                "low (see --temperature's own help text for why - a measured "
-                "fix for a real llama.cpp reliability gap, not an arbitrary "
-                "default) so scores reflect tool-call judgment, not sampling "
-                "noise"
+        scored = [o for o in outcomes if not o.get("error")]
+        overall_n_correct = sum(1 for o in scored if o["correct"])
+        by_category = {"simple": _accuracy("simple"), "irrelevance": _accuracy("irrelevance")}
+
+        result_id = (
+            f"{datetime.date.today().isoformat()}_{variant['platform']}_{args.model_config}"
+            f"_bfcl-{_DATASET_VERSION}_n{n_evaluated}"
+        )
+        result = {
+            "schema_version": SCHEMA_VERSION,
+            "result_id": result_id,
+            "timestamp": datetime.datetime.now().astimezone().isoformat(),
+            "manifest": quality_manifest(
+                backend=variant["backend"], platform=variant["platform"], base_url=coordinator.base_url,
+                image=getattr(coordinator, "image", None), command=shlex.join([sys.executable, *sys.argv]),
+                model_config_key=args.model_config, target=args.target,
             ),
-            "outcomes": outcomes,
+            "model": {
+                "name": variant["model"], "precision": variant["precision"], "backend": variant["backend"],
+            },
+            "dataset": {
+                "name": "BFCL", "version": _DATASET_VERSION,
+                "source": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+                "split": "simple+irrelevance", "n_available": n_available, "n_evaluated": n_evaluated,
+                "sampling_method": "full" if args.limit >= n_available else "first-n",
+                "sampling_seed": None,
+                "preprocessing_version": _PREPROCESSING_VERSION,
+                "prompt_template_version": _PROMPT_TEMPLATE_VERSION,
+            },
+            "protocol": {
+                "scorer": "simplified-ast (this repo, not official bfcl-eval)",
+                "temperature": args.temperature, "tool_choice": "auto",
+                "max_tokens": args.max_tokens, "repetitions": 1,
+            },
+            "scores": {
+                "overall_accuracy": (overall_n_correct / len(scored)) if scored else None,
+                "n": len(scored), "by_category": by_category,
+            },
+            "tool_call_outcomes": confusion_matrix_and_taxonomy(outcomes),
+            "notes": (
+                "tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice "
+                "workaround, since the point is measuring unforced judgment."
+                + (f" Co-resident with: {', '.join(args.co_resident)}." if args.co_resident else "")
+            ),
         }
-        if args.target == "remote":
-            row["remote_host"] = args.remote_host
-            row["remote_port"] = args.remote_port
-        print(json.dumps({k: v for k, v in row.items() if k != "outcomes"}, indent=2))
 
-        if args.results_json:
-            out = Path(args.results_json)
-            out.parent.mkdir(parents=True, exist_ok=True)
-            rows = json.loads(out.read_text()) if out.exists() else []
-            rows.append(row)
-            out.write_text(json.dumps(rows, indent=2))
+        print(json.dumps(result, indent=2))
+        path = write_result(result, results_root=args.results_root or (REPO_ROOT / "results"))
+        outcomes_path = path.parent / "outcomes.jsonl"
+        outcomes_path.write_text("\n".join(json.dumps(o) for o in outcomes) + "\n")
+        result["outcomes_file"] = str(outcomes_path.relative_to(REPO_ROOT))
+        path.write_text(json.dumps(result, indent=2))  # re-write once outcomes_file is known
+        print(f"\nwrote {path}")
+        _validate(result)
     finally:
         if args.target != "remote":
             print(f"Stopping {variant['backend']} server...")
         coordinator.stop()
+
+
+def _validate(result: dict) -> None:
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError:
+        print("! jsonschema not installed - result NOT validated against the schema")
+        return
+    schema_path = REPO_ROOT / "schemas" / "quality_result.schema.json"
+    errors = sorted(
+        Draft202012Validator(json.loads(schema_path.read_text())).iter_errors(result),
+        key=lambda e: list(e.path),
+    )
+    if errors:
+        print(f"! result does NOT conform to {schema_path.name}:")
+        for e in errors[:10]:
+            print(f"    {'/'.join(str(p) for p in e.path) or '<root>'}: {e.message}")
+    else:
+        print(f"OK - conforms to {schema_path.name}")
 
 
 if __name__ == "__main__":

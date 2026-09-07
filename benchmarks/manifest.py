@@ -482,6 +482,40 @@ def build_manifest(
     return manifest
 
 
+def quality_manifest(
+    *,
+    backend: str,
+    platform: str,
+    base_url: str,
+    image: str | None,
+    command: str,
+    model_config_key: str,
+    target: str = "local",
+) -> dict[str, Any]:
+    """The flat manifest shape schemas/quality_result.schema.json expects -
+    quality evaluations (BFCL, MMLU) don't need the full nested
+    hardware/software split a performance result does (no power/thermal/RAM
+    telemetry to attribute), but DO need the same backend-identity fields:
+    a tool-calling score is as backend/version-dependent as a latency
+    number - both of this lab's known tool-calling failures (llama.cpp's
+    temperature sensitivity, Bielik's empty tool_calls on vLLM) are
+    backend/version effects, not model effects, and are uninterpretable
+    without this block."""
+    info = git_info()
+    manifest: dict[str, Any] = {
+        "git_commit": info["git_commit"],
+        "git_dirty": info["git_dirty"],
+        "command": command,
+        "model_config_key": model_config_key,
+        "backend": backend,
+        "backend_version": probe_backend_version(base_url, backend),
+        "container_image": image or "n/a (remote target - image not owned by this host)",
+        "platform": platform,
+        "target": target,
+    }
+    return manifest
+
+
 # --- experiment identity ---------------------------------------------------
 
 

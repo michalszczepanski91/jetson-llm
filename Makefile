@@ -57,13 +57,17 @@ benchmark-streaming: ## TTFT/tok-s/memory/power/ENERGY - CONFIG=<model-config> C
 	  --execution-condition $(CONDITION) $(if $(CORESIDENT),--co-resident $(CORESIDENT),)
 	@echo "results written under results/raw/ - output/*.json is no longer used by this target"
 
-validate-tool-calling: ## BFCL tool-call judgment accuracy - pass CONFIG=<model-config> (needs /opt/datasets/BFCL, see README)
+validate-tool-calling: ## BFCL tool-call judgment accuracy - CONFIG=<model-config> CONDITION=standalone|co-resident (needs /opt/datasets/BFCL, see README)
+	@test -n "$(CONDITION)" || { echo "error: CONDITION is required, e.g. CONDITION=standalone"; exit 1; }
 	uv run python scripts/validate_tool_calling.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
-	  --results-json output/tool_calling_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+	  --execution-condition $(CONDITION) $(if $(CORESIDENT),--co-resident $(CORESIDENT),)
+	@echo "results written under results/raw/ - output/*.json is no longer used by this target"
 
-validate-mmlu:  ## MMLU quantization-sanity accuracy - pass CONFIG=<model-config> (needs /opt/datasets/MMLU, see README)
+validate-mmlu:  ## MMLU quantization-sanity accuracy - CONFIG=<model-config> CONDITION=standalone|co-resident (needs /opt/datasets/MMLU, see README)
+	@test -n "$(CONDITION)" || { echo "error: CONDITION is required, e.g. CONDITION=standalone"; exit 1; }
 	uv run python scripts/validate_mmlu.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
-	  --results-json output/mmlu_$(or $(CONFIG),1.5b-awq-vllm-orin).json
+	  --execution-condition $(CONDITION) $(if $(CORESIDENT),--co-resident $(CORESIDENT),)
+	@echo "results written under results/raw/ - output/*.json is no longer used by this target"
 
 # ── Dev ───────────────────────────────────────────────────────────────────
 test:           ## Run the unit test suite (no Docker/GPU needed)

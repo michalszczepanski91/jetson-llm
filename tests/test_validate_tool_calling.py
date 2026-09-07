@@ -133,3 +133,98 @@ def test_params_match_ignores_extra_actual_keys():
 
 def test_params_match_wrong_value_fails():
     assert _params_match({"base": [10]}, {"base": 99}) is False
+
+
+# --- confusion matrix and failure taxonomy (docs/TODO.md Phase 5's retrofit) -
+
+from validate_tool_calling import confusion_matrix_and_taxonomy  # noqa: E402
+
+
+def _simple(**kw):
+    base = {"category": "simple", "tool_called": False, "correct_tool": False,
+            "correct_arguments": False, "hallucinated": False, "correct": False, "error": None}
+    base.update(kw)
+    return base
+
+
+def _irrelevance(**kw):
+    base = {"category": "irrelevance", "tool_called": False, "correct": False, "error": None}
+    base.update(kw)
+    return base
+
+
+def test_correct_simple_call_is_true_positive_and_correct_arguments():
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=True, correct_arguments=True, correct=True),
+    ])
+    assert cm["confusion_matrix"] == {"true_positive": 1, "false_positive": 0, "false_negative": 0, "true_negative": 0}
+    assert cm["correct_tool"] == 1
+    assert cm["correct_arguments"] == 1
+    assert cm["invalid_call"] == 0
+
+
+def test_right_tool_wrong_arguments_is_invalid_call_not_correct():
+    """The tool called matches BFCL's expected function, but the arguments
+    don't - a TP in the confusion matrix (a tool WAS called), but
+    invalid_call in the taxonomy, distinct from a full pass."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=True, correct_arguments=False),
+    ])
+    assert cm["confusion_matrix"]["true_positive"] == 1
+    assert cm["correct_tool"] == 1
+    assert cm["correct_arguments"] == 0
+    assert cm["invalid_call"] == 1
+
+
+def test_no_call_on_a_simple_case_is_false_negative_and_formatting_failure():
+    """The exact failure mode this lab found for Qwen2.5-1.5B on llama.cpp at
+    default temperature: narrating in prose instead of calling the tool."""
+    cm = confusion_matrix_and_taxonomy([_simple(tool_called=False)])
+    assert cm["confusion_matrix"]["false_negative"] == 1
+    assert cm["formatting_failure"] == 1
+
+
+def test_hallucinated_name_is_true_positive_and_hallucinated_tool():
+    """Only one tool is ever offered per BFCL case - a call naming anything
+    else is a genuinely invented name, not a selection among alternatives."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=False, hallucinated=True),
+    ])
+    assert cm["confusion_matrix"]["true_positive"] == 1
+    assert cm["hallucinated_tool"] == 1
+    assert cm["wrong_tool"] == 0
+
+
+def test_irrelevance_case_correctly_abstaining_is_true_negative():
+    cm = confusion_matrix_and_taxonomy([_irrelevance(tool_called=False, correct=True)])
+    assert cm["confusion_matrix"]["true_negative"] == 1
+
+
+def test_irrelevance_case_wrongly_escalating_is_false_positive():
+    cm = confusion_matrix_and_taxonomy([_irrelevance(tool_called=True, correct=False)])
+    assert cm["confusion_matrix"]["false_positive"] == 1
+
+
+def test_server_error_is_excluded_from_the_confusion_matrix():
+    """A backend defect (HTTP 500, timeout) is not a model judgment failure -
+    folding it into FN/FP would blame the model for an infrastructure
+    failure. Counted separately as server_error instead."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(error="HTTPError: 500"),
+        _irrelevance(error="TimeoutError: x"),
+    ])
+    assert cm["confusion_matrix"] == {"true_positive": 0, "false_positive": 0, "false_negative": 0, "true_negative": 0}
+    assert cm["server_error"] == 2
+
+
+def test_confusion_matrix_totals_match_input_count():
+    outcomes = [
+        _simple(tool_called=True, correct_tool=True, correct_arguments=True, correct=True),
+        _simple(tool_called=False),
+        _irrelevance(tool_called=False, correct=True),
+        _irrelevance(tool_called=True, correct=False),
+        _simple(error="x"),
+    ]
+    cm = confusion_matrix_and_taxonomy(outcomes)
+    counted = sum(cm["confusion_matrix"].values()) + cm["server_error"]
+    assert counted == len(outcomes)
