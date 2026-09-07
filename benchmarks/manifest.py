@@ -394,9 +394,31 @@ def board_model() -> str | None:
         return None
 
 
-def hardware_manifest(platform: str) -> dict[str, Any]:
+def hardware_manifest(platform: str, target: str = "local") -> dict[str, Any]:
     """The hardware block of a benchmark_result manifest. Imports harness
-    lazily so this module stays usable (and unit-testable) without it."""
+    lazily so this module stays usable (and unit-testable) without it.
+
+    `target="remote"` (e.g. a Thor reached via RemoteCoordinator) is the case
+    that makes every probe here wrong if called blindly: nvpmodel_mode(),
+    jetson_clocks_locked_heuristic(), l4t_version(), board_model() and
+    memory_total_mb() all read THIS process's own /proc and /sys - the client
+    Orin's, not the remote inference host's. Calling them unconditionally
+    would silently mislabel the Orin's hardware state as if it described
+    Thor, under a manifest whose own `platform` field says "thor" - the same
+    class of mislabeling this repo has already found and fixed twice for
+    execution_condition (docs/TODO.md Phase 3's incident record). For a
+    remote target these fields are honestly reported as not describing the
+    inference host, mirroring the old scripts/benchmark.py's
+    `tegrastats_caveat` rather than reinventing that caveat differently."""
+    if target == "remote":
+        return {
+            "platform": platform,
+            "board": "unknown (remote target - client-side probe would describe the wrong machine)",
+            "memory_total_mb": 0.0,
+            "nvpmodel_mode": "unknown (remote target - not queryable from this client)",
+            "jetson_clocks_locked": None,
+            "l4t_version": None,
+        }
     from harness import jetson_clocks_locked_heuristic, l4t_version, nvpmodel_mode
 
     return {
@@ -409,11 +431,14 @@ def hardware_manifest(platform: str) -> dict[str, Any]:
     }
 
 
-def software_manifest(backend: str, base_url: str, image: str | None) -> dict[str, Any]:
+def software_manifest(backend: str, base_url: str, image: str | None, target: str = "local") -> dict[str, Any]:
     import platform as _platform
 
     block: dict[str, Any] = {
         "backend": backend,
+        # backend_version genuinely IS a remote-safe probe unlike the fields
+        # below - it queries base_url itself (the remote server), not this
+        # client's own state.
         "backend_version": probe_backend_version(base_url, backend),
         "container_image": image or "n/a (remote target - image not owned by this host)",
         "python": _platform.python_version(),
@@ -422,9 +447,15 @@ def software_manifest(backend: str, base_url: str, image: str | None) -> dict[st
         digest = image_digest(image)
         if digest:
             block["container_digest"] = digest
-    docker = docker_version()
-    if docker:
-        block["docker"] = docker
+    # docker_version() reports THIS client's Docker daemon. Meaningful for a
+    # local run (that daemon runs the container being measured); meaningless
+    # for remote (Thor's container isn't managed by this client's Docker at
+    # all) - omitted rather than included-and-mislabeled, same reasoning as
+    # hardware_manifest()'s remote branch above.
+    if target != "remote":
+        docker = docker_version()
+        if docker:
+            block["docker"] = docker
     return block
 
 
@@ -437,13 +468,14 @@ def build_manifest(
     command: str,
     model_config_key: str,
     experiment_config: str | None = None,
+    target: str = "local",
 ) -> dict[str, Any]:
     manifest: dict[str, Any] = {
         **git_info(),
         "command": command,
         "model_config_key": model_config_key,
-        "hardware": hardware_manifest(platform),
-        "software": software_manifest(backend, base_url, image),
+        "hardware": hardware_manifest(platform, target=target),
+        "software": software_manifest(backend, base_url, image, target=target),
     }
     if experiment_config:
         manifest["experiment_config"] = experiment_config

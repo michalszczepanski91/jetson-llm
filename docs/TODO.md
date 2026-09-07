@@ -787,11 +787,42 @@ dependency this repo does not control, and nothing above is blocked on it.
 - [ ] Re-run Phase 4's two sweeps on Thor, same methodology, and answer P5's actual
       question: **does the ranking change**, not merely which board is faster
 - [ ] `RemoteCoordinator` runs cannot measure the remote board's power or cold start —
-      `benchmark.py` already flags this. Thor telemetry must be collected *on* Thor
-      (note.md §56 step 7), not inferred from the client side.
+      `cold_start_breakdown()` already returns `measured: false` for it, and
+      `power`/`memory` blocks are populated from THIS client's own tegrastats, not
+      Thor's. Thor telemetry must be collected *on* Thor (note.md §56 step 7), not
+      inferred from the client side.
+- [x] **Pre-emptive fix, 2026-09-07** (found auditing Thor-readiness before any real
+      Thor row exists, in response to a direct user question about it):
+      `hardware_manifest()`/`software_manifest()` read `/proc`, `/sys`, and the local
+      Docker daemon unconditionally — all describe the CLIENT (this Orin), not a
+      remote host. A `--target remote` run against Thor would have silently reported
+      the Orin's own `nvpmodel_mode`/`jetson_clocks_locked`/`l4t_version`/`board`/
+      Docker version *under a manifest whose `platform` field says "thor"* — the same
+      class of mislabeling bug this file's Phase 3 incident record already found and
+      fixed twice for `execution_condition`, just in a different field, and this time
+      caught before a real Thor run hit it rather than after. Fixed: both functions
+      take a `target` parameter and return honest `"unknown (remote target...)"` /
+      `null` values instead, mirroring the retired `scripts/benchmark.py`'s old
+      `tegrastats_caveat` rather than reinventing the caveat differently. `backend_version`
+      is unaffected — it queries `base_url` itself (the actual remote server), which is
+      genuinely remote-safe already. 5 new tests in `tests/test_manifest.py`.
+- [ ] **Still open, known, not yet closed**: `assert_condition_matches_reality()` is
+      skipped entirely for `--target remote` in every caller (`run_experiment.py`,
+      `benchmark_streaming.py`, `smoke_test.py`) — it can only observe THIS client's
+      containers/GPU-holding processes, not Thor's. This means the co-residency safety
+      net this repo spent 2026-09-04 building **does not extend to Thor at all**
+      currently: a `standalone` claim against Thor is unchecked, trusted rather than
+      verified, exactly the failure mode already found twice on Orin. Closing this
+      needs either SSH-based remote checks (query Thor's own `docker ps`/`/proc` over
+      SSH) or an on-Thor companion check run manually before each campaign — a real
+      design decision, not a one-line fix, and explicitly deferred to when Phase 6
+      actually starts rather than guessed at now.
 
 **GATE 6** — one real run of each script against Thor succeeds end-to-end, and at
-least one Phase 4 sweep is reproduced there with on-device telemetry.
+least one Phase 4 sweep is reproduced there with on-device telemetry. The open
+co-residency gap above should be resolved (or explicitly accepted with a documented
+reason) before GATE 6 is called met, not discovered after a campaign like Phase 3's
+incidents were.
 
 ## Phase 7 — Quantization study
 

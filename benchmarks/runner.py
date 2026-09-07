@@ -278,6 +278,7 @@ def measure_cell(
             command=command,
             model_config_key=model_config_key,
             experiment_config=experiment_config,
+            target=target,
         ),
         "model": {
             "name": variant["model"],

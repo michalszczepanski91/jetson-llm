@@ -427,3 +427,66 @@ def test_co_resident_with_no_declaration_and_nothing_running_passes(monkeypatch)
     manifest.assert_condition_matches_reality(
         "co-resident", own_containers=set(), declared_co_resident=None
     )
+
+
+# --- remote-target manifests must not mislabel the client as the host ------
+#
+# hardware_manifest()/software_manifest() read /proc, /sys, and the local
+# docker daemon - all describe the CLIENT machine, not a remote inference
+# host reached via RemoteCoordinator (e.g. a Thor on the LAN). Calling them
+# unconditionally would silently mislabel the Orin's own hardware state as
+# if it described Thor, under a manifest whose own `platform` field claims
+# "thor" - found while checking this repo's Thor-readiness, before any real
+# Thor run happened to catch it the expensive way.
+
+
+def test_local_hardware_manifest_reports_this_machine(monkeypatch):
+    monkeypatch.setattr(manifest, "board_model", lambda: "Jetson AGX Orin")
+    monkeypatch.setattr(manifest, "memory_total_mb", lambda: 30698.0)
+    hw = manifest.hardware_manifest("orin", target="local")
+    assert hw["board"] == "Jetson AGX Orin"
+    assert hw["memory_total_mb"] == 30698.0
+
+
+def test_remote_hardware_manifest_does_not_claim_client_values(monkeypatch):
+    """Even if board_model()/memory_total_mb() would return real (Orin)
+    values, a remote-target manifest must not report them under a `platform`
+    field that names a different machine."""
+    monkeypatch.setattr(manifest, "board_model", lambda: "Jetson AGX Orin")
+    monkeypatch.setattr(manifest, "memory_total_mb", lambda: 30698.0)
+    hw = manifest.hardware_manifest("thor", target="remote")
+    assert hw["platform"] == "thor"
+    assert "Orin" not in hw["board"]
+    assert hw["memory_total_mb"] == 0.0
+    assert "remote" in hw["nvpmodel_mode"]
+    assert hw["jetson_clocks_locked"] is None
+    assert hw["l4t_version"] is None
+
+
+def test_remote_software_manifest_omits_local_docker_version(monkeypatch):
+    """docker_version() is this client's own daemon - irrelevant to a
+    container Thor's own Docker manages, not this client's."""
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    monkeypatch.setattr(manifest, "docker_version", lambda: "27.5.1")
+    sw = manifest.software_manifest("vllm", "http://thor:8000", None, target="remote")
+    assert "docker" not in sw
+    assert sw["backend_version"] == "vllm 0.19.0"  # this one IS remote-safe - queries base_url
+
+
+def test_local_software_manifest_keeps_docker_version(monkeypatch):
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    monkeypatch.setattr(manifest, "docker_version", lambda: "27.5.1")
+    sw = manifest.software_manifest("vllm", "http://127.0.0.1:8000", "some/image:tag", target="local")
+    assert sw["docker"] == "27.5.1"
+
+
+def test_build_manifest_threads_target_through(monkeypatch):
+    monkeypatch.setattr(manifest, "board_model", lambda: "Jetson AGX Orin")
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    monkeypatch.setattr(manifest, "docker_version", lambda: "27.5.1")
+    m = manifest.build_manifest(
+        backend="vllm", platform="thor", base_url="http://thor:8000", image=None,
+        command="x", model_config_key="k", target="remote",
+    )
+    assert "Orin" not in m["hardware"]["board"]
+    assert "docker" not in m["software"]
