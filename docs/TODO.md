@@ -28,6 +28,23 @@ the one before it is checked off.
       - Decision: build only vLLM and llama.cpp legs now. Revisit TensorRT-LLM/
         Edge-LLM only if/when Thor moves to JetPack 7.x, and treat it then as its own
         bespoke C++-integration project, not "add a coordinator class."
+      - **SUPERSEDED for Thor only, 2026-09-08** — the revisit condition above fired,
+        and two of the three blocking facts turned out not to hold any more. Checked
+        live against `NVIDIA/TensorRT-Edge-LLM` (release 0.10.1, pushed 2026-09-03):
+        (a) the user's Thor **is** JetPack 7.1 / CUDA 13.0 / TensorRT 10.13.3.9, and
+        `Jetson Thor + JetPack 7.0/7.1` is an **Official** row in Edge-LLM's own
+        support matrix — not merely "compatible"; (b) it now ships an **experimental
+        OpenAI-compatible HTTP server** (`tensorrt-edgellm-serve <checkpoint>
+        --port N`, redesigned in 0.10.1) *with* tool-calling support
+        (`experimental/server/parsing/tool_calling.py` + `tool_chat_template.py`,
+        covered by upstream unit tests) — i.e. it can meet
+        `docs/promotion-contract.md` §1's contract as an ordinary coordinator target,
+        which is exactly what the 2026-09-04 entry said it could not do; (c) Qwen2.5
+        **is** in its supported-models list, including
+        `Qwen2.5-{1.5B,3B,7B}-Instruct-AWQ` — the same checkpoints the `-orin` vllm
+        rows already use, so the Thor Edge-LLM leg can hold the model constant
+        instead of forcing a Qwen3.x switch. Orin stays excluded (JetPack 6.2.x;
+        Edge-LLM's Orin row needs JetPack 7.2). See Phase 6 for the Thor plan.
 - [x] Confirmed llama.cpp's Jetson serving path: `dusty-nv/jetson-containers` is the
       standard prebuilt-image source (tagged per JetPack/L4T version); the only
       alternative found (`zhamm/llama-cpp-jetson`) targets Orin Nano 8GB specifically,
@@ -406,23 +423,179 @@ doesn't-fit-with-reason).
 Demoted from "next" to "after the Orin slice is real" — it is a hardware-availability
 dependency this repo does not control, and nothing above is blocked on it.
 
-- [ ] Confirm SSH/LAN reachability to the user's Thor the same way `jetson-vlm-lab`'s
-      Phase B did (`10.8.32.124` there — Thor's address here may differ, don't assume
-      it's the same machine)
-- [ ] Confirm what's already running on Thor (production VLM container, per
-      `embedded-ai-chain`'s `RemoteVlmCoordinator` — avoid port/GPU-memory collision
-      when standing up a temporary orchestrator-LLM test container alongside it, same
-      caution `jetson-vlm-lab`'s `-thor` test rows already took)
-- [ ] Record Thor's real power modes rather than assuming Orin's transfer (note.md
-      §27), and its real unified-memory size rather than note.md §7's assumed 128GB
-- [ ] Add `-thor` rows to `configs/models.yaml` for both backends once real serving
-      args are confirmed there (don't guess `gpu_memory_utilization`/`n_gpu_layers`
-      ahead of a real run, same rule Phase 1's orin rows already follow)
+- [x] Confirm SSH/LAN reachability to the user's Thor — moot as of 2026-09-08: the
+      user cloned this repo directly onto Thor and runs Claude Code there too, so
+      this repo's own working copy on that device *is* the reachability path, no
+      SSH hop needed the way `jetson-vlm-lab`'s Phase B required.
+- [x] Confirm what's already running on Thor, 2026-09-08: `docker ps` shows
+      `vllm-vlm-thor` (image `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor` —
+      **note the `-thor` image tag, distinct from this repo's own
+      `_DEFAULT_VLLM_IMAGE`/`docker-compose.yml`, both still hardcoded to
+      `-jetson-orin`**), serving `Qwen2.5-VL-7B-Instruct-AWQ` with
+      `--gpu-memory-utilization 0.3 --max-model-len 4096` on `0.0.0.0:8000`
+      (confirmed via `ss -tln`) — **this repo's default vLLM port (8000, hardcoded
+      in both `docker-compose.yml` and `VllmCoordinator`'s default) collides
+      directly** since both run with `network_mode: host`. Every `-thor` row below
+      must pass an explicit non-8000 `port`. Two more containers
+      (`tensorrt-edge-llm`, `edgellm-export`, both `nvcr.io/nvidia/pytorch:26.05-py3`)
+      sit exited from an earlier TensorRT Edge-LLM experiment — consistent with
+      Phase 0's finding that Edge-LLM needs JetPack 7.x (see next item), evidence
+      someone already probed that path on this box; not investigated further here.
+- [x] Recorded Thor's real power mode and unified-memory size, 2026-09-08:
+      `nvpmodel -q` → **120W** (mode 1, no sudo needed to read it). `free -h` →
+      **122GiB total** (vs Orin's ~30GB — a >4x difference, `gpu_memory_utilization`
+      fractions do NOT transfer between platforms, confirm each `-thor` row's value
+      independently). L4T `R38.4.0` / `nvidia-jetpack 7.1-b112` — genuinely JetPack
+      7.x, unlike Orin's 6.2.x, which is the version Phase 0 flagged as required for
+      TensorRT Edge-LLM (still not pursued here — out of scope per that decision,
+      see the exited containers above).
+- [x] Added `-thor` rows to `configs/models.yaml` for the vllm backend (mirroring
+      every existing `-orin` vllm row: 1.5b/3b/7b Qwen2.5-AWQ + Bielik-11B-AWQ),
+      2026-09-08 — `gpu_memory_utilization` values are conservative untested
+      starting points (same convention Phase 1's orin rows used), chosen small
+      enough to fit alongside `vllm-vlm-thor`'s own already-resident 0.3 share of
+      this same memory pool; re-tune upward after each row's first real run same as
+      any orin row. **llama-cpp on Thor needs a different image family than the
+      Orin rows — and the first answer here was WRONG, worth recording as a
+      method note.** Sequence of findings, all 2026-09-08:
+      1. `dustynv/llama_cpp` on **Docker Hub** (this lab's Orin source) publishes
+         no `r38` tag, only r35.x/r36.x. Concluded from that alone that "no Thor
+         image exists" — **premature**: jetson-containers publishes its r38-era
+         images to **GHCR under `nvidia-ai-iot/`**, not to that Docker Hub repo.
+         Checking one registry is not checking the project.
+      2. Tried upstream's own `ghcr.io/ggml-org/llama.cpp:server-cuda` (it does
+         publish a linux/arm64 manifest). It gets impressively far —
+         `--list-devices` reports `CUDA0: NVIDIA Thor (125771 MiB)`, the fp16 GGUF
+         loads, and `llama_server: model loaded` — then dies on the **first
+         inference request**: `CUDA error: an internal operation failed, in
+         function cublas_handle (ggml-cuda/common.cuh:1537)`. So upstream's generic
+         CUDA arm64 build is *enumeration*-compatible with Tegra but not
+         *runtime*-compatible. Device detection is not proof of a working backend —
+         this lab should not accept `--list-devices` as a smoke test again.
+      3. The right image is **`ghcr.io/nvidia-ai-iot/llama_cpp:r38.2.arm64-sbsa-cu130-24.04`**
+         (same naming pattern as the `nvidia-ai-iot/ollama` r38 image already on
+         this box) — NVIDIA's own Thor build.
+      Note the CPU-only `ghcr.io/ggml-org/llama.cpp:full` also sits on this box
+      (pulled by the other user) — no CUDA libs at all, not a serving candidate.
 - [ ] Re-run Phase 4's two sweeps on Thor, same methodology, and answer P5's actual
       question: **does the ranking change**, not merely which board is faster
 - [ ] `RemoteCoordinator` runs cannot measure the remote board's power or cold start —
       `benchmark.py` already flags this. Thor telemetry must be collected *on* Thor
       (note.md §56 step 7), not inferred from the client side.
+- [x] Staged BFCL/MMLU datasets on Thor, 2026-09-08, at the same `/opt/datasets/{BFCL,MMLU}`
+      paths the scripts expect — `/opt/datasets` turned out to be `root:mlusers`
+      `drwxrwsr-x`, so this needed **no sudo** and the files land group-readable
+      (`michal:mlusers`), reusable by the box's other user rather than duplicated per
+      home directory. Same convention as the shared `/opt/hf-cache`.
+- [x] Thor host-side Python env, 2026-09-08: `uv` was missing (`python3` is 3.12.3
+      via apt, and Ubuntu 24.04's PEP-668 marking makes a plain system `pip install`
+      refuse anyway) — installed user-local via the official installer, then
+      `uv venv && uv pip install -r requirements.txt`, so every README/Makefile
+      command works verbatim here. `hf`/`huggingface-cli` 1.30.0 added to the same
+      venv for staging. `pytest`/`pyyaml` also happen to exist system-wide
+      (52/52 unit tests pass under both).
+
+### Phase 6a — TensorRT Edge-LLM: Thor's third backend leg
+
+Direct user direction, 2026-09-08: **Edge-LLM is the point of running on Thor**, not
+an afterthought behind the vLLM rows. Phase 0's exclusion is superseded for Thor only
+(see that entry) — Orin cannot run it at all, so this leg is inherently Thor-only and
+its results are a *platform×backend* cell no Orin row can fill.
+
+- [x] Cloned `NVIDIA/TensorRT-Edge-LLM` (0.10.1, `e8b2952`) to `~/dev/TensorRT-Edge-LLM`
+      and **built it on-device, 2026-09-08 — it works**. Configure picked up CUDA
+      13.0, the system TensorRT at `/usr`, and the **sm_110** CuTe DSL prebuilt
+      (Thor's compute capability, reported as 11.0 at runtime), then built clean with
+      `-j 12` (12 of 14 cores, deliberately leaving headroom for the box's other
+      user): `libNvInfer_edgellm_plugin.so` plus the
+      `_edgellm_runtime.cpython-312-aarch64-linux-gnu.so` binding. `pip install -e
+      ".[server,server-tools,native-build]"` into a `--system-site-packages` venv
+      then gave working `tensorrt-edgellm-serve`. Whole path is ~1h unattended,
+      needs no sudo and no GPU. Its own venv lives in that tree, separate from this
+      repo's.
+- [x] **Its serve CLI is nearly flag-compatible with `VllmCoordinator`'s docker
+      command**: `--host/--port/--enable-auto-tool-choice/--tool-call-parser` all
+      exist, the parser choices being `{auto,generic,hermes,qwen3_xml,nemotron,openai}`
+      — note `hermes` and `generic` are the *same two names* vLLM and llama.cpp use
+      for the paths this lab already measured on Orin. An `EdgeLlmCoordinator` is
+      therefore a near-copy of `VllmCoordinator`, not new architecture.
+- [x] **Qwen2.5-1.5B-Instruct-AWQ does NOT build on Edge-LLM's server path,
+      2026-09-08** — the first real negative result of this leg, and an upstream
+      limitation rather than a config error on our side. The server always builds
+      through the experimental *direct* (checkpoint→engine, no ONNX) builder with
+      `--externalize-weights all`; for `quant=int4_awq` on a `qwen2` graph that
+      combination reaches `backend.py::_add_bias` with an externalized bias whose
+      `bias_recipe` is `None` and raises `ValueError: external FP16 bias has no
+      checkpoint recipe`. Qwen2-family models carry attention QKV biases (Qwen3
+      dropped them), so this is precisely the Qwen2.5 + AWQ + externalization corner.
+      Consequence for this lab: **the Thor Edge-LLM leg cannot hold precision
+      constant with the `-orin` AWQ rows.** It must vary either precision (FP16 same
+      model — being tried next) or family (Qwen3.x, which is what upstream's own
+      server examples use, and which Phase 7 wants a serving check for anyway).
+      Not attempted: patching upstream's builder — out of scope for a serving
+      evaluation, revisit only if Edge-LLM turns out to matter enough.
+- [ ] ~~Clone and build~~ *(done above)* — remaining: pick the checkpoint this leg
+      standardizes on, given the AWQ block above
+      (JetPack 7.1 Thor command from upstream's installation guide:
+      `-DEMBEDDED_TARGET=jetson-thor -DCUDA_CTK_VERSION=13.0 -DTRT_PACKAGE_DIR=/usr
+      -DENABLE_CUTE_DSL=ALL`, plus `-DBUILD_PYTHON_BINDINGS=ON` — the bindings are
+      **required** for the OpenAI server, not optional). Prerequisites verified
+      present on the box, 2026-09-08: cmake 3.28.3, gcc 13.3, CUDA 13.0.48 at
+      `/usr/local/cuda` (note `nvcc` is NOT on `PATH` by default), TensorRT 10.13.3.9
+      under `/usr`, 14 cores, 199GB free disk (upstream wants 20-50GB for ONNX +
+      engines, plus the server's default 50GiB LRU engine-bundle cache).
+      **No prebuilt wheel exists** — not on PyPI, no release assets on any of the
+      last five GitHub releases (checked live). Source build is the only path.
+- [x] Served it — FP16, not AWQ (the AWQ attempt is the blocked item above). The
+      `RemoteCoordinator`-against-localhost trick worked exactly as predicted: the
+      first real Edge-LLM datapoint in this lab needed **zero repo code changes**.
+- [x] **Ran the full accuracy matrix — all three Thor backends, one fixed model
+      (`Qwen2.5-1.5B-Instruct` FP16), 2026-09-08.** Write-up in
+      `docs/thor-framework-comparison.md`, raw JSON in `output/`. BFCL overall:
+      **Edge-LLM 83% > vLLM 75% > llama.cpp 74%**, with the entire spread coming from
+      `irrelevance` (78/68/60) rather than `simple` (88/82/88). MMLU control
+      42.0/40.5/38.5 with zero unparsed responses on any leg — which is what makes
+      the BFCL spread trustworthy rather than a broken-setup artifact. llama.cpp's
+      shape (strong `simple`, weak `irrelevance`) reproduces the Orin result
+      (85/65/75) on different hardware AND a different image family: the
+      grammar-CONSTRAINED path forces a valid call where abstaining was correct.
+- [x] Added `1.5b-fp16-edgellm-thor`, `1.5b-fp16-vllm-thor` and
+      `1.5b-fp16-llamacpp-thor` — each only after it really served.
+- [x] Built `EdgeLlmCoordinator` (process-owning, not container-owning) so the
+      backend is a first-class `--target local` citizen and `cold_start_ms` becomes
+      measurable for it; `LlamaCppCoordinator` gained `server_argv0` for the two
+      llama.cpp image families' differing ENTRYPOINTs. 61 unit tests pass.
+- [ ] **Blocked on an exclusive window**: `benchmark.py` and
+      `benchmark_streaming.py` for all three legs. Two complications already visible
+      that those runs must handle — **cold start is BIMODAL on two of the three
+      backends** and must be reported as two numbers rather than averaged: vLLM's
+      first start on Thor takes minutes (torch.compile/inductor) but 27.8s to init
+      the engine once the compile cache is warm; Edge-LLM compiles TensorRT engines
+      on a cache miss (minutes) and only loads them on a hit (seconds).
+- [ ] Cheap follow-up that would sharpen the headline: re-run BFCL with
+      `--tool-call-parser hermes` pinned on BOTH Edge-LLM and vLLM. The parsers
+      differed (`auto` vs `hermes`), so today's honest claim is "Edge-LLM **as
+      configured by default** judges best on Thor", not that its runtime is
+      inherently better.
+
+### Measurement integrity on Thor: it is a SHARED box
+
+Unlike the Orin, this Thor has another user's work on it (`docker ps` shows a
+long-running production `vllm-vlm-thor`; two exited Edge-LLM containers mount
+`/home/fabien/...`). The user has offered to coordinate exclusive windows, so spend
+them only where exclusivity actually changes the number:
+
+- **Needs an exclusive box** (ask first, then run): everything in `benchmark.py` and
+  `benchmark_streaming.py` — wall latency, TTFT, tokens/sec, cold start — plus all
+  `tegrastats` power/thermal readings (they are board-wide, so any other GPU work
+  contaminates them), and any `gpu_memory_utilization`/memory-fit tuning (a fit
+  measured next to someone else's resident model is not reproducible).
+- **Fine to run on the shared box**: `validate_tool_calling.py`, `validate_mmlu.py`,
+  `make test`, dataset staging, the Edge-LLM source build (CPU-bound). Accuracy is
+  not perturbed by co-residency — only speed and memory headroom are.
+- Record which regime each run used. The harness already carries a co-residency flag
+  (Phase 3's measurement-integrity retrofit); a shared-box latency number that is not
+  flagged as such is worse than no number.
 
 **GATE 6** — one real run of each script against Thor succeeds end-to-end, and at
 least one Phase 4 sweep is reproduced there with on-device telemetry.
@@ -558,3 +731,7 @@ Rows are never deleted, even when superseded — same convention as
 | 2026-09-04 | No third paper from this repo; it is the instrument for `paper.md` P3/P4/P5/P6 | Two papers already share one writing window to 2027-01-25 |
 | 2026-09-04 | Apertus and Bielik stay in the matrix despite note.md not mentioning them | They are this lab's actual second/third families and its only decisive negative result |
 | 2026-09-04 | Qwen3 is gated on a real serving check, not assumed | vLLM ≥0.11 has no JetPack 6.2/CUDA 12.6 wheels; a model choice must not force a runtime upgrade |
+| 2026-09-08 | Thor's vllm rows get their own image tag and a non-8000 port, not copies of the orin rows' values | `vllm-vlm-thor` is already live in production on Thor at port 8000 using the `-jetson-thor` image tag, not `-jetson-orin` - confirmed via `docker ps`, not assumed |
+| 2026-09-08 | llama-cpp/thor stays row-less (blocked), not added with a guessed image tag | `dustynv/llama_cpp` publishes no r38/Thor tag yet (checked live) - same "no row until a real serving path exists" rule Apertus's llama.cpp block already set |
+| 2026-09-08 | TensorRT Edge-LLM becomes a real backend leg, on Thor only | Direct user direction; and Phase 0's three blockers no longer hold on Thor - JetPack 7.1 is an Official row, Edge-LLM 0.10.1 ships an OpenAI-compatible server with tool-calling, and Qwen2.5-*-AWQ is in its supported models |
+| 2026-09-08 | Thor timing/power/memory-fit runs require an exclusive box; accuracy runs do not | Thor is shared with another user running a production vLLM container - co-residency changes latency/thermal/fit numbers but not BFCL/MMLU correctness |
