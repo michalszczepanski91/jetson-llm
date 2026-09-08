@@ -298,6 +298,27 @@ def test_edgellm_start_puts_cuda_on_path_for_the_engine_builder():
     assert mock_popen.call_args[1]["start_new_session"] is True
 
 
+def test_edgellm_runs_from_the_source_tree_so_its_trt_plugin_resolves():
+    # Regression test for a real failure, 2026-09-08: Edge-LLM registers its
+    # plugin by the RELATIVE path "build/libNvInfer_edgellm_plugin.so", so a
+    # server started from anywhere else dies deserializing its own cached
+    # engine ("Cannot find plugin: AttentionPlugin"). cwd is load-bearing.
+    proc = _fake_proc()
+    with patch("llm_coordinator.subprocess.Popen", return_value=proc) as mock_popen, \
+         patch("llm_coordinator.urllib.request.urlopen", side_effect=urllib.error.URLError("refused")), \
+         patch("llm_coordinator.os.killpg"):
+        coordinator = EdgeLlmCoordinator(
+            model="fake/model",
+            serve_bin="/opt/TensorRT-Edge-LLM/.venv/bin/tensorrt-edgellm-serve",
+            ready_timeout=0.1,
+        )
+        coordinator.start()
+        coordinator.wait_ready()
+        coordinator.stop()
+
+    assert mock_popen.call_args[1]["cwd"] == "/opt/TensorRT-Edge-LLM"
+
+
 def test_edgellm_stop_signals_the_process_group_not_just_the_parent():
     proc = _fake_proc()
     proc.pid = 4321

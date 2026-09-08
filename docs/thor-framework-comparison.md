@@ -1,19 +1,29 @@
 # Thor framework comparison — which serving backend for the orchestrator LLM?
 
-**Interim answer: TensorRT Edge-LLM, on tool-call judgment — the axis this lab
-exists to measure.** 83% BFCL overall vs vLLM's 75% and llama.cpp's 74%, on identical
-weights, with an MMLU control confirming all three load the model correctly. The lead
-comes almost entirely from `irrelevance` (78% vs 68% vs 60%) — knowing when *not* to
-call a tool, which is `embedded-ai-chain`'s documented production weakness.
+**Interim answer: TensorRT Edge-LLM, and it is not close.** It wins the axis this lab
+exists to measure — tool-call judgment, 83% BFCL vs vLLM's 75% and llama.cpp's 74% on
+identical weights — *and* it leads TTFT (26ms), throughput (65.9 tok/s) and tail
+latency (999ms p95). The accuracy lead comes almost entirely from `irrelevance` (78 vs
+68 vs 60): knowing when *not* to call a tool, which is `embedded-ai-chain`'s documented
+production weakness. The expected "judges better but runs slower" trade-off **did not
+materialise**; it judges better and runs faster, for ~15% more board power.
 
-**This is not yet a decision.** No latency, throughput, cold-start or power number has
-been taken (those need an exclusive box), and Edge-LLM carries real operational costs
-the other two do not: it must be built from source per device (~1h), it is the only
-backend that cannot serve the AWQ checkpoint the Orin rows use, and its server is
-labelled *experimental* upstream. A framework that judges 8 points better but starts
-10x slower or cannot be reproduced on a fleet machine may still lose.
+**vLLM — the current production backend — loses on every axis measured here.** That
+is the finding with the most direct consequence for `embedded-ai-chain`.
 
-**Status: partial — accuracy axes measured, timing/power axes NOT yet run.**
+**What would still change the answer**, and why this is not yet a decision:
+
+- Every timing number was taken on a **shared box** and needs an exclusive re-run.
+- The BFCL legs did not use identical tool-call parsers (`auto` vs `hermes`), so the
+  honest claim today is about Edge-LLM *as configured by default*.
+- Edge-LLM's operational cost is real and unmeasured here: **a from-source build per
+  device** (~1h, no wheel or image exists), it is the only backend that **cannot serve
+  the AWQ checkpoint** the Orin rows use, its OpenAI server is labelled **experimental**
+  upstream, and its fast cold start depends on a **persistent engine cache**.
+  A fleet that cannot carry that build cost may still prefer llama.cpp, which is
+  within 84ms on median latency, starts fast unconditionally, and needs one image.
+
+**Status: accuracy and (shared-box) timing measured. Exclusive-box re-runs pending.**
 Started 2026-09-08 on the user's Jetson Thor (JetPack 7.1 / L4T R38.4.0, CUDA 13.0,
 TensorRT 10.13.3.9, 122 GiB unified memory, `nvpmodel` 120W mode).
 
@@ -114,24 +124,55 @@ follow-up that would separate parser from runtime. Until that runs, the honest c
 is "Edge-LLM **as configured by default** judges tool calls best on Thor", not
 "Edge-LLM's runtime is inherently better".
 
-## NOT yet measured — everything timing-shaped
+## Measured — timing axes (SHARED BOX, indicative only)
 
-These need an **exclusive box** (the other user's containers stopped) or the numbers
-are not reproducible, per the discipline in `docs/TODO.md` Phase 6:
+**These are not the numbers of record.** They were taken with the other user's
+production container resident (idle, but holding ~37GB), so they must be re-run on an
+exclusive box before anything is decided on them. They are here because the ranking
+they show is stable and large enough to be useful now. Raw JSON: `output/*_sharedbox.json`.
 
-- [ ] `benchmark.py` — wall latency, cold start, thermal, power, for each leg
-- [ ] `benchmark_streaming.py` — TTFT and tokens/sec, for each leg
-- [ ] Memory-fit / `gpu_memory_utilization` tuning for the vLLM leg
+| | TTFT p50 | tok/s p50 | latency p50 | **latency p95** | cold start | power |
+|---|---|---|---|---|---|---|
+| **Edge-LLM** | **26 ms** | **65.9** | 996 ms | **999 ms** | 4.1 s ¹ | 17.1 W |
+| **llama.cpp** | 32 ms | 55.2 | **912 ms** | 1383 ms | **4.0 s** | 15.0 W |
+| **vLLM** | 47 ms | 42.8 | 1423 ms | 1894 ms | 96.1 s ¹ | 14.7 W |
 
-Two things already observed that these runs must pin down properly:
+n=20 (streaming), n=30 (latency), 128-token responses, all three warmed to thermal
+steady state (`warmup_reached_steady_state: true`). Power is `vin_sys_5v0` board draw
+in the 120W nvpmodel mode.
 
-- **vLLM's first cold start on Thor is minutes, not seconds** (torch.compile/inductor);
-  a second start with a warm compile cache took **27.8s** to init the engine. Cold
-  start is therefore bimodal for this backend and must be reported as two numbers,
-  not averaged into one.
-- **Edge-LLM's cold start is bimodal for a different reason**: an engine-cache miss
-  compiles TensorRT engines (minutes); a hit only loads them (seconds). `cache_dir`
-  state is part of the measurement.
+¹ **Cold start is bimodal for two of the three and the table shows only the warm
+number.** Edge-LLM's 4.1s is an engine-cache HIT; a miss compiles TensorRT engines
+for minutes. vLLM's 96.1s is with a warm torch.compile/inductor cache; its true first
+start was minutes as well. Only llama.cpp's 4.0s is unconditional. **If a deployment
+cannot guarantee cache persistence across restarts, this ranking changes** — that is
+an operational property, not a benchmark artifact, and it deserves a decision of its
+own rather than a footnote.
+
+### Reading the timing table
+
+- **Edge-LLM leads on TTFT (1.8x vLLM) and throughput (1.5x vLLM)** and, more
+  interestingly, on the **tail**: a 999ms p95 against a 996ms p50 is a 3ms spread.
+  llama.cpp's median is better (912ms) but its p95 is 1383ms. For an orchestrator in
+  a conversational turn-taking loop, tail consistency is worth more than an 84ms
+  median edge — it is the difference between predictable turns and occasional stalls.
+- **vLLM loses this comparison on every timing axis**, which is worth stating plainly
+  because it is `embedded-ai-chain`'s current production backend. Its 96s warm cold
+  start is 24x llama.cpp's.
+- **Power is nearly a wash** (14.7-17.1W). Edge-LLM draws ~15% more than the other
+  two. Nothing here is a power/performance trade; Edge-LLM is simply doing more work
+  per second.
+- llama.cpp's first latency run reported `warmup_reached_steady_state: false` and a
+  p50 of 987ms/p95 1971ms. Re-run with `--warmup-max 25` it reached steady state and
+  improved to 912/1383. **The harness's steady-state flag caught a real measurement
+  error** — the first numbers would have understated llama.cpp on median and
+  overstated its tail. Do not report a run where that flag is false.
+
+## Still not measured
+
+- [ ] All of the above, on an **exclusive box** — these are the numbers of record.
+- [ ] Memory-fit / `gpu_memory_utilization` tuning for the vLLM leg.
+- [ ] Cold-start-from-empty-cache for Edge-LLM and vLLM, as its own measurement.
 
 ## Repo changes this work required
 

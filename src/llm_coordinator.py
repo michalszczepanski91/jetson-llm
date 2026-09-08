@@ -407,6 +407,15 @@ class EdgeLlmCoordinator:
         max_input_len: int = 2048,
         tool_call_parser: str = "auto",
         serve_bin: str = _DEFAULT_EDGELLM_BIN,
+        work_dir: str | None = None,  # defaults to the Edge-LLM source tree
+        # derived from serve_bin. THIS IS LOAD-BEARING, not tidiness: Edge-LLM
+        # registers its TensorRT plugin library by the RELATIVE path
+        # "build/libNvInfer_edgellm_plugin.so", so a server started from any
+        # other directory loads no plugin and then dies deserializing its own
+        # cached engine with "Cannot find plugin: AttentionPlugin, version: 1"
+        # -> "failed to create execution context". Confirmed the hard way,
+        # 2026-09-08: hand-run servers worked (they were launched from that
+        # tree) while the first coordinator-driven run did not.
         ready_timeout: float = 1800.0,  # deliberately longer than the container
         # backends' 600s: a cache-miss launch builds engines before it serves
         stop_timeout: float = 15.0,
@@ -420,6 +429,10 @@ class EdgeLlmCoordinator:
         self._max_input_len = max_input_len
         self._tool_call_parser = tool_call_parser
         self._serve_bin = serve_bin
+        # <tree>/.venv/bin/tensorrt-edgellm-serve -> <tree>
+        self._work_dir = work_dir or os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(serve_bin)))
+        )
         self._ready_timeout = ready_timeout
         self._stop_timeout = stop_timeout
         self._extra_args = list(extra_args) if extra_args else []
@@ -458,7 +471,7 @@ class EdgeLlmCoordinator:
         # rather than relying on the caller's environment.
         env["PATH"] = f"/usr/local/cuda/bin:{env.get('PATH', '')}"
         env.setdefault("HF_HOME", _DEFAULT_HF_CACHE)
-        self._proc = subprocess.Popen(cmd, env=env, start_new_session=True)
+        self._proc = subprocess.Popen(cmd, env=env, cwd=self._work_dir, start_new_session=True)
         self._poll_thread = threading.Thread(target=self._poll_health, daemon=True, name="edgellm-health")
         self._poll_thread.start()
 
