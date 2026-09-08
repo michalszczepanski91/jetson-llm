@@ -582,7 +582,8 @@ its results are a *platform×backend* cell no Orin row can fill.
 
 Unlike the Orin, this Thor has another user's work on it (`docker ps` shows a
 long-running production `vllm-vlm-thor`; two exited Edge-LLM containers mount
-`/home/fabien/...`). The user has offered to coordinate exclusive windows, so spend
+another user's home directory). That user has offered to coordinate exclusive
+windows, so spend
 them only where exclusivity actually changes the number:
 
 - **Needs an exclusive box** (ask first, then run): everything in `benchmark.py` and
