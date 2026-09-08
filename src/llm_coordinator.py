@@ -69,7 +69,7 @@ _DEFAULT_EDGELLM_BIN = os.environ.get(
     "EDGELLM_SERVE_BIN",
     "/home/michal/dev/TensorRT-Edge-LLM/.venv/bin/tensorrt-edgellm-serve",
 )
-_DEFAULT_EDGELLM_CACHE = os.environ.get("EDGELLM_CACHE_DIR", "/home/michal/dev/edgellm-cache")
+_DEFAULT_EDGELLM_CACHE = os.environ.get("EDGELLM_CACHE_DIR", "/opt/edgellm-cache")
 # The cache holds BOTH downloaded checkpoints and compiled engine bundles
 # (50GiB LRU by default). Not the HF cache and not llama.cpp's - a third,
 # differently-shaped store.

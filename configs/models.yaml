@@ -173,6 +173,54 @@ bielik-11b-awq-vllm-orin:
 # Qwen2.5-7B-Instruct is in Edge-LLM's supported-models list; FP16 for the
 # same reason every other Thor row is FP16 (its builder cannot do this
 # family's AWQ - see the block below).
+7b-fp16-vllm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.25  # ~30GB of Thor's 122GB: ~15.2GB weights + KV headroom
+  max_model_len: 2048
+  notes: >
+    Added 2026-09-08 for the 7B leg of the framework comparison - the open
+    question being whether Edge-LLM's tool-call lead at 1.5B survives at a size
+    where capacity alone fixes most of the irrelevance gap.
+
+7b-fp16-llamacpp-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GGUF
+  precision: "GGUF fp16 (unquantized, to match the other 7B legs)"
+  backend: llama-cpp
+  platform: thor
+  quant: fp16  # 4 split files (qwen2.5-7b-instruct-fp16-0000{1..4}-of-00004.gguf),
+               # confirmed present via HF API 2026-09-08; llama.cpp's -hf
+               # downloader handles split GGUFs itself.
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 2048
+  notes: >
+    Added 2026-09-08 for the 7B leg of the framework comparison.
+
+# The largest candidate this lab has ever tried, and one the Orin could not
+# host at all. ~28GB of FP16 weights: it does NOT fit alongside the box's
+# production container (~37GB of the 122GB pool), so this row is exclusively a
+# quiet-box run - see scripts/thor_exclusive_window.sh Phase 4.
+14b-fp16-edgellm-thor:
+  model: Qwen/Qwen2.5-14B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Added 2026-09-08. In Edge-LLM's supported-models list and ungated
+    (confirmed live). Checkpoint pre-staged into the shared HF cache before
+    the window so the run itself is not waiting on a 28GB download. Not yet
+    run - if 7B already takes BFCL irrelevance to 94%, the question this row
+    answers is whether there is anything left for 14B to win, or whether the
+    size curve has already flattened and the memory is better spent elsewhere
+    (co-residency with the VLM tier, longer context, bigger KV cache).
+
 7b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-7B-Instruct
   precision: "fp16 (no quantization)"
@@ -203,9 +251,12 @@ bielik-11b-awq-vllm-orin:
     Served with --tool-call-parser auto (choices here are
     {auto,generic,hermes,qwen3_xml,nemotron,openai}) and --max-input-len 2048
     to match the orin rows' context. Engine cache is currently
-    ~/dev/edgellm-cache (a shared /opt/edgellm-cache needs a sudo mkdir this
-    session could not do); moving it later costs nothing, Edge-LLM keys
-    bundles on checkpoint+profile, not on path.
+    /opt/edgellm-cache, group-writable by `mlusers` so both users of this box
+    share one set of compiled engines rather than each keeping a private ~38GB
+    copy - the same convention as /opt/hf-cache and /opt/datasets. (It started
+    in ~/dev/edgellm-cache and was moved there on 2026-09-08; Edge-LLM keys
+    bundles on checkpoint+profile rather than on path, so the move cost
+    nothing.)
 
 # --- llama.cpp on Thor: a DIFFERENT image family than the Orin rows ---
 # `dustynv/llama_cpp` (what every -orin llama-cpp row above uses) publishes no
