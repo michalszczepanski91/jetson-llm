@@ -11,6 +11,12 @@ materialise**; it judges better and runs faster, for ~15% more board power.
 **vLLM — the current production backend — loses on every axis measured here.** That
 is the finding with the most direct consequence for `embedded-ai-chain`.
 
+**And the bigger finding is not about frameworks at all.** Moving from 1.5B to 7B on
+Thor takes BFCL `irrelevance` from 78% to **94%** — a larger improvement than any
+framework choice produced. The orchestrator's documented weakness is mostly a capacity
+problem, and Thor's 122GB is what makes buying the fix possible. See the size sweep
+below; the cost is ~1.5-2s of generation per turn rather than ~0.5s.
+
 **What would still change the answer**, and why this is not yet a decision:
 
 - Every timing number was taken on a **shared box** and needs an exclusive re-run.
@@ -168,11 +174,60 @@ own rather than a footnote.
   error** — the first numbers would have understated llama.cpp on median and
   overstated its tail. Do not report a run where that flag is false.
 
+## The size sweep — what Thor's 122GB actually buys
+
+Framework held constant at Edge-LLM (the 1.5B winner), so **size is the only
+variable**. This is the experiment the Orin cannot run at all: its ~30GB pool has no
+room for a 7B FP16 orchestrator alongside the rest of the pipeline.
+
+| | BFCL simple | **BFCL irrelevance** | **BFCL overall** | MMLU | TTFT p50 | tok/s | latency p50 | latency p95 | cold ¹ | power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-**1.5B** | 88% | 78% | 83% | 42.0% | **26 ms** | **65.9** | **996 ms** | **999 ms** | **4.1 s** | **17.1 W** |
+| Qwen2.5-**7B** | **92%** | **94%** | **93%** | **67.5%** | 77 ms | 15.6 | 2652 ms | 2808 ms | 12.1 s | 19.4 W |
+
+**`irrelevance` jumps 78% → 94%.** That is the headline of this whole document. The
+category is "the correct action is to call no tool at all", and it is the direct
+analogue of `embedded-ai-chain`'s documented `ask_vlm` over-escalation gap. At 1.5B
+every framework was weak there (78/68/60); at 7B it essentially stops being the
+bottleneck. **The escalation gap is substantially a capacity problem, and Thor's
+memory is what makes the fix purchasable.**
+
+MMLU corroborates rather than merely co-varies: 42.0% → 67.5% with zero unparsed
+responses on both. (Per this repo's own convention MMLU is not for cross-size ranking
+— here it is being used only to confirm the bigger model really is loaded and really
+is more capable, which it is.)
+
+### The cost, stated carefully
+
+7B is ~2.7x the median latency and ~4.2x lower throughput. **But the 128-token
+benchmark is not the shape of an orchestrator turn.** This orchestrator emits a tool
+call or a short spoken reply — on the order of 20-40 tokens. At 15.6 tok/s that is
+~1.4-2.0s of generation, not 2.65s. And TTFT stays at 77ms, so in a *streaming* voice
+loop the response still begins in well under a tenth of a second; what grows is how
+long it takes to finish, not how long the user waits to hear anything.
+
+The honest framing for a decision is therefore **not** "83% at 1.0s vs 93% at 2.7s".
+It is: *does the pipeline's turn budget tolerate ~1.5-2s of generation for a
+substantially better tool-call judge?* A dedicated short-output sweep
+(`--max-tokens 32`) would answer that directly and is the obvious next measurement.
+
+¹ Both cold starts are engine-cache HITS. 7B's cache-miss build is correspondingly
+longer than 1.5B's.
+
 ## Still not measured
 
 - [ ] All of the above, on an **exclusive box** — these are the numbers of record.
 - [ ] Memory-fit / `gpu_memory_utilization` tuning for the vLLM leg.
 - [ ] Cold-start-from-empty-cache for Edge-LLM and vLLM, as its own measurement.
+- [ ] **A short-output sweep (`--max-tokens 32`)** — the single measurement that would
+      turn the 1.5B-vs-7B question into a decision, since 128-token generation is not
+      what an orchestrator turn looks like.
+- [ ] 7B on the other two backends, to check whether Edge-LLM's tool-call lead
+      survives at this size or whether capacity washes the framework difference out.
+      If it washes out, the framework choice can be made on operational grounds
+      (llama.cpp: one image, unconditional 4s cold start) rather than accuracy.
+- [ ] Qwen2.5-14B FP16 (~28GB) — Thor has the memory on paper, but with the box's
+      production container resident (~37GB of 122GB) this needs the exclusive window.
 
 ## Repo changes this work required
 

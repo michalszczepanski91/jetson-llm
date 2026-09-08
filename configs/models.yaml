@@ -165,6 +165,26 @@ bielik-11b-awq-vllm-orin:
 # recipe. Confirmed 2026-09-08, upstream limitation, not a config error here.
 # So the Edge-LLM leg varies precision against the orin rows; it holds the
 # model constant instead. Say so in any cross-platform comparison that uses it.
+# The size sweep Orin cannot run. Every -orin row is memory-constrained on a
+# ~30GB pool; Thor's 122GB is the whole reason to ask whether a BIGGER model
+# closes the `irrelevance` gap (knowing when NOT to call a tool) that
+# 1.5b-fp16-edgellm-thor still shows at 78%. Framework is held constant at the
+# one that won the 1.5B comparison, so size is the only variable.
+# Qwen2.5-7B-Instruct is in Edge-LLM's supported-models list; FP16 for the
+# same reason every other Thor row is FP16 (its builder cannot do this
+# family's AWQ - see the block below).
+7b-fp16-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048  # matches the 1.5B rows so the sweep varies size ONLY
+  notes: >
+    Added 2026-09-08 for the size sweep. ~15.2GB of FP16 weights - fits Thor's
+    122GB pool with the box's production container resident (~37GB), unlike
+    anything this size on the Orin. Not yet run.
+
 1.5b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-1.5B-Instruct
   precision: "fp16 (no quantization - see the AWQ block above for why this row is not int4)"
