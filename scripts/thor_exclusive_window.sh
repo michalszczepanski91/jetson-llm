@@ -29,6 +29,13 @@ say() { echo; echo "───── $* ─────"; date '+      %H:%M:%S';
 restore_other_container() {
     say "RESTORING $OTHER_CONTAINER"
     if docker ps -a --format '{{.Names}}' | grep -qx "$OTHER_CONTAINER"; then
+        # Its restart policy was changed to "no" (2026-09-08) to stop a
+        # crash-restart loop for this window - restore "unless-stopped" so we
+        # hand the box back in the state it was actually found in, not the
+        # temporary one we needed mid-window.
+        docker update --restart=unless-stopped "$OTHER_CONTAINER" >/dev/null 2>&1 \
+            && echo "      restart policy restored to unless-stopped" \
+            || echo "      !! could not restore restart policy - tell the user"
         docker start "$OTHER_CONTAINER" >/dev/null 2>&1 \
             && echo "      started - verifying it answers /health..." \
             || echo "      !! docker start FAILED - tell the user immediately"
