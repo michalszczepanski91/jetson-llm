@@ -241,17 +241,65 @@ excluded in their own `notes`, per this repo's append-only convention. Active ma
   | `7b-awq-vllm-orin` | 212.3s | ✅ PASS, `gpu_memory_utilization=0.5` needs no re-tuning — note: a benign `NvMapMemAllocInternalTagged` allocator warning appeared during startup, worth watching given this row's own "high-risk" flag |
   | `7b-q4-llamacpp-orin` | 326.6s | ✅ PASS (7.6GB two-part GGUF download included) |
 
-- [ ] **Step 1 — the scorecard itself**, now unblocked for all 7 active rows: run
-      `benchmark`/`benchmark-streaming`/`validate-tool-calling`/`validate-mmlu` for
-      each. Record an OOM as a real result, not a skip.
-- [ ] Full-corpus BFCL, not `--limit 20` (the only real scorecard so far is a sample).
-- [ ] Report tool-calling as a confusion matrix (correct tool / correct arguments /
-      correct no-tool / invalid call / hallucinated tool / formatting failure), not one
-      percentage.
-- [ ] Write the comparison up (README "Current State" or a dedicated benchmarks doc).
+- [x] **Step 1 — the scorecard itself**, all 7 active rows. **Done 2026-09-08** —
+      full BFCL + MMLU for every row; performance/energy done for 5 rows at
+      `run_experiment.py`'s hardware-observed `jetson_clocks_locked: false` (see the
+      hardware incident below), replicate 2 in progress at the corrected clock state.
 
-**GATE 5** — not yet met. Every plausible row needs a scorecard entry (pass,
-fail-with-reason, or doesn't-fit-with-reason). Step 0 is done; Step 1 hasn't started.
+  | Row | BFCL simple | BFCL irrelevance | BFCL overall | MMLU |
+  |---|---:|---:|---:|---:|
+  | `1.5b-awq-vllm-orin` | 76.7% | 36.7% | 56.7% | 40.0% |
+  | `3b-awq-vllm-orin` | 83.3% | 70.0% | 76.7% | 54.0% |
+  | `7b-awq-vllm-orin` | 86.7% | 40.0% | 63.3% | 66.0% |
+  | `1.5b-q4-llamacpp-orin` | 86.7% | 73.3% | 80.0% | 41.5% |
+  | `3b-q4-llamacpp-orin` | 86.7% | 46.7% | 66.7% | 53.0% |
+  | `7b-q4-llamacpp-orin` | 90.0% | 53.3% | 71.7% | 64.0% |
+  | `bielik-11b-q4-llamacpp-orin` | 90.0% | 10.0% | 50.0% | 40.0% |
+
+  n=60 per row for BFCL (30 simple + 30 irrelevance, temperature 0 — see the
+  bounded-sample decision below), n=200 for MMLU. Two findings worth flagging before
+  either family is called a winner on tool-calling:
+
+  - **Bielik-11B almost never abstains on irrelevance cases (10%)** — it calls a tool
+    on cases where no tool applies far more often than every Qwen2.5 row, despite
+    having this campaign's best `simple`-case accuracy (90%, tied with 7B-llama.cpp).
+    A high false-positive rate on irrelevance is a real production risk (unwanted
+    actuation) that its `simple` score alone would hide.
+  - **7B shows a real backend gap on irrelevance**: 40.0% on vLLM vs 53.3% on
+    llama.cpp, same model, same quantization family size — the kind of same-size
+    sibling comparison `validate_mmlu.py`'s own docstring calls for, extended to BFCL.
+    Confounded by AWQ vs GGUF Q4_K_M like every cross-backend comparison in this lab.
+- [x] ~~Full-corpus BFCL, not `--limit 20`~~ **superseded 2026-09-07** — decided
+      against. Full corpus (640 cases) costed out per row from measured decode
+      speeds: 6.9min (1.5B vLLM) up to ~95min (Bielik llama.cpp), and a uniform limit
+      safe for the slowest row would leave the fastest rows at ~8 cases/category —
+      too small to compare. **User decision: bounded ~30/category sample (n=60), all
+      7 rows** — comparable sample size across every row beats a full corpus on one
+      row and a token sample on the rest.
+- [x] Report tool-calling as a confusion matrix (correct tool / correct arguments /
+      correct no-tool / invalid call / hallucinated tool / formatting failure), not one
+      percentage. Implemented in `scripts/validate_tool_calling.py`'s
+      `confusion_matrix_and_taxonomy()`; `tool_call_outcomes` in every BFCL result,
+      per-case detail in each result's sibling `outcomes.jsonl`.
+- [x] Write the comparison up (README "Current State", this section).
+
+**Hardware incident, 2026-09-08**: the campaign kept dying with zero internal error
+trace, initially misdiagnosed as a backgrounding-technique problem (`nohup`, `setsid`,
+tmux all failed identically at the same ~7-10min elapsed mark). Root cause confirmed
+via the Tegra PMC's `reset_reason=SYS_RESET_N` register (external reset line
+asserted — rules out panic, watchdog, and thermal, none of which produce that code):
+**the board was undervolting and hard-resetting under sustained MAXN load on its
+65W power adapter**. The AGX Orin devkit is specified for a 90W (19V/4.74A) supply;
+measured peak draw during the Step 1 campaign hit 58.4W on GPU+SOC+VIN_5V0 rails
+alone (not the whole board) — comfortably enough to brown out a 65W unit, especially
+once the adapter itself heats up and its output sags (matches the crash landing at a
+fairly consistent elapsed time regardless of which model was loaded). Resolved by
+swapping to a genuine 90W supply; campaign then ran 7+ consecutive rows and 1h17m
+uptime with zero resets. See decision log.
+
+**GATE 5** — met for BFCL/MMLU (all 7 rows). Performance/energy has 5 rows at a
+platform-state mismatch (see above) with the corrected replicate in progress — full
+gate closes once that replicate lands.
 
 ## Phase 6 — Thor access and the cross-platform arm
 
@@ -390,3 +438,9 @@ Rows are never deleted, even when superseded.
 | 2026-09-07 | Apertus and `bielik-11b-awq-vllm-orin` excluded from active experimentation; rows kept | No working path (Apertus) / broken tool-calling (Bielik-vLLM); append-only convention preserved |
 | 2026-09-07 | Qwen2.5-3B/7B smoke-tested before Phase 5's scorecard touches them | Never tested at all; same bar every row was held to before its first heavy benchmark |
 | 2026-09-07 | `docs/TODO.md` split: incident narratives moved to `docs/HISTORY.md` | File had grown to ~980 lines and was no longer scannable; nothing deleted, just relocated |
+| 2026-09-08 | Phase 5 campaign blocked on hardware: board browns out under sustained MAXN load | PMC `reset_reason=SYS_RESET_N`, `reset_level=L0` — external reset line asserted, i.e. undervoltage. Rules out panic (`SW_MAIN`), watchdog (`*WDT`), thermal (`SENSOR`) and OOM (no reboot at all). Root cause: a 65W supply on a devkit specified for 90W (19V/4.74A) |
+| 2026-09-08 | Benchmark runs must be hosted outside the Claude Code session (tmux) | Not sufficient on its own — the reboot kills tmux too — but it removes session teardown as a confound, which masked the real cause for hours |
+| 2026-09-08 | `jetson_clocks` state must be re-asserted and re-verified after every reboot | It does not persist; the governor returns to `schedutil`. A crash-and-resume campaign can silently change platform state mid-experiment, violating the rule that every number records its power mode and clock state |
+| 2026-09-08 | BFCL sample size for the Phase 5 scorecard: bounded ~30/category (n=60), all 7 rows, not full-corpus on any row | Full corpus (640 cases) costed 6.9-95min per row from measured decode speeds; a uniform limit safe for the slowest row would starve the fastest to ~8 cases/category. Direct user decision |
+| 2026-09-08 | Board's 65W power adapter replaced with the devkit's specified 90W unit | `SYS_RESET_N` hard resets under sustained MAXN load, measured peak draw 58.4W on 3 rails alone (not full-board). Confirmed root cause of the whole campaign's earlier "dies at ~7-10min" pattern, previously misdiagnosed as a backgrounding-technique bug |
+| 2026-09-08 | Step 1's 5 scorecard performance/energy results carry `jetson_clocks_locked: false` — being re-run as replicate 2 | Measured before the power-adapter fix, board was near its brownout ceiling; `jetson_clocks` also doesn't persist across the reboot that preceded these runs. Old results kept (immutability), not deleted |

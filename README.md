@@ -268,8 +268,28 @@ full record:
   vLLM's per-family parsers detect - the opposite pattern from Qwen2.5, which
   works on both backends.
 
-Real BFCL numbers now exist for one row (`1.5b-q4-llamacpp-orin`, above, small
-sample). Everything else in `docs/TODO.md` Phase 5's full scorecard matrix (renumbered
-from "Phase 3" once the benchmark-suite plan above was merged in) is still pending -
-Bielik has smoke-test results (above) but no performance/BFCL/MMLU run through the
-Phase 2-4 pipeline yet, and neither does the remaining Qwen2.5 3B/7B.
+### Phase 5: the full 7-row scorecard (2026-09-08)
+
+BFCL (bounded ~30/category sample, n=60) and MMLU (n=200) now exist for all 7 active
+rows - see `docs/TODO.md` Phase 5 for the full table, the sampling decision (full
+BFCL corpus costed out at 6.9-95min/row from measured decode speeds; a uniform limit
+safe for the slowest row would starve the fastest, so the scorecard uses a comparable
+bounded sample on every row instead), and the tool-calling confusion matrix now
+recorded per row (`tool_call_outcomes` in each BFCL result,
+`confusion_matrix_and_taxonomy()` in `scripts/validate_tool_calling.py`).
+
+Two findings worth a closer look before either family is called a tool-calling
+winner: **Bielik-11B abstains on only 10% of irrelevance cases** (vs. every Qwen2.5
+row) despite tying this campaign's best `simple`-case accuracy - a real
+false-positive/unwanted-actuation risk its headline number hides. And **7B shows a
+real backend gap on irrelevance** (40.0% vLLM vs 53.3% llama.cpp, same model/size),
+consistent with this lab's running theme that backend, not just model, moves the
+number - confounded here by AWQ vs GGUF Q4_K_M as usual.
+
+Performance/energy is done for 5 rows, but at `jetson_clocks_locked: false` -
+mid-campaign the board was found to be hard-resetting under sustained MAXN load on
+an underspec'd 65W supply (confirmed via the Tegra PMC's `reset_reason=SYS_RESET_N`
+register - measured peak draw hit 58.4W on 3 rails alone against the devkit's
+specified 90W requirement). Fixed by swapping the adapter; a replicate 2 at the
+corrected clock state is in progress. Full incident and decision log in
+`docs/TODO.md` Phase 5.
