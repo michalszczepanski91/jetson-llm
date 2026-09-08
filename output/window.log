@@ -68,3 +68,35 @@
 
 ─────   7b-fp16-vllm-thor MMLU ─────
       17:46:08
+      exit=0
+
+─────   7b-fp16-vllm-thor streaming + latency + 32-token turn ─────
+      17:50:37
+      done
+
+─────   7b-fp16-llamacpp-thor BFCL ─────
+      18:07:36
+      exit=0
+
+─────   7b-fp16-llamacpp-thor MMLU ─────
+      18:15:10
+      exit=0
+
+─────   7b-fp16-llamacpp-thor streaming + latency + 32-token turn ─────
+      18:15:48
+      done
+
+───── PHASE 4 — 14B on Edge-LLM (needs the box to itself) ─────
+      18:20:16
+      BFCL exit=0
+      MMLU exit=0
+      timing done
+
+───── ALL PHASES DONE — the trap now restores vllm-vlm-thor ─────
+      18:44:24
+
+───── RESTORING vllm-vlm-thor ─────
+      18:44:24
+      restart policy restored to unless-stopped
+      started - verifying it answers /health...
+      OK: vllm-vlm-thor is serving on :8000 again
