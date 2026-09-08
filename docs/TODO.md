@@ -322,6 +322,15 @@ uptime with zero resets. See decision log.
 **GATE 5** — met. Every active row has BFCL, MMLU, and performance/energy at a
 confirmed, consistent platform state (`jetson_clocks_locked: true`, MAXN, standalone).
 
+**Promotion decision, 2026-09-08**: `docs/promotion-decision.md` applies
+`docs/promotion-contract.md` to this data. **No clean winner** — every candidate with
+better tool-calling accuracy than the shipping default is also slower, and the shipping
+default already misses `embedded-ai-chain`'s own ≤1000ms latency target at steady state
+(that repo's `docs/TODO.md` §3h), so an accuracy-motivated swap would make an
+already-open latency miss worse. `3b-awq-vllm-orin` is flagged as the strongest
+candidate *if* that project accepts a revised tool-calling latency budget — not
+promoted now. Pointer row added to `embedded-ai-chain/docs/TODO.md`'s decision log.
+
 ## Phase 6 — Thor access and the cross-platform arm
 
 **Objective**: reproduce Phase 4's methodology on a second platform to answer P5 —
