@@ -207,9 +207,24 @@ loop the response still begins in well under a tenth of a second; what grows is 
 long it takes to finish, not how long the user waits to hear anything.
 
 The honest framing for a decision is therefore **not** "83% at 1.0s vs 93% at 2.7s".
-It is: *does the pipeline's turn budget tolerate ~1.5-2s of generation for a
-substantially better tool-call judge?* A dedicated short-output sweep
-(`--max-tokens 32`) would answer that directly and is the obvious next measurement.
+It is: *does the pipeline's turn budget tolerate the real per-turn cost?* That sweep
+has now been run, at `--max-tokens 32` — an orchestrator-shaped turn rather than a
+128-token essay, both at thermal steady state:
+
+| | 32-token turn p50 | p95 |
+|---|---|---|
+| Qwen2.5-1.5B | **509 ms** | 512 ms |
+| Qwen2.5-7B | **1892 ms** | 1901 ms |
+
+**So the actual trade is +1.38s per turn for `irrelevance` 78% → 94%.** TTFT is 26ms
+vs 77ms, so with streaming the user hears speech begin almost immediately either way;
+what grows is how long the turn takes to complete. Note both p95s sit within ~10ms of
+their p50 — Edge-LLM's latency is extremely predictable at both sizes, which is the
+property that makes a turn budget plannable at all.
+
+Whether 1.38s is affordable is a product judgment about `embedded-ai-chain`'s turn
+budget, not something this benchmark settles. What it does settle is that the choice
+is real and quantified, rather than a guess.
 
 ¹ Both cold starts are engine-cache HITS. 7B's cache-miss build is correspondingly
 longer than 1.5B's.
@@ -219,9 +234,6 @@ longer than 1.5B's.
 - [ ] All of the above, on an **exclusive box** — these are the numbers of record.
 - [ ] Memory-fit / `gpu_memory_utilization` tuning for the vLLM leg.
 - [ ] Cold-start-from-empty-cache for Edge-LLM and vLLM, as its own measurement.
-- [ ] **A short-output sweep (`--max-tokens 32`)** — the single measurement that would
-      turn the 1.5B-vs-7B question into a decision, since 128-token generation is not
-      what an orchestrator turn looks like.
 - [ ] 7B on the other two backends, to check whether Edge-LLM's tool-call lead
       survives at this size or whether capacity washes the framework difference out.
       If it washes out, the framework choice can be made on operational grounds
