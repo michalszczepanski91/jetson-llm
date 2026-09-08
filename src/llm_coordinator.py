@@ -100,6 +100,18 @@ class VllmCoordinator:
         ready_timeout: float = 600.0,
         stop_timeout: float = 15.0,
         extra_args: list[str] | None = None,
+        extra_volumes: list[str] | None = None,  # extra `-v` mounts, host:container[:ro].
+        # Exists for one real, reproducible reason (2026-09-08): vLLM's memory
+        # profiling asserts `init_free_memory >= current_free_memory` and dies
+        # if free memory *increases* mid-profile - which it does on this
+        # unified-memory board, on a completely IDLE box, at 7B (observed:
+        # "Initial free memory 52.65 GiB, current free memory 52.83 GiB").
+        # More free memory than expected is harmless, but the assert cannot
+        # tell that from a real problem. embedded-ai-chain hit this in August
+        # and ships a patched gpu_worker.py that clamps to the smaller reading
+        # and warns instead; the Thor rows mount it through this field. It
+        # changes STARTUP profiling only - no inference path is touched, so it
+        # cannot flatter a latency or throughput measurement.
         **_ignored,  # e.g. quant/n_gpu_layers/ctx_size from a llama-cpp row
                      # read generically by a caller that doesn't branch per backend
     ):
@@ -114,6 +126,7 @@ class VllmCoordinator:
         self._ready_timeout = ready_timeout
         self._stop_timeout = stop_timeout
         self._extra_args = list(extra_args) if extra_args else []
+        self._extra_volumes = list(extra_volumes) if extra_volumes else []
 
         self._proc: subprocess.Popen | None = None
         self._ready_event = threading.Event()
@@ -137,6 +150,10 @@ class VllmCoordinator:
             "docker", "run", "--name", self._container_name, "--rm",
             "--runtime", "nvidia", "--network", "host", "--ipc", "host",
             "-v", f"{self._hf_cache_dir}:/root/.cache/huggingface",
+        ]
+        for volume in self._extra_volumes:
+            cmd += ["-v", volume]
+        cmd += [
             "-e", "HF_HOME=/root/.cache/huggingface",
             self._image,
             "/opt/venv/bin/vllm", "serve", self._model,

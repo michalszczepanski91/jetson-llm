@@ -105,6 +105,25 @@ def test_vllm_command_includes_gpu_memory_utilization_and_model():
     assert "0.15" in cmd
 
 
+def test_vllm_extra_volumes_are_mounted_before_the_image():
+    # The Thor rows mount a patched gpu_worker.py over vLLM's own, because
+    # vLLM's memory profiling asserts free memory never INCREASES mid-profile
+    # and dies on this unified-memory board even with the box idle. Ordering
+    # matters: a -v after the image name would be read as a server argument.
+    proc = _fake_proc()
+    patch_mount = "/opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro"
+    with patch("llm_coordinator.subprocess.Popen", return_value=proc) as mock_popen, \
+         patch("llm_coordinator.urllib.request.urlopen", side_effect=urllib.error.URLError("refused")), \
+         patch("llm_coordinator.subprocess.run"):
+        coordinator = VllmCoordinator(model="fake/model", extra_volumes=[patch_mount])
+        coordinator.start()
+        coordinator.stop()
+
+    cmd = mock_popen.call_args[0][0]
+    assert patch_mount in cmd
+    assert cmd.index(patch_mount) < cmd.index("fake/model")
+
+
 def test_vllm_command_enables_structured_tool_calls():
     # Regression test: confirmed live 2026-09-04 that without these two
     # flags, vLLM returns HTTP 400 on any request carrying "tools" - an

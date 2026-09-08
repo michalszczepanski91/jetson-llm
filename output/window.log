@@ -1,0 +1,70 @@
+
+───── PHASE 1 — taking exclusive control ─────
+      17:18:42
+      stopped vllm-vlm-thor
+      containers up:
+      GPU compute processes: none — box is ours
+      memory now:
+        Mem:             122          71          16           0          36          51
+      other user's container restart count at start: 957
+
+───── PHASE 2 — 1.5B timing, all three frameworks ─────
+      17:18:52
+
+─────   1.5b-fp16-edgellm-thor streaming (TTFT / tok-s) ─────
+      17:18:52
+      exit=0
+
+─────   1.5b-fp16-edgellm-thor latency / cold start / power ─────
+      17:19:26
+      exit=0
+
+─────   1.5b-fp16-edgellm-thor orchestrator-shaped turn (32 tokens) ─────
+      17:20:20
+      exit=0
+
+─────   1.5b-fp16-vllm-thor streaming (TTFT / tok-s) ─────
+      17:20:52
+      exit=0
+
+─────   1.5b-fp16-vllm-thor latency / cold start / power ─────
+      17:23:01
+      exit=0
+
+─────   1.5b-fp16-vllm-thor orchestrator-shaped turn (32 tokens) ─────
+      17:25:34
+      exit=0
+
+─────   1.5b-fp16-llamacpp-thor streaming (TTFT / tok-s) ─────
+      17:27:48
+      exit=0
+
+─────   1.5b-fp16-llamacpp-thor latency / cold start / power ─────
+      17:28:11
+      exit=0
+
+─────   1.5b-fp16-llamacpp-thor orchestrator-shaped turn (32 tokens) ─────
+      17:28:58
+      exit=0
+
+───── PHASE 3 — 7B across frameworks ─────
+      17:29:32
+
+─────   7b-fp16-edgellm-thor BFCL ─────
+      17:29:32
+      exit=0
+
+─────   7b-fp16-edgellm-thor MMLU ─────
+      17:37:41
+      exit=0
+
+─────   7b-fp16-edgellm-thor streaming + latency + 32-token turn ─────
+      17:38:22
+      done
+
+─────   7b-fp16-vllm-thor BFCL ─────
+      17:42:46
+      exit=1
+
+─────   7b-fp16-vllm-thor MMLU ─────
+      17:46:08

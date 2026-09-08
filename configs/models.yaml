@@ -182,6 +182,13 @@ bielik-11b-awq-vllm-orin:
   image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
   gpu_memory_utilization: 0.25  # ~30GB of Thor's 122GB: ~15.2GB weights + KV headroom
   max_model_len: 2048
+  extra_volumes:  # see VllmCoordinator's own `extra_volumes` comment - without this,
+    # vLLM's startup memory profiling asserts and dies on this board whenever free
+    # memory ticks UP mid-profile, which it does even on a completely idle Thor at
+    # 7B. Mounts embedded-ai-chain's already-deployed patch (the box's own production
+    # container has used it since 2026-08-04). Startup profiling only; touches no
+    # inference path, so it cannot flatter a latency or throughput number.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
   notes: >
     Added 2026-09-08 for the 7B leg of the framework comparison - the open
     question being whether Edge-LLM's tool-call lead at 1.5B survives at a size
@@ -329,6 +336,13 @@ bielik-11b-awq-vllm-orin:
   gpu_memory_utilization: 0.08  # ~9.8GB of Thor's 122GB - fp16 1.5B weights are
                                  # ~3.1GB, the rest is KV cache headroom
   max_model_len: 2048  # matches the edge-llm row's --max-input-len
+  extra_volumes:  # see VllmCoordinator's own `extra_volumes` comment - without this,
+    # vLLM's startup memory profiling asserts and dies on this board whenever free
+    # memory ticks UP mid-profile, which it does even on a completely idle Thor at
+    # 7B. Mounts embedded-ai-chain's already-deployed patch (the box's own production
+    # container has used it since 2026-08-04). Startup profiling only; touches no
+    # inference path, so it cannot flatter a latency or throughput number.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
   notes: >
     Added 2026-09-08 as the vLLM leg of Thor's framework comparison.
 
