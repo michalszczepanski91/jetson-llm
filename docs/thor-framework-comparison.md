@@ -5,12 +5,14 @@
 Two findings drive that, and the second is the one that would be missed by looking
 only at headline scores:
 
-1. **The backend determines whether model size buys you anything.** Going 1.5B → 7B
-   takes BFCL `irrelevance` from 78% to **94%** on Edge-LLM, but only 60% → 62% on
-   llama.cpp. llama.cpp's tool-call path is grammar-*constrained* — it forces a
-   structurally valid tool call, so a more capable model has no way to express "call
-   nothing". Choose llama.cpp and your escalation accuracy is capped near 62%
-   regardless of what you spend on model size.
+1. **The backend determines whether model size buys you anything — or costs you.**
+   Going 1.5B → 7B takes BFCL `irrelevance` from 78% to **94%** on Edge-LLM, moves
+   llama.cpp only 60% → 62%, and makes vLLM **worse, 68% → 54%**. Same weights, same
+   cases; all three score 90-92% on `simple`. llama.cpp's tool-call path is
+   grammar-*constrained*, so a more capable model has no way to express "call
+   nothing"; vLLM's tag-detection parser appears to misread the richer output of a
+   larger model as tool calls. Choose either and extra parameters buy you nothing on
+   the axis that matters.
 2. **The size curve flattens completely after 7B.** 14B scores *identically* to 7B —
    not approximately, but 98/100 identical per-case verdicts — while costing 2x the
    latency. 14B is wasted memory and wasted time.
@@ -50,7 +52,7 @@ Every latency figure below reached thermal steady state
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **Edge-LLM** | **93%** | 92% | **94%** | 67.5% | 74 ms | 16.6 | **2706 ms** | **2713 ms** | **1945 ms** | 10.1 s ¹ | 19.5 W |
 | **llama.cpp** | 76% | 90% | 62% | 66.5% | **72 ms** | **17.0** | 3254 ms | 4556 ms | 1899 ms | **6.1 s** | 17.8 W |
-| **vLLM** | ² | ² | ² | 68.5% | 144 ms | 11.3 | 4451 ms | 5950 ms | 2539 ms | 214.1 s ¹ | 16.3 W |
+| **vLLM** | 73% | 92% | **54%** | 68.5% | 144 ms | 11.3 | 4451 ms | 5950 ms | 2539 ms | 214.1 s ¹ | 16.3 W |
 
 ### Size sweep, backend fixed at Edge-LLM
 
@@ -66,8 +68,8 @@ minutes. vLLM's are with a warm torch.compile cache. Only llama.cpp's is
 unconditional. If a deployment cannot guarantee cache persistence across restarts,
 this ranking changes — an operational property, not a benchmark artifact.
 
-² vLLM's 7B BFCL run died on the memory-profiling assert described below and is being
-re-run; MMLU and all timing for that row completed after the fix.
+² vLLM's 7B BFCL first died on the memory-profiling assert described below; the row
+above is the re-run after mounting the patched `gpu_worker.py`.
 
 ---
 
@@ -79,16 +81,32 @@ On `simple` (a tool IS wanted) all three backends land within a few points at bo
 sizes. On `irrelevance` they separate sharply, and only Edge-LLM converts extra model
 capacity into better judgement:
 
-| irrelevance | 1.5B | 7B | gain from 4.7x the parameters |
+| irrelevance | 1.5B | 7B | change from 4.7x the parameters |
 |---|---|---|---|
 | **Edge-LLM** | 78% | **94%** | **+16 pts** |
 | llama.cpp | 60% | 62% | +2 pts |
+| **vLLM** | 68% | **54%** | **−14 pts** |
 
-The mechanism was already recorded in this repo before this campaign: llama.cpp
-constrains generation to a tool-call grammar, while vLLM and Edge-LLM *detect* tool
-tags in free generation. A grammar that forces a valid call leaves no room to abstain.
-This reproduces the Orin finding (85/65/75 there) on different hardware, a different
-image family, and now at a second model size — it is a property of the backend.
+**vLLM gets worse at abstaining as the model grows.** The backend does not merely gate
+the benefit of scale — it can invert it. All three serve identical weights and all
+three score 90-92% on `simple`, so this is not a capability difference in the model;
+it is what each backend does with the model's output.
+
+Mechanism, in the two directions:
+
+- **llama.cpp** constrains generation to a tool-call grammar. A grammar that forces a
+  structurally valid call leaves no room to abstain, so extra capability cannot
+  express itself as restraint. Its `irrelevance` is pinned near 60% at both sizes.
+- **vLLM and Edge-LLM** *detect* tool tags in free generation instead, which is why
+  Edge-LLM can convert capacity into judgement. vLLM regressing suggests its `hermes`
+  parser is over-eager on the richer, more elaborate output a 7B model produces —
+  more text that can be mistaken for a tool call. That is a hypothesis about the
+  parser, not a measured cause, and pinning `hermes` on Edge-LLM too (see "Still
+  open") is what would test it.
+
+The llama.cpp result reproduces the Orin finding (85/65/75 there) on different
+hardware, a different image family, and now at a second model size — it is a property
+of the backend, not of a build.
 
 ### 14B buys nothing
 
