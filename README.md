@@ -286,10 +286,16 @@ real backend gap on irrelevance** (40.0% vLLM vs 53.3% llama.cpp, same model/siz
 consistent with this lab's running theme that backend, not just model, moves the
 number - confounded here by AWQ vs GGUF Q4_K_M as usual.
 
-Performance/energy is done for 5 rows, but at `jetson_clocks_locked: false` -
-mid-campaign the board was found to be hard-resetting under sustained MAXN load on
-an underspec'd 65W supply (confirmed via the Tegra PMC's `reset_reason=SYS_RESET_N`
-register - measured peak draw hit 58.4W on 3 rails alone against the devkit's
-specified 90W requirement). Fixed by swapping the adapter; a replicate 2 at the
-corrected clock state is in progress. Full incident and decision log in
+Performance/energy is done for all 7 rows at a confirmed-consistent platform state
+(`jetson_clocks_locked: true`, MAXN, standalone) - mid-campaign the board was found
+to be hard-resetting under sustained load on an underspec'd 65W supply (confirmed via
+the Tegra PMC's `reset_reason=SYS_RESET_N` register - measured peak draw hit 58.4W on
+3 rails alone against the devkit's specified 90W requirement). Fixed by swapping the
+adapter, then the 5 rows Phase 4 never touched were re-measured as a clean replicate.
+That correction surfaced a real finding, not just a methodology fix: **llama.cpp's
+TTFT roughly halves once `jetson_clocks` is genuinely locked** (Bielik-11B
+3181ms->1787ms, 7B 1984ms->1018ms, 3B 1284ms->563ms) - the uncorrected numbers were
+partly measuring GPU clock ramp-up (DVFS) latency between requests, not pure
+inference. vLLM barely moved, since it keeps the GPU continuously saturated and never
+idles down between requests. Full incident, tables, and decision log in
 `docs/TODO.md` Phase 5.

@@ -242,9 +242,31 @@ excluded in their own `notes`, per this repo's append-only convention. Active ma
   | `7b-q4-llamacpp-orin` | 326.6s | ✅ PASS (7.6GB two-part GGUF download included) |
 
 - [x] **Step 1 — the scorecard itself**, all 7 active rows. **Done 2026-09-08** —
-      full BFCL + MMLU for every row; performance/energy done for 5 rows at
-      `run_experiment.py`'s hardware-observed `jetson_clocks_locked: false` (see the
-      hardware incident below), replicate 2 in progress at the corrected clock state.
+      full BFCL + MMLU for every row; performance/energy for the 5 rows Phase 4 never
+      touched, replicate 2, all confirmed `jetson_clocks_locked: true` after the
+      hardware fix below (replicate 1's numbers are kept, not deleted, but were taken
+      at `false` and are superseded for comparison purposes).
+
+  | Row | TTFT p50 | decode tok/s | J/out-tok |
+  |---|---:|---:|---:|
+  | `1.5b-awq-vllm-orin` *(Phase 4 data)* | 31.1ms | 108.2 | 0.297 |
+  | `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 |
+  | `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 |
+  | `1.5b-q4-llamacpp-orin` *(Phase 4 data)* | 309.5ms | 38.7 | 0.647 |
+  | `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 |
+  | `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 |
+  | `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 |
+
+  **A real finding from the correction, not just a methodology fix**: llama.cpp's
+  TTFT roughly halved once `jetson_clocks` was genuinely locked (Bielik
+  3181ms→1787ms, 7B 1984ms→1018ms, 3B 1284ms→563ms) — replicate 1's numbers were
+  partly measuring GPU clock ramp-up (DVFS) latency between idle gaps, not pure
+  inference. vLLM barely moved (it keeps the GPU continuously saturated, so there's
+  no idle gap to ramp from). One transient failure during this replicate
+  (`3b-awq-vllm-orin`: `NvMapMemAllocInternalTagged error 12` during CUDA-graph
+  capture, right after ~1.5h of back-to-back container churn from the BFCL/MMLU
+  campaign) did not reproduce on a clean retry — recorded as a one-off allocator
+  fragmentation event, not a persistent fault.
 
   | Row | BFCL simple | BFCL irrelevance | BFCL overall | MMLU |
   |---|---:|---:|---:|---:|
@@ -297,9 +319,8 @@ fairly consistent elapsed time regardless of which model was loaded). Resolved b
 swapping to a genuine 90W supply; campaign then ran 7+ consecutive rows and 1h17m
 uptime with zero resets. See decision log.
 
-**GATE 5** — met for BFCL/MMLU (all 7 rows). Performance/energy has 5 rows at a
-platform-state mismatch (see above) with the corrected replicate in progress — full
-gate closes once that replicate lands.
+**GATE 5** — met. Every active row has BFCL, MMLU, and performance/energy at a
+confirmed, consistent platform state (`jetson_clocks_locked: true`, MAXN, standalone).
 
 ## Phase 6 — Thor access and the cross-platform arm
 
@@ -443,4 +464,4 @@ Rows are never deleted, even when superseded.
 | 2026-09-08 | `jetson_clocks` state must be re-asserted and re-verified after every reboot | It does not persist; the governor returns to `schedutil`. A crash-and-resume campaign can silently change platform state mid-experiment, violating the rule that every number records its power mode and clock state |
 | 2026-09-08 | BFCL sample size for the Phase 5 scorecard: bounded ~30/category (n=60), all 7 rows, not full-corpus on any row | Full corpus (640 cases) costed 6.9-95min per row from measured decode speeds; a uniform limit safe for the slowest row would starve the fastest to ~8 cases/category. Direct user decision |
 | 2026-09-08 | Board's 65W power adapter replaced with the devkit's specified 90W unit | `SYS_RESET_N` hard resets under sustained MAXN load, measured peak draw 58.4W on 3 rails alone (not full-board). Confirmed root cause of the whole campaign's earlier "dies at ~7-10min" pattern, previously misdiagnosed as a backgrounding-technique bug |
-| 2026-09-08 | Step 1's 5 scorecard performance/energy results carry `jetson_clocks_locked: false` — being re-run as replicate 2 | Measured before the power-adapter fix, board was near its brownout ceiling; `jetson_clocks` also doesn't persist across the reboot that preceded these runs. Old results kept (immutability), not deleted |
+| 2026-09-08 | Step 1's 5 scorecard performance/energy rows re-measured as replicate 2 at `jetson_clocks_locked: true` | Replicate 1 was taken before the power-adapter fix at `false`; `jetson_clocks` doesn't persist across the reboot that preceded those runs. Old results kept (immutability), not deleted. Correction also surfaced a real finding: llama.cpp's TTFT roughly halves once clocks are genuinely locked, not just an accuracy fix |
