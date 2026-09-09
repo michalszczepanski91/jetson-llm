@@ -278,13 +278,24 @@ bounded sample on every row instead), and the tool-calling confusion matrix now
 recorded per row (`tool_call_outcomes` in each BFCL result,
 `confusion_matrix_and_taxonomy()` in `scripts/validate_tool_calling.py`).
 
-Two findings worth a closer look before either family is called a tool-calling
-winner: **Bielik-11B abstains on only 10% of irrelevance cases** (vs. every Qwen2.5
-row) despite tying this campaign's best `simple`-case accuracy - a real
-false-positive/unwanted-actuation risk its headline number hides. And **7B shows a
-real backend gap on irrelevance** (40.0% vLLM vs 53.3% llama.cpp, same model/size),
-consistent with this lab's running theme that backend, not just model, moves the
-number - confounded here by AWQ vs GGUF Q4_K_M as usual.
+**The BFCL scorer was corrected 2026-09-09** and every row re-run: argument strings
+were compared with a plain `.strip().lower()` where official bfcl-eval first strips
+` ,./-_*^` and spaces, so `"3*x**2 + 2*x - 1"` scored as wrong against BFCL's accepted
+`"3x**2 + 2x - 1"` - the same maths, and the only spelling that is valid Python.
+Re-scoring identical model outputs under both rules flipped **21 cases across the 7
+rows**, all in the same four maths cases Thor independently hit (+3.3pp on the weakest
+row, +10 to +13.3pp on every other). Rankings did not change.
+
+The consequence is that **`simple` is now saturated** - five of seven rows score
+exactly 100% - so **`irrelevance` is the only accuracy axis still discriminating**,
+independently reproducing Thor's conclusion on different hardware and quantization.
+Two findings there, before either family is called a tool-calling winner:
+**Bielik-11B abstains on only 10% of irrelevance cases** despite a perfect 100% on
+`simple` - a real false-positive/unwanted-actuation risk its headline number hides -
+and **7B shows a real backend gap on irrelevance** (40.0% vLLM vs 56.7% llama.cpp,
+same model/size), consistent with this lab's running theme that backend, not just
+model, moves the number, and with Thor's much larger same-parser version of the same
+gap. Confounded here by AWQ vs GGUF Q4_K_M as usual.
 
 Performance/energy is done for all 7 rows at a confirmed-consistent platform state
 (`jetson_clocks_locked: true`, MAXN, standalone) - mid-campaign the board was found

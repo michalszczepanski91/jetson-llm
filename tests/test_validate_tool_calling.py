@@ -14,6 +14,7 @@ from validate_tool_calling import (  # noqa: E402
     _first_tool_call,
     _loose_equal,
     _params_match,
+    _standardize_string,
 )
 
 
@@ -228,3 +229,43 @@ def test_confusion_matrix_totals_match_input_count():
     cm = confusion_matrix_and_taxonomy(outcomes)
     counted = sum(cm["confusion_matrix"].values()) + cm["server_error"]
     assert counted == len(outcomes)
+
+
+# --- BFCL standardize_string port -----------------------------------------
+#
+# These pin the exact false-negative class that depressed every `simple`
+# score in the 2026-09-08 campaign: 29 of 30 `simple` failures across all 7
+# Orin rows called the CORRECT function and were rejected purely on argument
+# string formatting, all in maths tools. Reproduced independently on Thor.
+
+
+def test_standardize_string_matches_official_bfcl_character_class():
+    """Port fidelity: spaces and , . / - _ * ^ stripped, lowercased, single
+    quotes normalized to double. Diverging from this silently re-breaks
+    the comparison against official bfcl-eval scores."""
+    assert _standardize_string("3*x**2 + 2*x - 1") == "3x2+2x1"
+    assert _standardize_string("3x**2 + 2x - 1") == "3x2+2x1"
+    assert _standardize_string("April 1, 2024") == "april12024"
+    assert _standardize_string("it's") == 'it"s'
+
+
+def test_explicit_multiplication_signs_are_not_a_wrong_answer():
+    """`3*x**2 + 2*x - 1` is the same maths as BFCL's accepted
+    `3x**2 + 2x - 1`, and is the only form that is valid Python. Scoring it
+    wrong measured the checker, not the model - simple_14 on every row."""
+    accepted = ["3x**2 + 2x - 1", "lambda x: 3x**2 + 2x - 1"]
+    assert _params_match({"function": accepted}, {"function": "3*x**2 + 2*x - 1"}) is True
+
+
+def test_caret_and_double_star_exponent_forms_are_equivalent():
+    """simple_13/15: a model writing `x^2`/`x^3` means the same as `x**2`."""
+    assert _params_match({"function": ["x**2", "y=x**2"]}, {"function": "y = x^2"}) is True
+    assert _params_match({"function": ["x**3", "lambda x: x**3"]}, {"function": "x^3"}) is True
+
+
+def test_standardization_still_rejects_genuinely_different_values():
+    """The normalization must not become a rubber stamp - stripping
+    punctuation could in principle collide unrelated values."""
+    assert _params_match({"function": ["x**2"]}, {"function": "x**3"}) is False
+    assert _loose_equal("units", "meters") is False
+    assert _params_match({"method": ["simpson"]}, {"method": "trapezoidal"}) is False

@@ -268,29 +268,69 @@ excluded in their own `notes`, per this repo's append-only convention. Active ma
   campaign) did not reproduce on a clean retry — recorded as a one-off allocator
   fragmentation event, not a persistent fault.
 
+  **Scores below are the 2026-09-09 re-run under the corrected scorer**
+  (`simplified-ast-v2-bfcl-standardize`); the 2026-09-08 originals are kept and
+  remain on disk, but must not be mixed with these — the `protocol.scorer` field
+  distinguishes them. See "BFCL scorer fix" below.
+
   | Row | BFCL simple | BFCL irrelevance | BFCL overall | MMLU |
   |---|---:|---:|---:|---:|
-  | `1.5b-awq-vllm-orin` | 76.7% | 36.7% | 56.7% | 40.0% |
-  | `3b-awq-vllm-orin` | 83.3% | 70.0% | 76.7% | 54.0% |
-  | `7b-awq-vllm-orin` | 86.7% | 40.0% | 63.3% | 66.0% |
-  | `1.5b-q4-llamacpp-orin` | 86.7% | 73.3% | 80.0% | 41.5% |
-  | `3b-q4-llamacpp-orin` | 86.7% | 46.7% | 66.7% | 53.0% |
-  | `7b-q4-llamacpp-orin` | 90.0% | 53.3% | 71.7% | 64.0% |
-  | `bielik-11b-q4-llamacpp-orin` | 90.0% | 10.0% | 50.0% | 40.0% |
+  | `1.5b-awq-vllm-orin` | 80.0% | 36.7% | 58.3% | 40.0% |
+  | `3b-awq-vllm-orin` | 96.7% | 70.0% | 83.3% | 54.0% |
+  | `7b-awq-vllm-orin` | 96.7% | 40.0% | 68.3% | 66.0% |
+  | `1.5b-q4-llamacpp-orin` | 100.0% | 70.0% | 85.0% | 41.5% |
+  | `3b-q4-llamacpp-orin` | 100.0% | 46.7% | 73.3% | 53.0% |
+  | `7b-q4-llamacpp-orin` | 100.0% | 56.7% | 78.3% | 64.0% |
+  | `bielik-11b-q4-llamacpp-orin` | 100.0% | 10.0% | 55.0% | 40.0% |
 
-  n=60 per row for BFCL (30 simple + 30 irrelevance, temperature 0 — see the
-  bounded-sample decision below), n=200 for MMLU. Two findings worth flagging before
-  either family is called a winner on tool-calling:
+  n=60 per row for BFCL (30 simple + 30 irrelevance), n=200 for MMLU. **One case is
+  3.3 points at this sample size**, so `irrelevance` differences under ~7pp are within
+  sampling noise (temperature 0.1) — two rows moved by exactly one case between the
+  09-08 and 09-09 runs on identical settings. Findings:
 
+  - **`simple` is saturated and no longer discriminates.** Five of seven rows score
+    exactly 100%, the other two 96.7%. **`irrelevance` is the only accuracy axis here
+    that still separates candidates** — and it is the one that maps to the production
+    failure (`ask_vlm` over-escalation). This independently reproduces Thor's
+    conclusion (`docs/thor-framework-comparison.md`) on different hardware and
+    different quantization.
   - **Bielik-11B almost never abstains on irrelevance cases (10%)** — it calls a tool
-    on cases where no tool applies far more often than every Qwen2.5 row, despite
-    having this campaign's best `simple`-case accuracy (90%, tied with 7B-llama.cpp).
-    A high false-positive rate on irrelevance is a real production risk (unwanted
-    actuation) that its `simple` score alone would hide.
-  - **7B shows a real backend gap on irrelevance**: 40.0% on vLLM vs 53.3% on
-    llama.cpp, same model, same quantization family size — the kind of same-size
-    sibling comparison `validate_mmlu.py`'s own docstring calls for, extended to BFCL.
-    Confounded by AWQ vs GGUF Q4_K_M like every cross-backend comparison in this lab.
+    on cases where no tool applies far more often than every Qwen2.5 row, while
+    scoring a perfect 100% on `simple`. Exactly the risk a `simple`-only reading hides.
+  - **7B shows a real backend gap on irrelevance**: 40.0% on vLLM vs 56.7% on
+    llama.cpp, same model size. Consistent with Thor's much larger, same-parser
+    version of this gap (94% Edge-LLM vs 54% vLLM at 7B). Confounded by AWQ vs GGUF
+    Q4_K_M like every cross-backend comparison in this lab.
+  - **The scorer fix did not change the ranking** — every row rose, order held — so
+    the promotion decision below stands unchanged.
+
+- [x] **BFCL scorer fix, 2026-09-09.** Argument strings were compared with a plain
+      `.strip().lower()`, where official bfcl-eval first strips ` ,./-_*^` and spaces
+      (`standardize_string`). So `"3*x**2 + 2*x - 1"` — the same maths as BFCL's
+      accepted `"3x**2 + 2x - 1"`, and the only spelling that is valid Python — scored
+      as WRONG. Ported that function directly (Apache-2.0, attributed in
+      `scripts/validate_tool_calling.py`); the package itself cannot be imported here
+      because `bfcl_eval.eval_checker` pulls in every model handler it ships and thus
+      `anthropic`/`torch`/`transformers`, and a generic PyPI torch in a Jetson venv is
+      the wheel-shadowing hazard `embedded-ai-chain/docs/environment.md` warns about.
+
+      Effect, measured by re-scoring **identical** captured model outputs under both
+      rules (so sampling noise cannot confound it): **21 cases flipped across the 7
+      rows**, all within `simple_13/14/15/16` — the same four maths cases Thor
+      independently hit. Per row: +3.3pp on `1.5b-awq-vllm-orin`, **+10 to +13.3pp on
+      every other row**. The weak row gained least because the artifact was a small
+      share of its many genuine failures; capable rows had little else left to fail on.
+
+      Two supporting changes: `outcomes.jsonl` now records `actual_arguments` and
+      `acceptable_arguments` per case (the 09-08 files stored only a boolean, so
+      diagnosing *why* a call was rejected meant re-deriving it from the dataset), and
+      `protocol.scorer` is versioned so old and new scores can never be silently mixed.
+
+      Still deviating from official bfcl-eval, deliberately and now documented in the
+      module docstring: extra/hallucinated parameters are not penalized, Python only,
+      and only the `simple`/`irrelevance` categories are run. Checked and *not* a gap:
+      a model sending `"1"` where the schema declares an integer fails here, and
+      official's `type_checker` (strict `type(value) == expected`) fails it too.
 - [x] ~~Full-corpus BFCL, not `--limit 20`~~ **superseded 2026-09-07** — decided
       against. Full corpus (640 cases) costed out per row from measured decode
       speeds: 6.9min (1.5B vLLM) up to ~95min (Bielik llama.cpp), and a uniform limit

@@ -6,15 +6,22 @@ result per the contract's own §4, not a failed process.
 
 ## The scorecard (all 7 rows, standalone, MAXN + `jetson_clocks` locked)
 
-| Row | TTFT p50 | decode tok/s | J/out-tok | BFCL simple | BFCL irrelevance | MMLU |
+| Row | TTFT p50 | decode tok/s | J/out-tok | BFCL simple | **BFCL irrelevance** | MMLU |
 |---|---:|---:|---:|---:|---:|---:|
-| `1.5b-awq-vllm-orin` **(current default)** | 31.1ms | 108.2 | 0.297 | 76.7% | 36.7% | 40.0% |
-| `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 | 83.3% | 70.0% | 54.0% |
-| `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 | 86.7% | 40.0% | 66.0% |
-| `1.5b-q4-llamacpp-orin` | 309.5ms | 38.7 | 0.647 | 86.7% | 73.3% | 41.5% |
-| `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 | 86.7% | 46.7% | 53.0% |
-| `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 | 90.0% | 53.3% | 64.0% |
-| `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 | 90.0% | 10.0% | 40.0% |
+| `1.5b-awq-vllm-orin` **(current default)** | 31.1ms | 108.2 | 0.297 | 80.0% | **36.7%** | 40.0% |
+| `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 | 96.7% | **70.0%** | 54.0% |
+| `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 | 96.7% | **40.0%** | 66.0% |
+| `1.5b-q4-llamacpp-orin` | 309.5ms | 38.7 | 0.647 | 100.0% | **70.0%** | 41.5% |
+| `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 | 100.0% | **46.7%** | 53.0% |
+| `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 | 100.0% | **56.7%** | 64.0% |
+| `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 | 100.0% | **10.0%** | 40.0% |
+
+BFCL scores are the 2026-09-09 re-run under the corrected scorer (see `docs/TODO.md`
+Phase 5's "BFCL scorer fix"). **`simple` is saturated — five rows at exactly 100% — so
+`irrelevance` is the only accuracy axis that still discriminates**, which is fortunate,
+because it is also the one that maps to the production failure. One case is 3.3 points
+at n=30, so `irrelevance` gaps under ~7pp are within sampling noise. The scorer fix
+raised every row and **changed no rankings**, so nothing below turns on it.
 
 ## Why this isn't a simple "pick the best BFCL row" call
 
@@ -40,9 +47,10 @@ is also **slower** on every latency axis, in most cases dramatically so:
 - `7b-awq-vllm-orin`, every `llama-cpp` row, and `bielik-11b-q4-llamacpp-orin`: all
   strictly worse on both TTFT and decode speed than even `3b-awq-vllm-orin` — disqualified
   on latency alone, regardless of any accuracy strength. `bielik-11b-q4-llamacpp-orin` in
-  particular also has this campaign's *worst* tool-calling result (50% overall, driven by
-  a 10% irrelevance-abstain rate — it calls a tool on 90% of cases where none applies),
-  so it is not even a live accuracy contender on its own terms.
+  particular also has this campaign's *worst* tool-calling judgment (a 10%
+  irrelevance-abstain rate — it calls a tool on 90% of cases where none applies) despite
+  a perfect 100% on `simple`, so it is not even a live accuracy contender on its own
+  terms. It is the clearest single illustration of why `simple` must not be read alone.
 
 So promoting any candidate on accuracy grounds alone, without a separate resolution to
 the open latency question, would trade a known, documented failure mode for a novel,
@@ -68,7 +76,8 @@ hard measurement of that risk's real frequency, not just its existence.
 2. **If Phase 4 accepts a revised latency budget for tool-calling turns**,
    `3b-awq-vllm-orin` is the strongest candidate measured: best irrelevance-abstain rate
    among any row that isn't already disqualified on latency (70.0%, vs the current
-   default's 36.7%), second-best `simple` accuracy, and no MMLU red flag (54.0% — sane
+   default's 36.7% — a 33-point gap, well outside the ~7pp noise band), and no MMLU
+   red flag (54.0% — sane
    scaling from the 1.5B row's 40.0%, not a broken quantization). Promoting it would
    still require the co-resident/end-to-end measurement §3 of the contract calls for
    (everything in this table is `standalone` — Phase 5 did not repeat the co-resident run

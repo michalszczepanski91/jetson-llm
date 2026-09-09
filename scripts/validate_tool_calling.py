@@ -25,12 +25,29 @@ multi-turn/parallel/multiple-function categories don't apply here:
   - "irrelevance": the offered function does NOT apply to the question -
     correct behavior is calling nothing at all
 
-**Not the official bfcl-eval checker** - that package's real AST matcher
-handles many more type/language-specific edge cases (see
-https://github.com/ShishirPatil/gorilla). `_params_match()` below is a
-simplified reimplementation, good enough for *relative* comparison across
-this lab's own candidates (does 7B beat 1.5B, does llama.cpp's parser beat
-vLLM's), not for submitting a leaderboard-comparable score.
+**Not the official bfcl-eval checker**, but no longer arbitrarily different
+from it either. `_params_match()` below is a simplified reimplementation of
+the real AST matcher (see https://github.com/ShishirPatil/gorilla), good
+enough for *relative* comparison across this lab's own candidates, not for
+submitting a leaderboard-comparable score.
+
+The official package cannot simply be imported here: `bfcl_eval`'s
+`ast_checker` module pulls in `MODEL_CONFIG_MAPPING`, which imports every
+model handler it ships, which imports `anthropic`/`torch`/`transformers` -
+several GB, and installing a generic PyPI `torch` into a Jetson venv is the
+exact wheel-shadowing hazard `embedded-ai-chain/docs/environment.md` warns
+about. So the *matching semantics* are ported instead, the same way
+`benchmarks/harness.py` is a hand-maintained copy rather than an import.
+`_standardize_string()` is a direct port of the official checker's function
+of the same name (Apache-2.0).
+
+**Known remaining deviations from official bfcl-eval**, so a number from
+this script is never mistaken for a leaderboard score:
+
+  - extra/hallucinated parameters in the model's call are ignored here; the
+    official checker penalizes them (see `_params_match()`)
+  - Python only - no Java/JavaScript type coercion paths
+  - only the "simple" and "irrelevance" categories are run at all
 
 `--temperature` defaults to 0.1, not the server's own default sampling
 temperature (~0.7-0.8) - a real, measured fix, not an arbitrary choice:
@@ -75,6 +92,7 @@ Usage:
 import argparse
 import datetime
 import json
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -166,18 +184,43 @@ def _first_tool_call(message: dict[str, Any]) -> tuple[str | None, dict[str, Any
     return name, args
 
 
+#: Direct port of official bfcl-eval's
+#: `eval_checker/ast_eval/ast_checker.py:standardize_string()` (Apache-2.0,
+#: https://github.com/ShishirPatil/gorilla), character class included.
+#: Strips spaces and ` ,./-_*^ ` then lowercases and normalizes quotes.
+#:
+#: This is load-bearing, not cosmetic. Before it, string arguments were
+#: compared with a plain `.strip().lower()`, which fails every
+#: mathematically-equivalent spelling of a formula: BFCL's ground truth for
+#: `simple_14` accepts `"3x**2 + 2x - 1"`, so a model answering
+#: `"3*x**2 + 2*x - 1"` - the same maths, and the only form that is actually
+#: valid Python - scored as WRONG. Measured consequence on this lab's own
+#: 2026-09-08 campaign: **29 of 30 `simple` failures across all 7 Orin rows
+#: had called the correct function** and were rejected on argument
+#: formatting alone, clustered entirely in `calculate_derivative` /
+#: `integrate` / `calculus.derivative` / `calculate_area_under_curve`. The
+#: same floor was hit independently on Thor (docs/thor-framework-comparison.md),
+#: where both 7B and 14B failed the identical four maths cases. Under this
+#: normalization both spellings collapse to `3x2+2x1` and match.
+_STANDARDIZE_RE = re.compile(r"[ \,\.\/\-\_\*\^]")
+
+
+def _standardize_string(value: str) -> str:
+    return _STANDARDIZE_RE.sub("", value).lower().replace("'", '"')
+
+
 def _loose_equal(actual: Any, expected: Any) -> bool:
     """int/float compared numerically (a model returning 5 vs 5.0 for the
-    same argument is not a real mistake); strings compared
-    case/whitespace-insensitively (BFCL's own acceptable-value lists already
-    include casing variants like "units"/"Units" for some params - this
-    covers the ones they don't); everything else by equality."""
+    same argument is not a real mistake); strings compared under official
+    bfcl-eval's `standardize_string` normalization (see `_standardize_string`
+    above for why a plain lowercase comparison was measurably wrong);
+    everything else by equality."""
     if isinstance(actual, bool) or isinstance(expected, bool):
         return actual == expected
     if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
         return float(actual) == float(expected)
     if isinstance(actual, str) and isinstance(expected, str):
-        return actual.strip().lower() == expected.strip().lower()
+        return _standardize_string(actual) == _standardize_string(expected)
     return actual == expected
 
 
@@ -236,6 +279,7 @@ def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> l
 
         ground_truth_row = answers_by_id.get(case["id"])
         expected_name = None
+        expected_params: dict[str, list[Any]] | None = None
         args_match = False
         if ground_truth_row is not None:
             [expected] = ground_truth_row["ground_truth"]
@@ -256,6 +300,16 @@ def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> l
             "tool_called": tool_called, "correct_tool": correct_tool,
             "correct_arguments": correct_tool and args_match,
             "hallucinated": hallucinated,
+            # The actual and acceptable argument values, not just the verdict.
+            # Without these a rejected call is unauditable after the fact: the
+            # 2026-09-08 campaign recorded only `correct_arguments: false`, so
+            # confirming *why* 29 of 30 `simple` failures were rejected meant
+            # re-deriving it from the dataset rather than reading the result.
+            # A failure is a result, and a result you cannot inspect is a
+            # weaker one - same principle as recording every repetition rather
+            # than just percentiles (benchmarks/runner.py).
+            "actual_arguments": actual_args,
+            "acceptable_arguments": expected_params,
             "correct": correct_tool and args_match, "error": error,
         })
     return outcomes
@@ -424,7 +478,7 @@ def main():
                 "prompt_template_version": _PROMPT_TEMPLATE_VERSION,
             },
             "protocol": {
-                "scorer": "simplified-ast (this repo, not official bfcl-eval)",
+                "scorer": "simplified-ast-v2-bfcl-standardize (this repo, not official bfcl-eval)",
                 "temperature": args.temperature, "tool_choice": "auto",
                 "max_tokens": args.max_tokens, "repetitions": 1,
             },
