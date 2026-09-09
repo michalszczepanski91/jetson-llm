@@ -10,9 +10,12 @@ only at headline scores:
    llama.cpp only 60% → 62%, and makes vLLM **worse, 68% → 54%**. Same weights, same
    cases; all three score 90-92% on `simple`. llama.cpp's tool-call path is
    grammar-*constrained*, so a more capable model has no way to express "call
-   nothing"; vLLM's tag-detection parser appears to misread the richer output of a
-   larger model as tool calls. Choose either and extra parameters buy you nothing on
-   the axis that matters.
+   nothing"; vLLM's tool-call handling appears to misread the richer output of a
+   larger model as tool calls. **Not a configuration artifact:** with the *same*
+   parser (`hermes`) pinned on both, Edge-LLM and vLLM score an identical 92% on
+   `simple` and 94% vs 54% on `irrelevance` — the gap is entirely in abstention.
+   Choose llama.cpp or vLLM and extra parameters buy you nothing on the axis that
+   matters.
 2. **The size curve flattens completely after 7B.** 14B scores *identically* to 7B —
    not approximately, but 98/100 identical per-case verdicts — while costing 2x the
    latency. 14B is wasted memory and wasted time.
@@ -98,11 +101,30 @@ Mechanism, in the two directions:
   structurally valid call leaves no room to abstain, so extra capability cannot
   express itself as restraint. Its `irrelevance` is pinned near 60% at both sizes.
 - **vLLM and Edge-LLM** *detect* tool tags in free generation instead, which is why
-  Edge-LLM can convert capacity into judgement. vLLM regressing suggests its `hermes`
-  parser is over-eager on the richer, more elaborate output a 7B model produces —
-  more text that can be mistaken for a tool call. That is a hypothesis about the
-  parser, not a measured cause, and pinning `hermes` on Edge-LLM too (see "Still
-  open") is what would test it.
+  Edge-LLM can convert capacity into judgement.
+
+**The parser confound is settled, 2026-09-09 — it was not the parser.** Edge-LLM was
+re-run with `--tool-call-parser hermes` pinned (the same parser vLLM used), at both
+sizes:
+
+| Edge-LLM | parser `auto` | parser `hermes` | per-case agreement |
+|---|---|---|---|
+| 7B | 92 / 94 / 93% | 92 / 94 / 93% | **100/100 identical** |
+| 1.5B | 88 / 78 / 83% | 88 / 78 / 83% | **100/100 identical** |
+
+Not merely equal aggregates — every individual case decided the same way. So the
+head-to-head can be stated with no configuration difference left standing:
+
+| 7B, parser `hermes` on both | simple | **irrelevance** | overall |
+|---|---|---|---|
+| **Edge-LLM** | 92% | **94%** | **93%** |
+| **vLLM** | 92% | **54%** | 73% |
+
+`simple` is *identical* at 92%: both backends recognise a wanted tool call equally
+well. The whole 40-point gap is **abstention** — vLLM emits tool calls when the
+correct action is to emit none, and does so more as the model grows. That is a
+property of vLLM's tool-call handling, not of its parser choice, not of the weights,
+and not of this lab's configuration of it.
 
 The llama.cpp result reproduces the Orin finding (85/65/75 there) on different
 hardware, a different image family, and now at a second model size — it is a property
@@ -206,7 +228,8 @@ immediately; what grows is turn completion.
 fits is a product judgement about the pipeline's turn budget, not something this
 benchmark settles.
 
-**What would argue against it:**
+**What would argue against it** (the parser confound is no longer one of these —
+see above):
 
 - **Operational cost.** Edge-LLM has no wheel and no image; every device needs a
   ~1h source build. llama.cpp is one `docker pull`, starts in 4-6 s unconditionally,
@@ -215,14 +238,17 @@ benchmark settles.
 - **Experimental status.** Edge-LLM's OpenAI server is labelled experimental upstream.
 - **Cache dependence.** Its fast start assumes a persistent engine cache
   (`/opt/edgellm-cache`, shared group-writable on this box).
-- **Parser confound.** The backends did not use identical tool-call parsers
-  (Edge-LLM `auto`, vLLM `hermes`, llama.cpp its grammar path). `hermes` exists in
-  Edge-LLM's list, so pinning it across both is a cheap follow-up that would separate
-  parser from runtime.
+- ~~**Parser confound.**~~ **Settled 2026-09-09 and it was not the parser** —
+  Edge-LLM scores identically with `auto` and `hermes` (100/100 identical per-case
+  verdicts at both sizes), so the 40-point `irrelevance` gap against vLLM stands with
+  the same parser pinned on both. See "irrelevance is the whole story" above.
 
 ## Still open
 
-- [ ] Re-run BFCL with `--tool-call-parser hermes` pinned on both Edge-LLM and vLLM.
+- [x] ~~Re-run BFCL with `--tool-call-parser hermes` pinned on both Edge-LLM and
+      vLLM.~~ Done 2026-09-09: no effect on Edge-LLM whatsoever (100/100 identical
+      per-case verdicts at 1.5B and 7B), so the backend gap is real and not a
+      configuration artifact.
 - [ ] `jetson_clocks`-locked run to settle the DVFS effect (needs root).
 - [ ] Replace the simplified AST checker with official `bfcl-eval` so `simple` stops
       saturating.

@@ -212,6 +212,42 @@ bielik-11b-awq-vllm-orin:
 # host at all. ~28GB of FP16 weights: it does NOT fit alongside the box's
 # production container (~37GB of the 122GB pool), so this row is exclusively a
 # quiet-box run - see scripts/thor_exclusive_window.sh Phase 4.
+# --- Parser-parity controls, added 2026-09-09 ---
+# The framework comparison's headline (Edge-LLM judges tool calls best) carries
+# one confound: the backends did not use the same tool-call parser. Edge-LLM ran
+# `auto` (its own model-native detection) while vLLM ran `hermes`, this repo's
+# compiled-in default since the Orin rows. `hermes` exists in BOTH backends'
+# parser lists, so pinning it on Edge-LLM too is the experiment that separates
+# "Edge-LLM's runtime judges better" from "Edge-LLM's default parser is better
+# configured". These rows are identical to their -thor twins in every other
+# field - only tool_call_parser differs, which is the point.
+1.5b-fp16-edgellm-thor-hermes:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  tool_call_parser: hermes  # the ONLY difference from 1.5b-fp16-edgellm-thor
+  notes: >
+    Parser-parity control for 1.5b-fp16-edgellm-thor (which scored 83% overall
+    / 78% irrelevance with `auto`). Shares that row's engine cache bundle -
+    the parser is a serving-time flag, not a build parameter, so this costs no
+    rebuild.
+
+7b-fp16-edgellm-thor-hermes:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  tool_call_parser: hermes  # the ONLY difference from 7b-fp16-edgellm-thor
+  notes: >
+    Parser-parity control for 7b-fp16-edgellm-thor (93% overall / 94%
+    irrelevance with `auto`) - the row the recommendation actually rests on,
+    and the one vLLM's own hermes run (73% / 54%) is being compared against.
+
 14b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-14B-Instruct
   precision: "fp16 (no quantization)"
