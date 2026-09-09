@@ -1,34 +1,4 @@
 
-═════ PHASE 0 — waiting for any running quantization to finish ═════
-       2026-09-09 16:27:51
-       no quantization running
-       GPU idle
-
-═════ EVALUATING 7b-fp8-nokv-selfquant-edgellm-thor ═════
-       2026-09-09 16:27:59
-   → validate_tool_calling --limit 50
-     exit=0
-   → validate_mmlu --limit 200
-     exit=0
-   → benchmark_streaming --runs 20
-     exit=1
-   → benchmark --runs 30 --warmup-max 40 --max-tokens 32
-     exit=0
-
-═════ EVALUATING 7b-int8sq-512-selfquant-edgellm-thor ═════
-       2026-09-09 16:35:15
-   → validate_tool_calling --limit 50
-     exit=0
-   → validate_mmlu --limit 200
-     exit=0
-   → benchmark_streaming --runs 20
-     exit=1
-   → benchmark --runs 30 --warmup-max 40 --max-tokens 32
-     exit=0
-
-═════ COLLATING ═════
-       2026-09-09 16:43:04
-
 ==============================================================================
 EXCLUSIVE BOX (numbers of record)
 ==============================================================================
@@ -68,6 +38,3 @@ EXCLUSIVE BOX (numbers of record)
 
 ⚠ = the harness reported warmup_reached_steady_state=false; re-run before reporting.
 
-
-═════ COMMITTING ═════
-       2026-09-09 16:43:04

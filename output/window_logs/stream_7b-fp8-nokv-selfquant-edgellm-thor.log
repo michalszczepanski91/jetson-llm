@@ -1,1 +1,75 @@
-/home/michal/dev/jetson-llm/.venv/bin/python3: can't open file '/home/michal/dev/jetson-llm/scripts/benchmark_streaming': [Errno 2] No such file or directory
+16:34:07 INFO     edgellm.server: Using cached engine bundle: /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407
+16:34:07 INFO     edgellm.server: Loading runtime bundle from /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407
+[16:34:07.862] [INFO] [trtUtils.h:75:loadEdgellmPluginLib] EDGELLM_PLUGIN_PATH variable is not set. Default to build/libNvInfer_edgellm_plugin.so
+[16:34:08.909] [INFO] [externalWeightManager.cpp:888:load] Prepared 58 model weight tensor(s) and the embedding table from checkpoint in 1040 ms (index 1 ms, validate 0 ms, map/register 794 ms, peak mapped source 33558528 bytes, arena 2180398080 bytes, aliases saved 0 bytes in 19 ms, transform 1018 ms)
+[16:34:08.910] [INFO] [llmEngineConfig.cpp:672:parseEngineConfig] reading /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407/config.json
+[16:34:08.910] [INFO] [llmRuntimeUtils.cpp:422:collectRopeConfig] Collected rope config: RopeConfig:  type: Default  rotaryScale: 1  rotaryTheta: 1e+06  partialRotaryFactor: 1  maxPositionEmbeddings: 32768
+[16:34:08.910] [INFO] [llmEngineConfig.cpp:887:parseEngineConfig] LLMEngineConfig{ hiddenSize=3584 vocabSize=152064 outputVocabSize=152064 numDecoderLayers=28 numAttentionLayers=28 numKVHeads=4 headDim=128 rotaryDim=128 maxBatch=1 maxInputLen=2048 maxKVCapacity=8192 kvPoolPages=64 pleEnabled=false numPleInputs=0 pleHiddenSize=0 isSpecDecodeBase=false specDecodeType=0 loraRank=0 eosTokenIds=[151645] }
+[16:34:08.910] [INFO] [engineExecutor.cpp:135:TrtEngineExecutor] loading engine file: /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407/llm.engine
+[16:34:09.773] [INFO] [TensorRT] [MS] Running engine with multi stream info
+[16:34:09.773] [INFO] [TensorRT] [MS] Number of aux streams is 2
+[16:34:09.773] [INFO] [TensorRT] [MS] Number of total worker streams is 3
+[16:34:09.773] [INFO] [TensorRT] [MS] The main stream provided by execute/enqueue calls is the first worker stream
+[16:34:09.912] [INFO] [TensorRT] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +0, now: CPU 0, GPU 6223 (MiB)
+[16:34:09.912] [INFO] [trtUtils.cpp:374:setNonBlockingAuxStreams] configured 2 non-blocking auxiliary stream(s) for execution context
+[16:34:09.912] [INFO] [engineExecutor.cpp:166:TrtEngineExecutor] engine loaded successfully (121 I/O tensors)
+[16:34:09.912] [INFO] [modelArtifacts.cpp:213:loadFromEngineDir] Base EngineExecutor successfully loaded from /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407/llm.engine.
+[16:34:09.912] [INFO] [externalWeightManager.cpp:930:validateAgainstEngine] Validated 58 external weight tensor(s) for base
+[16:34:09.912] [INFO] [modelArtifacts.cpp:144:loadTokenizer] Start loading tokenizer from model directory: /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407
+[16:34:10.242] [INFO] [tokenizer.cpp:603:loadVocabulary] Loaded 151643 vocabulary tokens
+[16:34:10.341] [INFO] [tokenizer.cpp:135:loadFromHF] Loaded 22 special tokens
+[16:34:10.387] [INFO] [tokenizer.cpp:1090:loadChatTemplate] Successfully loaded chat template from /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407/processed_chat_template.json (for model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8-nokv)
+[16:34:10.387] [INFO] [tokenizer.cpp:167:loadFromHF] Successfully loaded tokenizer from /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407 (vocab_size=151665)
+[16:34:10.410] [INFO] [modelArtifacts.cpp:147:loadTokenizer] Tokenizer successfully loaded from model directory: /opt/edgellm-cache/engines/model-16fa833de2f9aa4e/i2048-b1-kv8192-none-973cfe1fb407
+[16:34:10.410] [INFO] [modelArtifacts.cpp:154:loadTokenizer] Loaded 1 EOS token IDs from config
+[16:34:10.410] [INFO] [runtimeCoordinator.cpp:70:RuntimeCoordinator] RuntimeCoordinator running single-device inline (no worker thread).
+[16:34:10.410] [INFO] [llmRankRuntime.cpp:364:initializeCommon] Runtime batch size set to: 1 (from engine bundle)
+[16:34:10.421] [INFO] [ropeCache.cpp:128:getOrCreate] RopeCache: creating new entry (rotaryDim=128, maxSeqLen=8192)
+[16:34:10.422] [INFO] [llmRankRuntime.cpp:533:initializeCommon] Runtime tensors successfully allocated.
+[16:34:10.425] [INFO] [llmRankRuntime.cpp:676:initializeCommon] Setup shared execution context memory: 245366784 bytes (base requires: 245366784, strategy requires: 0, vision requires: 0, audio requires: 0, action requires: 0)
+[16:34:10.425] [INFO] [runtimeCoordinator.cpp:299:operator()] [parallel rank 0/1] Runtime initialized.
+[16:34:10.426] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:34:10.639] [INFO] [engineExecutor.cpp:360:captureGraph] captured graph (hash=0x7fc70983f996eaec)
+[16:34:10.639] [INFO] [decoderRegistry.cpp:126:captureCudaGraphs] Successfully captured decoding CUDA graphs for active decoding strategies.
+16:34:10 INFO     edgellm.server: Engine loaded and ready.
+16:34:10 INFO     edgellm.server: Loaded model=qwen2.5-7b-fp8-nokv max_model_len=8192 kv_cache_dtype=fp16 speculative_decoding=False context_reuse=False
+INFO:     Started server process [755482]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54432 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54436 - "POST /v1/chat/completions HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [755482]
+Starting edge-llm server...
+Running 20 streaming reps...
+Stopping edge-llm server...
+Traceback (most recent call last):
+  File "/home/michal/dev/jetson-llm/scripts/benchmark_streaming.py", line 150, in <module>
+    main()
+  File "/home/michal/dev/jetson-llm/scripts/benchmark_streaming.py", line 110, in main
+    result = _stream_one(coordinator.base_url, variant["model"], args.prompt, args.max_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/jetson-llm/scripts/benchmark_streaming.py", line 70, in _stream_one
+    with urllib.request.urlopen(req, timeout=120) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
