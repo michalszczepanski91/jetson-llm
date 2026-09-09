@@ -14,11 +14,19 @@ explicitly **superseded for Thor** once Edge-LLM 0.10.1 turned out to ship an
 OpenAI-compatible server with tool-calling. Read both halves of that Phase 0 entry
 before assuming TensorRT is out of scope.
 
-**The first controlled framework comparison is done** (`docs/thor-framework-comparison.md`):
-on Thor, with the model fixed, Edge-LLM beat vLLM and llama.cpp on tool-call judgment
-AND on latency - but going 1.5B -> 7B mattered *more* than the backend choice, taking
-BFCL `irrelevance` from 78% to 94%. Timing numbers there are shared-box and pending a
-quiet-machine re-run via `scripts/thor_exclusive_window.sh`.
+**The controlled framework comparison is done** (`docs/thor-framework-comparison.md`),
+including an exclusive-box timing campaign and a decoding control. Result: at 7B the
+three backends are within ~2% on turn latency and ~16% on marginal energy per token,
+and differ by **40 points on BFCL `irrelevance`** (Edge-LLM 94%, llama.cpp 62%, vLLM
+54%) - that one axis decides the recommendation (Edge-LLM + Qwen2.5-7B FP16). Three
+things this repo now knows and should not re-litigate: the gap is **not** a decoding
+artifact (`top_k=1` greedy reproduced every score exactly - and note that pinning only
+`temperature` is NOT controlled sampling, since the three backends apply three
+different `top_p`/`top_k`/`min_p` defaults); it is **not** a parser artifact (Edge-LLM
+scores identically with `auto` and `hermes`, 100/100 identical per-case verdicts); and
+**14B is pointless** (98/100 identical verdicts to 7B at 2x the latency and 2.1x the
+energy). What remains unidentified is *which* structural difference causes it -
+chat-template rendering is the leading candidate.
 
 Currently Qwen2.5-Instruct (1.5B/3B/7B/14B), Apertus-8B-Instruct-2509
 (data-sovereignty framing - Swiss-public-funded and fully open including training

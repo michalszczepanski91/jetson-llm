@@ -187,13 +187,15 @@ def _questions_to_messages(case: dict[str, Any]) -> list[dict[str, str]]:
     return [message for turn in case["question"] for message in turn]
 
 
-def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> list[dict[str, Any]]:
+def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature,
+                top_p=None, top_k=None) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
         message = call_llm(
             coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+            top_p=top_p, top_k=top_k,
         )
         actual_name, actual_args = _first_tool_call(message)
 
@@ -209,13 +211,15 @@ def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> l
     return outcomes
 
 
-def _run_irrelevance(coordinator, cases, max_tokens, temperature) -> list[dict[str, Any]]:
+def _run_irrelevance(coordinator, cases, max_tokens, temperature,
+                     top_p=None, top_k=None) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
         message = call_llm(
             coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+            top_p=top_p, top_k=top_k,
         )
         actual_name, _ = _first_tool_call(message)
         outcomes.append({
@@ -236,6 +240,12 @@ def parse_args():
                    "produced structured tool calls only 80%% of the time on llama.cpp/Qwen2.5-1.5B (12/15), "
                    "100%% (15/15) at 0.1 - vLLM was 100%% at both, so pinning this low costs nothing there and "
                    "fixes the llama.cpp gap. See docs/TODO.md Phase 1 for the full diagnostic.")
+    p.add_argument("--top-p", type=float, default=None, help="nucleus truncation. Left unset by default so "
+                   "each backend keeps its own default, which is what a real deployment sees - but note those "
+                   "defaults DIFFER (Edge-LLM 0.9, vLLM 1.0), so any cross-backend comparison meaning to isolate "
+                   "the runtime must pin this. See docs/thor-framework-comparison.md.")
+    p.add_argument("--top-k", type=int, default=None, help="top-k truncation. Same reasoning as --top-p "
+                   "(Edge-LLM defaults to 50, vLLM to -1 i.e. disabled).")
     p.add_argument("--ready-timeout", type=float, default=600.0)
     p.add_argument("--results-json", default=None)
     add_target_args(p)
@@ -261,9 +271,11 @@ def main():
             raise TimeoutError(f"{variant['backend']} server did not become ready")
 
         print(f"Running {len(simple_cases)} BFCL 'simple' cases...")
-        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens, args.temperature)
+        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens, args.temperature,
+                               args.top_p, args.top_k)
         print(f"Running {len(irrelevance_cases)} BFCL 'irrelevance' cases...")
-        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature)
+        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature,
+                                     args.top_p, args.top_k)
 
         def _accuracy(category):
             subset = [o for o in outcomes if o["category"] == category]
@@ -278,6 +290,8 @@ def main():
             "dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
             "n_cases": len(outcomes),
             "temperature": args.temperature,
+        "top_p": args.top_p,
+        "top_k": args.top_k,
             "simple_accuracy": _accuracy("simple"),
             "irrelevance_accuracy": _accuracy("irrelevance"),
             "overall_accuracy": (sum(1 for o in outcomes if o["correct"]) / len(outcomes)) if outcomes else None,

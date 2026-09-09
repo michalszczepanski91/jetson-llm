@@ -14,15 +14,26 @@ See `docs/promotion-contract.md` for exactly how a candidate here becomes that.
 **First controlled comparison is done** - see `docs/thor-framework-comparison.md`.
 Two headline results, both on Thor with the model held fixed:
 
-- **Framework**: Edge-LLM 83% BFCL overall, vLLM 75%, llama.cpp 74% - and Edge-LLM
-  also leads TTFT and tail latency. The backend `embedded-ai-chain` ships today
-  (vLLM) lost every axis measured.
-- **Size matters more than framework**: 1.5B -> 7B moves BFCL `irrelevance` (the
-  "correctly call NO tool" category, i.e. the documented `ask_vlm` over-escalation
-  gap) from **78% to 94%** - a bigger gain than any backend choice produced. Thor's
-  122GB is what makes that purchasable; the Orin's ~30GB never could.
+- **Framework** (at 7B, the size that matters): the three backends are within ~2% on
+  turn latency and ~16% on energy per token, and differ by **40 points on escalation
+  judgement** - Edge-LLM 94% `irrelevance`, llama.cpp 62%, vLLM 54%. That single axis
+  decides it. If tool-call judgement did not matter, llama.cpp would win outright
+  (fastest, most energy-efficient, one `docker pull` instead of a source build).
+  **Not a decoding artifact**: forcing deterministic argmax (`top_k=1`) on all three
+  reproduced every score exactly.
+- **Size and framework interact - the backend decides whether size helps at all.**
+  1.5B -> 7B moves BFCL `irrelevance` (the "correctly call NO tool" category, i.e. the
+  documented `ask_vlm` over-escalation gap) from **78% to 94% on Edge-LLM**, but only
+  60% -> 62% on llama.cpp, and it makes vLLM *worse* (68% -> 54%). Thor's 122GB is
+  what makes a 7B orchestrator purchasable at all - the Orin's ~30GB never could - but
+  the parameters only pay off on a backend that lets the model abstain.
+- **Stop at 7B**: 14B agrees with 7B on 98/100 cases while costing 2x the latency and
+  2.1x the energy per token.
 
-Timing numbers there are shared-box and being re-taken on a quiet machine.
+Timing and energy numbers are from an exclusive-box campaign
+(`scripts/thor_exclusive_window.sh`); marginal energy subtracts a measured 5.42 W idle
+baseline. Worth knowing for co-residency planning: an idle-but-resident model container
+raised board idle from 5.4 W to ~17.5 W, i.e. ~12 W to hold weights doing nothing.
 
 (Originally scaffolded and named `jetson-llm-qwen` when Qwen2.5 was the only family in
 scope - renamed once a second family was added, mirroring `jetson-vlm-lab`'s own

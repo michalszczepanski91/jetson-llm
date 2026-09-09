@@ -1,0 +1,18 @@
+───── 7b-fp16-edgellm-thor (greedy: top_k=1) ─────
+      10:07:45
+      exit=0
+      simple=92%  irrelevance=94%  overall=93%
+───── 7b-fp16-vllm-thor (greedy: top_k=1) ─────
+      10:15:48
+      exit=0
+      simple=92%  irrelevance=54%  overall=73%
+───── 7b-fp16-llamacpp-thor (greedy: top_k=1) ─────
+      10:31:20
+      exit=0
+      simple=90%  irrelevance=62%  overall=76%
+
+───── comparison: default sampling vs greedy ─────
+backend       default irrel  greedy irrel  default overall  greedy overall
+Edge-LLM                94%           94%              93%             93%
+vLLM                    54%           54%              73%             73%
+llama.cpp               62%           62%              76%             76%

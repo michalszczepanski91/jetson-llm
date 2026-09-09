@@ -572,11 +572,30 @@ its results are a *platform×backend* cell no Orin row can fill.
       first start on Thor takes minutes (torch.compile/inductor) but 27.8s to init
       the engine once the compile cache is warm; Edge-LLM compiles TensorRT engines
       on a cache miss (minutes) and only loads them on a hit (seconds).
-- [ ] Cheap follow-up that would sharpen the headline: re-run BFCL with
-      `--tool-call-parser hermes` pinned on BOTH Edge-LLM and vLLM. The parsers
-      differed (`auto` vs `hermes`), so today's honest claim is "Edge-LLM **as
-      configured by default** judges best on Thor", not that its runtime is
-      inherently better.
+- [x] **Follow-ups done 2026-09-09, and they closed the two open confounds:**
+      1. *Parser parity* - Edge-LLM re-run with `--tool-call-parser hermes` (the
+         parser vLLM used) scores identically to `auto` at both sizes, **100/100
+         identical per-case verdicts**. Not the parser.
+      2. *Decoding control* - all three re-run with `top_k=1` (deterministic argmax,
+         which makes `top_p`/`min_p`/temperature inert) reproduced every score
+         **exactly**. Not sampling either. This one mattered to run: the campaign had
+         pinned only `temperature`, and the three backends turned out to apply three
+         DIFFERENT truncation defaults (Edge-LLM top_k=50/top_p=0.9, vLLM
+         top_k=-1/top_p=1.0, llama.cpp top_k=40/top_p=0.95/min_p=0.05). Pinning
+         temperature alone is not controlled sampling - a methodology note worth
+         keeping for every future cross-backend comparison in this lab.
+      With weights, parser and decoding all controlled, the 40-point `irrelevance`
+      gap is structural. **What causes it is still unidentified** - leading candidate
+      is chat-template rendering, since each backend builds the tools prompt itself.
+      Decisive cheap test: send one identical pre-rendered prompt to all three via
+      `/v1/completions` (no `tools` param, no template) and compare raw output.
+- [x] **Energy per token measured 2026-09-09** against a real idle baseline (5.42 W,
+      box fully quiet). Marginal J/token at 7B: llama.cpp 0.73, Edge-LLM 0.85, vLLM
+      0.96. Board power is nearly flat across backends (14.9-19.5 W) while throughput
+      varies 6.5x, so energy per token is dominated by speed rather than draw. Also
+      measured, and relevant to the co-residency question: an idle-but-resident model
+      container raises board idle from 5.4 W to ~17.5 W - about **12 W to hold weights
+      doing nothing**.
 
 ### Measurement integrity on Thor: it is a SHARED box
 

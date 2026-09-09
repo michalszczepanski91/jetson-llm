@@ -2,8 +2,23 @@
 
 **Recommendation: TensorRT Edge-LLM serving Qwen2.5-7B-Instruct FP16.**
 
-Two findings drive that, and the second is the one that would be missed by looking
-only at headline scores:
+The decision rests on one axis where the backends differ by 40 points and every other
+axis is close. If tool-call judgement did *not* matter, llama.cpp would win — it is
+the fastest and the most energy-efficient of the three, and needs one `docker pull`
+rather than a per-device source build. It loses because it cannot abstain.
+
+| 7B, the three axes that matter | Edge-LLM | llama.cpp | vLLM |
+|---|---|---|---|
+| **Escalation judgement** (BFCL `irrelevance`) | **94%** | 62% | 54% |
+| **Real turn latency** (32 tokens) | 1945 ms | **1899 ms** | 2539 ms |
+| **Energy** (marginal J/token) | 0.85 J | **0.73 J** | 0.96 J |
+
+Edge-LLM costs ~2% more turn latency and ~16% more energy than llama.cpp, and buys
+**+32 points of escalation accuracy** for it. vLLM — what `embedded-ai-chain` ships
+today — is worst on all three.
+
+Three findings drive that, and the third would be missed by looking only at headline
+scores:
 
 1. **The backend determines whether model size buys you anything — or costs you.**
    Going 1.5B → 7B takes BFCL `irrelevance` from 78% to **94%** on Edge-LLM, moves
@@ -18,7 +33,12 @@ only at headline scores:
    matters.
 2. **The size curve flattens completely after 7B.** 14B scores *identically* to 7B —
    not approximately, but 98/100 identical per-case verdicts — while costing 2x the
-   latency. 14B is wasted memory and wasted time.
+   latency and 2.1x the energy per token. 14B is wasted memory, time and power.
+3. **It is not a decoding artifact.** Forcing deterministic argmax (`top_k=1`) on all
+   three reproduced every score exactly, so sampling, temperature and truncation
+   explain none of the gap — see "Decoding is NOT the cause" below. This mattered to
+   check: the campaign originally pinned only `temperature`, and the three backends
+   turned out to apply three different truncation defaults.
 
 `irrelevance` is the category where the correct action is to call **no** tool. It is
 the direct analogue of `embedded-ai-chain`'s documented `ask_vlm` over-escalation
@@ -129,6 +149,67 @@ and not of this lab's configuration of it.
 The llama.cpp result reproduces the Orin finding (85/65/75 there) on different
 hardware, a different image family, and now at a second model size — it is a property
 of the backend, not of a build.
+
+### Decoding is NOT the cause — settled by a greedy control, 2026-09-09
+
+The comparison above pinned `temperature` and treated sampling as controlled. **It was
+not**, and that was a real flaw: each server applies its own truncation defaults, and
+all three differ.
+
+| | `top_k` | `top_p` | `min_p` |
+|---|---|---|---|
+| Edge-LLM | 50 | 0.90 | (not supported) |
+| vLLM | −1 (off) | 1.00 | 0 |
+| llama.cpp | 40 | 0.95 | **0.05** |
+
+Two experiments removed that confound. First, vLLM re-run with Edge-LLM's exact
+truncation (`top_p=0.9, top_k=50`): `irrelevance` moved 54% → 58%, i.e. 4 points of a
+40-point gap. Then the decisive one — **`top_k=1` on all three, which forces
+deterministic argmax and makes `top_p`/`min_p`/temperature inert**
+(`scripts/greedy_framework_control.sh`):
+
+| 7B, greedy `top_k=1` | simple | **irrelevance** | overall | vs its own default sampling |
+|---|---|---|---|---|
+| **Edge-LLM** | 92% | **94%** | 93% | **identical** |
+| **vLLM** | 92% | **54%** | 73% | **identical** |
+| **llama.cpp** | 90% | **62%** | 76% | **identical** |
+
+Every backend reproduced its own score exactly. **Sampling explains none of the gap.**
+With decoding provably identical and deterministic, and the weights identical, the
+remaining explanations are structural: what prompt each backend actually renders from
+the tool definitions, llama.cpp's grammar-constrained emission, and how each decides a
+generation counts as a tool call. Identifying which of those dominates is the obvious
+next investigation — the candidate this campaign could not rule out is chat-template
+rendering, since Edge-LLM, vLLM and llama.cpp each build the tools prompt themselves.
+
+### Energy per token
+
+Board power is nearly flat across backends (14.9-19.5 W, a 1.3x spread) while
+throughput varies 6.5x, so **energy per token is dominated by speed, not draw**.
+Marginal figures subtract a measured idle baseline of **5.42 W** (box fully quiet, no
+containers, GPU idle) to isolate what inference actually costs:
+
+| 7B | board | marginal | tok/s | marginal J/token | marginal J per 32-tok turn |
+|---|---|---|---|---|---|
+| **llama.cpp** | 17.8 W | 12.4 W | **17.0** | **0.73 J** | **23.3 J** |
+| Edge-LLM | 19.5 W | 14.0 W | 16.6 | 0.85 J | 27.1 J |
+| vLLM | 16.3 W | 10.9 W | 11.3 | 0.96 J | 30.8 J |
+
+| 1.5B | marginal J/token | | 14B | marginal J/token |
+|---|---|---|---|---|
+| llama.cpp | **0.18 J** | | Edge-LLM 14B | 1.75 J |
+| Edge-LLM | 0.22 J | | | |
+| vLLM | 0.22 J | | | |
+
+llama.cpp is the most energy-efficient at every size — 14% better than Edge-LLM at 7B,
+32% better than vLLM. vLLM draws the *least* power yet costs the *most* per token,
+because it is slowest. Going 7B → 14B costs 2.1x the energy per token for zero
+accuracy gain.
+
+**Worth recording separately:** the other user's idle-but-resident container raised
+board idle from 5.4 W to ~17.5 W — roughly 12 W to hold a model in memory doing
+nothing. On a power-budgeted board that is a real co-residency cost, and it is the
+kind of thing an "orchestrator + VLM tier together" deployment pays continuously.
 
 ### 14B buys nothing
 
@@ -254,4 +335,7 @@ see above):
       saturating.
 - [ ] Cold-start-from-empty-cache as its own measurement for Edge-LLM and vLLM.
 - [ ] Co-residency run: orchestrator + VLM tier together, which is the real
-      deployment shape and the condition the DVFS finding says matters.
+      deployment shape and the condition the DVFS finding says matters. Now with a
+      measured price tag: the other user's idle-but-resident container raised board
+      idle from 5.4 W to ~17.5 W, so co-residency costs ~12 W continuously before any
+      inference happens.
