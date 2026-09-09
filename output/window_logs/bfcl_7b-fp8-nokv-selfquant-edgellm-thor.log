@@ -1,0 +1,1 @@
+/home/michal/dev/jetson-llm/.venv/bin/python3: can't open file '/home/michal/dev/jetson-llm/scripts/validate_tool_calling': [Errno 2] No such file or directory

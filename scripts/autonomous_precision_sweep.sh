@@ -86,7 +86,7 @@ except SystemExit: print('MISSING_ROW')
         [ "$PREFIX" = "benchmark" ] && SUFFIX="_short32"
         echo "   → $SCRIPT"
         # shellcheck disable=SC2086
-        uv run python scripts/${SCRIPT%% *} ${SCRIPT#* } \
+        uv run python "scripts/${SCRIPT%% *}.py" ${SCRIPT#* } \
             --model-config "$CFG" --ready-timeout 2400 \
             --results-json "output/${PREFIX}_${CFG}${SUFFIX}.json" \
             > "$L/${TAG}_${CFG}.log" 2>&1

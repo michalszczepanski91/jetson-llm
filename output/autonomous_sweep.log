@@ -1,0 +1,16 @@
+
+═════ PHASE 0 — waiting for any running quantization to finish ═════
+       2026-09-09 16:26:12
+       no quantization running
+       GPU idle
+
+═════ EVALUATING 7b-fp8-nokv-selfquant-edgellm-thor ═════
+       2026-09-09 16:26:21
+   → validate_tool_calling --limit 50
+     exit=2
+   → validate_mmlu --limit 200
+     exit=2
+   → benchmark_streaming --runs 20
+     exit=2
+   → benchmark --runs 30 --warmup-max 40 --max-tokens 32
+     exit=2
