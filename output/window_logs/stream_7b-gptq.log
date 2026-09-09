@@ -1,0 +1,92 @@
+14:56:12 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/revision/main "HTTP/1.1 200 OK"
+Fetching 12 files:   0%|          | 0/12 [00:00<?, ?it/s]Fetching 12 files: 100%|██████████| 12/12 [00:00<00:00, 1811.34it/s]
+14:56:12 INFO     edgellm.server: Using cached engine bundle: /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2
+14:56:12 INFO     edgellm.server: Loading runtime bundle from /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2
+[14:56:12.486] [INFO] [trtUtils.h:75:loadEdgellmPluginLib] EDGELLM_PLUGIN_PATH variable is not set. Default to build/libNvInfer_edgellm_plugin.so
+[14:56:17.011] [INFO] [externalWeightManager.cpp:888:load] Prepared 730 model weight tensor(s) and the embedding table from checkpoint in 4514 ms (index 1 ms, validate 2 ms, map/register 2839 ms, peak mapped source 34295808 bytes, arena 5549788160 bytes, aliases saved 0 bytes in 60 ms, transform 4443 ms)
+[14:56:17.013] [INFO] [llmEngineConfig.cpp:672:parseEngineConfig] reading /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2/config.json
+[14:56:17.017] [INFO] [llmRuntimeUtils.cpp:422:collectRopeConfig] Collected rope config: RopeConfig:  type: Default  rotaryScale: 1  rotaryTheta: 1e+06  partialRotaryFactor: 1  maxPositionEmbeddings: 32768
+[14:56:17.017] [INFO] [llmEngineConfig.cpp:887:parseEngineConfig] LLMEngineConfig{ hiddenSize=3584 vocabSize=152064 outputVocabSize=152064 numDecoderLayers=28 numAttentionLayers=28 numKVHeads=4 headDim=128 rotaryDim=128 maxBatch=1 maxInputLen=2048 maxKVCapacity=8192 kvPoolPages=64 pleEnabled=false numPleInputs=0 pleHiddenSize=0 isSpecDecodeBase=false specDecodeType=0 loraRank=0 eosTokenIds=[151645] }
+[14:56:17.018] [INFO] [engineExecutor.cpp:135:TrtEngineExecutor] loading engine file: /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2/llm.engine
+[14:56:17.058] [INFO] [TensorRT] [MS] Running engine with multi stream info
+[14:56:17.058] [INFO] [TensorRT] [MS] Number of aux streams is 2
+[14:56:17.058] [INFO] [TensorRT] [MS] Number of total worker streams is 3
+[14:56:17.058] [INFO] [TensorRT] [MS] The main stream provided by execute/enqueue calls is the first worker stream
+[14:56:17.200] [INFO] [TensorRT] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +0, now: CPU 0, GPU 0 (MiB)
+[14:56:17.202] [INFO] [trtUtils.cpp:374:setNonBlockingAuxStreams] configured 2 non-blocking auxiliary stream(s) for execution context
+[14:56:17.202] [INFO] [engineExecutor.cpp:166:TrtEngineExecutor] engine loaded successfully (793 I/O tensors)
+[14:56:17.202] [INFO] [modelArtifacts.cpp:213:loadFromEngineDir] Base EngineExecutor successfully loaded from /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2/llm.engine.
+[14:56:17.212] [INFO] [externalWeightManager.cpp:930:validateAgainstEngine] Validated 730 external weight tensor(s) for base
+[14:56:17.212] [INFO] [modelArtifacts.cpp:144:loadTokenizer] Start loading tokenizer from model directory: /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2
+[14:56:17.462] [INFO] [tokenizer.cpp:603:loadVocabulary] Loaded 151643 vocabulary tokens
+[14:56:17.539] [INFO] [tokenizer.cpp:135:loadFromHF] Loaded 22 special tokens
+[14:56:17.591] [INFO] [tokenizer.cpp:1090:loadChatTemplate] Successfully loaded chat template from /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2/processed_chat_template.json (for model: /opt/edgellm-cache/checkpoints/models--Qwen--Qwen2.5-7B-Instruct-GPTQ-Int4/snapshots/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20)
+[14:56:17.591] [INFO] [tokenizer.cpp:167:loadFromHF] Successfully loaded tokenizer from /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2 (vocab_size=151665)
+[14:56:17.612] [INFO] [modelArtifacts.cpp:147:loadTokenizer] Tokenizer successfully loaded from model directory: /opt/edgellm-cache/engines/model-195ef6f77fe483ab/i2048-b1-kv8192-none-a8cf27d597f2
+[14:56:17.612] [INFO] [modelArtifacts.cpp:154:loadTokenizer] Loaded 1 EOS token IDs from config
+[14:56:17.612] [INFO] [runtimeCoordinator.cpp:70:RuntimeCoordinator] RuntimeCoordinator running single-device inline (no worker thread).
+[14:56:17.613] [INFO] [llmRankRuntime.cpp:364:initializeCommon] Runtime batch size set to: 1 (from engine bundle)
+[14:56:17.626] [INFO] [ropeCache.cpp:128:getOrCreate] RopeCache: creating new entry (rotaryDim=128, maxSeqLen=8192)
+[14:56:17.629] [INFO] [llmRankRuntime.cpp:533:initializeCommon] Runtime tensors successfully allocated.
+[14:56:17.633] [INFO] [llmRankRuntime.cpp:676:initializeCommon] Setup shared execution context memory: 320872448 bytes (base requires: 320872448, strategy requires: 0, vision requires: 0, audio requires: 0, action requires: 0)
+[14:56:17.633] [INFO] [runtimeCoordinator.cpp:299:operator()] [parallel rank 0/1] Runtime initialized.
+[14:56:17.633] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[14:56:17.838] [INFO] [engineExecutor.cpp:360:captureGraph] captured graph (hash=0xc1595de194d30b62)
+[14:56:17.838] [INFO] [decoderRegistry.cpp:126:captureCudaGraphs] Successfully captured decoding CUDA graphs for active decoding strategies.
+14:56:17 INFO     edgellm.server: Engine loaded and ready.
+14:56:17 INFO     edgellm.server: Loaded model=Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4 max_model_len=8192 kv_cache_dtype=fp16 speculative_decoding=False context_reuse=False
+INFO:     Started server process [711357]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8002): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+Starting edge-llm server...
+Running 20 streaming reps...
+  [1/20] ttft=0.067s tokens/s=38.6
+  [2/20] ttft=0.069s tokens/s=37.3
+  [3/20] ttft=0.071s tokens/s=37.9
+  [4/20] ttft=0.068s tokens/s=38.6
+  [5/20] ttft=0.065s tokens/s=40.9
+  [6/20] ttft=0.064s tokens/s=40.7
+  [7/20] ttft=0.066s tokens/s=42.0
+  [8/20] ttft=0.065s tokens/s=41.0
+  [9/20] ttft=0.065s tokens/s=40.7
+  [10/20] ttft=0.066s tokens/s=41.0
+  [11/20] ttft=0.066s tokens/s=40.8
+  [12/20] ttft=0.065s tokens/s=40.4
+  [13/20] ttft=0.066s tokens/s=40.5
+  [14/20] ttft=0.065s tokens/s=40.7
+  [15/20] ttft=0.065s tokens/s=40.7
+  [16/20] ttft=0.063s tokens/s=40.5
+  [17/20] ttft=0.063s tokens/s=40.6
+  [18/20] ttft=0.064s tokens/s=40.5
+  [19/20] ttft=0.063s tokens/s=40.9
+  [20/20] ttft=0.065s tokens/s=40.4
+{
+  "label": "orchestrator_llm_7b-gptq-edgellm-thor_streaming",
+  "model_config": "7b-gptq-edgellm-thor",
+  "model": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4",
+  "backend": "edge-llm",
+  "n_runs": 20,
+  "ttft_seconds": {
+    "min": 0.06328125999425538,
+    "p50": 0.06514774900279008,
+    "p95": 0.07055638698511757,
+    "p99": 0.07055638698511757,
+    "max": 0.07055638698511757,
+    "n": 20
+  },
+  "tokens_per_sec": {
+    "min": 37.2843961599276,
+    "p50": 40.67924783493535,
+    "p95": 41.96805284499088,
+    "p99": 41.96805284499088,
+    "max": 41.96805284499088,
+    "n": 20
+  },
+  "prompt": "What do you see in front of you right now?",
+  "max_tokens": 128,
+  "target": "local"
+}
+Stopping edge-llm server...

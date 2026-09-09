@@ -1,0 +1,72 @@
+14:19:22 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/revision/main "HTTP/1.1 200 OK"
+14:19:22 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/tree/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb?recursive=true&expand=false "HTTP/1.1 200 OK"
+Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s]14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/config.json "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/added_tokens.json "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/.gitattributes "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/xet-read-token/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb "HTTP/1.1 200 OK"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/generation_config.json "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/README.md "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/merges.txt "HTTP/1.1 307 Temporary Redirect"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fconfig.json=&etag=%22e7457b4cc84b77563b985147fc66c911a2078958%22 "HTTP/1.1 200 OK"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/added_tokens.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fadded_tokens.json=&etag=%22482ced4679301bf287ebb310bdd1790eb4514232%22 "HTTP/1.1 200 OK"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/.gitattributes?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2F.gitattributes=&etag=%2252373fe24473b1aa44333d318f578ae6bf04b49b%22 "HTTP/1.1 200 OK"
+14:19:22 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/generation_config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fgeneration_config.json=&etag=%22f237e177090c2bd0bf2ec1c81a894fc1f864dec6%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/README.md?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2FREADME.md=&etag=%22d9c888b216b335dea517a50af71f056b4066cf45%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fconfig.json=&etag=%22e7457b4cc84b77563b985147fc66c911a2078958%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/added_tokens.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fadded_tokens.json=&etag=%22482ced4679301bf287ebb310bdd1790eb4514232%22 "HTTP/1.1 200 OK"
+Fetching 14 files:   7%|▋         | 1/14 [00:00<00:06,  2.10it/s]14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/.gitattributes?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2F.gitattributes=&etag=%2252373fe24473b1aa44333d318f578ae6bf04b49b%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/merges.txt?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fmerges.txt=&etag=%2231349551d90c7606f325fe0f11bbb8bd5fa0d7c7%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/generation_config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fgeneration_config.json=&etag=%22f237e177090c2bd0bf2ec1c81a894fc1f864dec6%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/README.md?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2FREADME.md=&etag=%22d9c888b216b335dea517a50af71f056b4066cf45%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/model.safetensors.index.json "HTTP/1.1 307 Temporary Redirect"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/recipe.yaml "HTTP/1.1 307 Temporary Redirect"
+Fetching 14 files:  36%|███▌      | 5/14 [00:00<00:00,  9.90it/s]14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/special_tokens_map.json "HTTP/1.1 307 Temporary Redirect"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/merges.txt?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fmerges.txt=&etag=%2231349551d90c7606f325fe0f11bbb8bd5fa0d7c7%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/model.safetensors.index.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fmodel.safetensors.index.json=&etag=%2264b104af1cf14d889f4af3bea08d14b33a3b4ab7%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/recipe.yaml?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Frecipe.yaml=&etag=%22044a5bfd17808741714fc0e6a5e95974475bd268%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/special_tokens_map.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fspecial_tokens_map.json=&etag=%22ac23c0aaa2434523c494330aeb79c58395378103%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/tokenizer_config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Ftokenizer_config.json=&etag=%228adf747ccaf85ff9587338cee6ed6be027b98210%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/recipe.yaml?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Frecipe.yaml=&etag=%22044a5bfd17808741714fc0e6a5e95974475bd268%22 "HTTP/1.1 200 OK"
+Fetching 14 files:  50%|█████     | 7/14 [00:00<00:00,  8.22it/s]14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/model.safetensors.index.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fmodel.safetensors.index.json=&etag=%2264b104af1cf14d889f4af3bea08d14b33a3b4ab7%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/resolve/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/vocab.json "HTTP/1.1 307 Temporary Redirect"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/tokenizer_config.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Ftokenizer_config.json=&etag=%228adf747ccaf85ff9587338cee6ed6be027b98210%22 "HTTP/1.1 200 OK"
+Fetching 14 files:  64%|██████▍   | 9/14 [00:01<00:00, 10.07it/s]14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/special_tokens_map.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fspecial_tokens_map.json=&etag=%22ac23c0aaa2434523c494330aeb79c58395378103%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/vocab.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fvocab.json=&etag=%224783fe10ac3adce15ac8f358ef5462739852c569%22 "HTTP/1.1 200 OK"
+14:19:23 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic/a4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb/vocab.json?%2FRedHatAI%2FQwen2.5-7B-Instruct-FP8-dynamic%2Fresolve%2Fa4f1d5442ea284bc8e5a3b3e1a4d528f7d6caacb%2Fvocab.json=&etag=%224783fe10ac3adce15ac8f358ef5462739852c569%22 "HTTP/1.1 200 OK"
+Fetching 14 files:  79%|███████▊  | 11/14 [00:01<00:00,  6.59it/s]Fetching 14 files:  86%|████████▌ | 12/14 [00:19<00:00,  6.59it/s]Fetching 14 files:  93%|█████████▎| 13/14 [01:26<00:13, 13.77s/it]Fetching 14 files: 100%|██████████| 14/14 [01:30<00:00, 12.04s/it]Fetching 14 files: 100%|██████████| 14/14 [01:30<00:00,  6.48s/it]
+14:20:54 INFO     experimental.builder.core.builder: Loaded plugin library build/libNvInfer_edgellm_plugin.so
+14:20:54 INFO     experimental.builder: Building 1 engines for qwen2: llm
+14:20:54 INFO     experimental.builder: Building component llm
+Traceback (most recent call last):
+  File "/home/michal/dev/TensorRT-Edge-LLM/.venv/bin/tensorrt-edgellm-serve", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/cli.py", line 36, in main
+    llm = load_model(**config.model.llm_kwargs())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine.py", line 1802, in load_model
+    runtime = runtime_class(**{**kwargs, "model": resolved})
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine.py", line 736, in __init__
+    prepared = prepare_model(
+               ^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine_build.py", line 439, in prepare_model
+    builder_main(build_options.to_argv(model_dir, staging_dir))
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 347, in main
+    _build(args)
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 247, in _build
+    engine_path = _build_one(build_args, build_bundle, component,
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 198, in _build_one
+    cfg = load_device_config(build_args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/core/builder.py", line 420, in load_device_config
+    cfg = DeviceConfig.from_pretrained(args.model_dir, args.resolved_component,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/core/config.py", line 344, in from_pretrained
+    quant = quantization.parse_quantization(model_dir, root, llm,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/core/quantization.py", line 186, in parse_quantization
+    raise ValueError(
+ValueError: unsupported compressed-tensors checkpoint format: float-quantized, <missing>

@@ -1,13 +1,33 @@
 # Thor framework comparison — which serving backend, and which model size?
 
-**Recommendation: TensorRT Edge-LLM serving Qwen2.5-7B-Instruct FP16.**
+**Recommendation: TensorRT Edge-LLM serving `Qwen2.5-7B-Instruct`, quantized
+GPTQ-Int4 if the pipeline's turn budget is tight, FP16 otherwise.**
+
+This updates the campaign's original FP16-only conclusion (kept below for the
+record): quantized 7B was blocked by a real bug in Edge-LLM's own source, not by
+anything architectural, and it is fixed - see "GPTQ-Int4 7B" below. The two viable
+options now:
+
+| | BFCL `irrelevance` | turn latency (32 tok) | marginal J/token | cold start |
+|---|---|---|---|---|
+| **7B GPTQ-Int4** | 90% | **769 ms** | **0.27 J** | **0.03 s** |
+| **7B FP16** | **94%** | 1945 ms | 0.84 J | 12.1 s |
+
+GPTQ-Int4 gives up 4 points of `irrelevance` for 2.5x lower latency, 3x lower energy,
+and a near-instant cold start. Which one to ship is a genuine product call about the
+pipeline's turn budget - both are legitimate, and both already beat every non-Edge-LLM
+option by a wide margin (see the framework comparison below: llama.cpp and vLLM top
+out at 62%/54% `irrelevance` on the same FP16 weights).
+
+The backend-vs-framework finding below is unaffected by this update - it explains WHY
+Edge-LLM is the right backend regardless of which precision runs on it:
 
 The decision rests on one axis where the backends differ by 40 points and every other
 axis is close. If tool-call judgement did *not* matter, llama.cpp would win — it is
 the fastest and the most energy-efficient of the three, and needs one `docker pull`
 rather than a per-device source build. It loses because it cannot abstain.
 
-| 7B, the three axes that matter | Edge-LLM | llama.cpp | vLLM |
+| 7B FP16, the three axes that matter | Edge-LLM | llama.cpp | vLLM |
 |---|---|---|---|
 | **Escalation judgement** (BFCL `irrelevance`) | **94%** | 62% | 54% |
 | **Real turn latency** (32 tokens) | 1945 ms | **1899 ms** | 2539 ms |
@@ -15,7 +35,9 @@ rather than a per-device source build. It loses because it cannot abstain.
 
 Edge-LLM costs ~2% more turn latency and ~16% more energy than llama.cpp, and buys
 **+32 points of escalation accuracy** for it. vLLM — what `embedded-ai-chain` ships
-today — is worst on all three.
+today — is worst on all three. (llama.cpp/vLLM were not re-tested with GPTQ-Int4 -
+their own quantized paths are a separate, untried follow-up, not assumed to behave
+the same way Edge-LLM's did.)
 
 Three findings drive that, and the third would be missed by looking only at headline
 scores:
@@ -224,7 +246,15 @@ checkpoints, 2026-09-09, none reached a running server:
 | NVIDIA ModelOpt FP8/NVFP4 (the code path this parser is actually built for) | — | **Not attempted** - no official/trustworthy ModelOpt-quantized checkpoint exists for base `Qwen2.5-7B-Instruct` as of 2026-09-09, only its VL sibling (`nvidia/Qwen2.5-VL-7B-Instruct-{FP8,NVFP4}`). Unofficial community NVFP4 quants exist but don't meet this lab's provenance bar. |
 | `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8` (Qwen's own, `bits: 8`) | requested int8, got `int4_gptq` | **Not a real int8 test - a routing bug.** `quantization.py`'s GPTQ branch always returns `int4_gptq`, never reading the checkpoint's own `bits` field. So this "Int8" repo gets force-fed through the int4 unpacker and dies at the SAME line as the other two - a 4th confirmation of the attention-bias bug, not new information about int8. Edge-LLM's real int8 path (`int8_sq`) only activates via a ModelOpt-style `quant_algo` field containing "W8A8"/"INT8", which no official base-model checkpoint uses. |
 
-**Conclusion: FP16 is not a choice, it is what remains.** Four checkpoints tried
+**UPDATE, 2026-09-09 — this section is superseded. Quantized 7B now works.** The
+`_add_bias` failure was traced to a one-line omission in Edge-LLM's own source (not a
+checkpoint problem) and patched locally. See "GPTQ-Int4 7B: quantization actually
+works now" below for the real result - it changes the recommendation.
+
+<details>
+<summary>Original investigation (kept for the record - the debugging process matters as much as the fix)</summary>
+
+**Conclusion at the time: FP16 is not a choice, it is what remains.** Four checkpoints tried
 across three nominal precisions (int4-AWQ, int4-GPTQ, int8-GPTQ) all hit the identical
 `_add_bias` failure at the identical line - this is one bug, not three, and it blocks
 every quantized checkpoint Edge-LLM's builder currently routes through
@@ -235,6 +265,60 @@ broken, but because no official checkpoint in the format Edge-LLM actually expec
 exists yet for the base text model. Revisit if upstream fixes the bias-recipe wiring
 for `int4_linear`, fixes GPTQ bit-width detection, or NVIDIA publishes a ModelOpt
 checkpoint for the base text model.
+
+</details>
+
+### GPTQ-Int4 7B: quantization actually works now, and it changes the recommendation
+
+**Root cause found**: `weights.py`'s `linear_metadata()` computes `bias_recipe`
+correctly for every quant type - it's shared code, evaluated before the branch - and
+the `QUANT_FP16` return uses it. The three int4 branches (`int4_awq`,
+`int4_awq_modelopt`, `int4_gptq`) share ONE return statement further down the same
+function, and that statement simply **omits** `bias_recipe=bias_recipe` from its
+kwargs, even though the value sits right there, computed and unused. `bias` itself
+*is* passed correctly. Not a checkpoint-format problem, not a provenance problem - a
+one-line omission in Edge-LLM 0.10.1's own source, affecting every int4 checkpoint on
+any architecture with a linear bias, regardless of quant tool.
+
+Patched the local clone (`patches/edgellm-int4-bias-recipe.patch`, pure Python, no
+rebuild) and re-ran the exact `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` checkpoint (Qwen's
+own official quant) that had failed twice before:
+
+| | 1.5B FP16 | **7B GPTQ-Int4** | 7B FP16 |
+|---|---|---|---|
+| BFCL overall | 83% | **92%** | 93% |
+| BFCL **irrelevance** | 78% | **90%** | 94% |
+| MMLU | 42.0% | **66.0%** | 67.5% |
+| TTFT p50 | 34 ms | 65 ms | 74 ms |
+| tok/s p50 | 48.0 | **40.7** | 16.6 |
+| 32-tok turn | 697 ms | **769 ms** | 1945 ms |
+| marginal J/token | 0.206 J | **0.274 J** | 0.839 J |
+| cold start ¹ | 4.05 s | **0.03 s** | 12.07 s |
+
+¹ Int4's engine file is much smaller than FP16's, so even a cache-hit load is
+near-instant - a real, structural advantage of quantization, not a fluke.
+
+**This captures 12 of the 16-point `irrelevance` gain from going 1.5B→7B (78%→90%
+against FP16's 78%→94%), at a turn latency only 72ms slower than 1.5B and 2.5x faster
+than FP16-7B, and at a third of FP16-7B's energy per token.** Zero unparsed MMLU
+responses, so the small accuracy dip (93%→92% overall, 94%→90% irrelevance, 67.5%→66.0%
+MMLU) is real quantization cost, not a broken run - and it is a small, typical cost for
+INT4 GPTQ, not a red flag.
+
+**This is now the strongest candidate in the whole campaign for a latency-sensitive
+deployment.** If the pipeline's turn budget cannot afford FP16-7B's 1945ms, GPTQ-Int4
+7B is a materially better trade than falling back to 1.5B: it beats 1.5B's own
+`irrelevance` by 12 points at a turn-latency cost of only 72ms.
+
+**What is not yet done, so this is not yet the final word**: BFCL parser-parity and
+the `top_k=1` greedy control (both already run for the FP16 rows) have not been
+re-run against this quantized row - given the earlier finding that neither mattered
+for any other backend, they are expected to be similarly inert here, but "expected"
+is not "confirmed." Also not yet attempted: `int4_awq`/`int4_awq_modelopt` against the
+same patch (should work, share the identical return statement, not re-verified
+per-format) and whether the same one-line pattern is what was blocking int4 for other
+model families in this repo (Apertus, Bielik) - worth a look before assuming it's
+Qwen2-specific.
 
 ### 14B buys nothing
 

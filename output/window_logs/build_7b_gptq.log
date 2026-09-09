@@ -1,0 +1,117 @@
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/revision/main "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/tree/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20?recursive=true&expand=false "HTTP/1.1 200 OK"
+Fetching 12 files:   0%|          | 0/12 [00:00<?, ?it/s]14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/.gitattributes "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/config.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/merges.txt "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/README.md "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/generation_config.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/xet-read-token/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fconfig.json=&etag=%22a0ceeebc20f447b67782a3c3dfc74f816eeea3f3%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fconfig.json=&etag=%22a0ceeebc20f447b67782a3c3dfc74f816eeea3f3%22 "HTTP/1.1 200 OK"
+Fetching 12 files:   8%|▊         | 1/12 [00:00<00:02,  3.75it/s]14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/LICENSE "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/.gitattributes?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2F.gitattributes=&etag=%22e79ce6a89353fed9e05c6bd0e566fbd82c8d6d5f%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/README.md?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2FREADME.md=&etag=%225c1dae0a5d159833a178ed73d41c1a80d1ba2688%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/generation_config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fgeneration_config.json=&etag=%22a5dabf0be7ec1939bfb0203495083cdc08d04b12%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/merges.txt?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fmerges.txt=&etag=%2231349551d90c7606f325fe0f11bbb8bd5fa0d7c7%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/LICENSE?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2FLICENSE=&etag=%226634c8cc3133b3848ec74b9f275acaaa1ea618ab%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/model.safetensors.index.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/README.md?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2FREADME.md=&etag=%225c1dae0a5d159833a178ed73d41c1a80d1ba2688%22 "HTTP/1.1 200 OK"
+Fetching 12 files:  17%|█▋        | 2/12 [00:00<00:02,  4.28it/s]14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/.gitattributes?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2F.gitattributes=&etag=%22e79ce6a89353fed9e05c6bd0e566fbd82c8d6d5f%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/generation_config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fgeneration_config.json=&etag=%22a5dabf0be7ec1939bfb0203495083cdc08d04b12%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/LICENSE?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2FLICENSE=&etag=%226634c8cc3133b3848ec74b9f275acaaa1ea618ab%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/model.safetensors.index.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fmodel.safetensors.index.json=&etag=%22011bac13e782f90aa6e06a0e6fcc3c40a97dbb1d%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/merges.txt?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fmerges.txt=&etag=%2231349551d90c7606f325fe0f11bbb8bd5fa0d7c7%22 "HTTP/1.1 200 OK"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/resolve/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/vocab.json "HTTP/1.1 307 Temporary Redirect"
+14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Ftokenizer.json=&etag=%22450c878a19e58fd31cdd5f99d9fea007e0d29771%22 "HTTP/1.1 200 OK"
+Fetching 12 files:  50%|█████     | 6/12 [00:00<00:00,  9.42it/s]14:16:34 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer_config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Ftokenizer_config.json=&etag=%2207bfe0640cb5a0037f9322287fbfc682806cf672%22 "HTTP/1.1 200 OK"
+14:16:35 INFO     httpx: HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/vocab.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fvocab.json=&etag=%224783fe10ac3adce15ac8f358ef5462739852c569%22 "HTTP/1.1 200 OK"
+14:16:35 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/model.safetensors.index.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fmodel.safetensors.index.json=&etag=%22011bac13e782f90aa6e06a0e6fcc3c40a97dbb1d%22 "HTTP/1.1 200 OK"
+Fetching 12 files:  58%|█████▊    | 7/12 [00:00<00:00,  9.16it/s]14:16:35 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Ftokenizer.json=&etag=%22450c878a19e58fd31cdd5f99d9fea007e0d29771%22 "HTTP/1.1 200 OK"
+14:16:35 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/tokenizer_config.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Ftokenizer_config.json=&etag=%2207bfe0640cb5a0037f9322287fbfc682806cf672%22 "HTTP/1.1 200 OK"
+Fetching 12 files:  67%|██████▋   | 8/12 [00:01<00:00,  8.38it/s]14:16:35 INFO     httpx: HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4/e9c932ac1893a49ae0fc497ad6e1e86e2e39af20/vocab.json?%2FQwen%2FQwen2.5-7B-Instruct-GPTQ-Int4%2Fresolve%2Fe9c932ac1893a49ae0fc497ad6e1e86e2e39af20%2Fvocab.json=&etag=%224783fe10ac3adce15ac8f358ef5462739852c569%22 "HTTP/1.1 200 OK"
+Fetching 12 files:  75%|███████▌  | 9/12 [00:01<00:00,  6.77it/s]Fetching 12 files:  92%|█████████▏| 11/12 [00:31<00:06,  6.51s/it]Fetching 12 files: 100%|██████████| 12/12 [00:56<00:00, 10.75s/it]Fetching 12 files: 100%|██████████| 12/12 [00:56<00:00,  4.74s/it]
+14:17:31 INFO     experimental.builder.core.builder: Loaded plugin library build/libNvInfer_edgellm_plugin.so
+14:17:31 INFO     experimental.builder: Building 1 engines for qwen2: llm
+14:17:31 INFO     experimental.builder: Building component llm
+14:17:31 INFO     experimental.builder.core.builder: model_type=qwen2 layers=28 hidden=3584 experts=0 quant=int4_gptq
+14:17:31 INFO     experimental.builder.core.builder: [TRT] [MemUsageChange] Init CUDA: CPU +16, GPU +0, now: CPU 213, GPU 123906 (MiB)
+14:17:33 INFO     experimental.builder.core.builder: [TRT] [MemUsageChange] Init builder kernel library: CPU +1228, GPU +83, now: CPU 1643, GPU 123622 (MiB)
+14:17:33 INFO     experimental.builder.core.builder: Externalizing int4_ffn, int4_moe, nvfp4_moe, nvfp4_tp, lm_head, fp16, embedding
+14:17:33 INFO     experimental.builder.core.builder: Detected CUDA device 0 with compute capability 11.0
+Traceback (most recent call last):
+  File "/home/michal/dev/TensorRT-Edge-LLM/.venv/bin/tensorrt-edgellm-serve", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/cli.py", line 36, in main
+    llm = load_model(**config.model.llm_kwargs())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine.py", line 1802, in load_model
+    runtime = runtime_class(**{**kwargs, "model": resolved})
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine.py", line 736, in __init__
+    prepared = prepare_model(
+               ^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/server/runtime/engine_build.py", line 439, in prepare_model
+    builder_main(build_options.to_argv(model_dir, staging_dir))
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 347, in main
+    _build(args)
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 247, in _build
+    engine_path = _build_one(build_args, build_bundle, component,
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/cli.py", line 199, in _build_one
+    result = build_engine(build_args,
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/core/builder.py", line 368, in build_engine
+    build_model(net, bundle, cfg, weights, args)
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/models/__init__.py", line 43, in build_model
+    model.build()
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/module.py", line 150, in build
+    outputs = self.forward(**self.input_tensors())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/models/qwen2/modeling_qwen2.py", line 92, in forward
+    hidden_states, present_key_values, all_hidden_states = self.model(
+                                                           ^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/module.py", line 105, in __call__
+    return self.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/transformer.py", line 352, in forward
+    hidden_states, present = layer(hidden_states,
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/module.py", line 105, in __call__
+    return self.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/transformer.py", line 300, in forward
+    attention_output, present = self.self_attn(
+                                ^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/module.py", line 105, in __call__
+    return self.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/transformer.py", line 101, in forward
+    qkv = self.packed_qkv(hidden_states)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/transformer.py", line 82, in packed_qkv
+    query, key, value = self.project_qkv(hidden_states)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/transformer.py", line 77, in project_qkv
+    return (self.q_proj(hidden_states), self.k_proj(hidden_states),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/module.py", line 105, in __call__
+    return self.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/linear.py", line 101, in forward
+    output = F.linear_from_weights(hidden_states,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/functional/core.py", line 123, in linear_from_weights
+    return tensor(current_net().linear_from_weights(input,
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/backend.py", line 965, in linear_from_weights
+    return self.int4_linear(x, linear_weights, rank, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/backend.py", line 1370, in int4_linear
+    return self._add_bias(output,
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michal/dev/TensorRT-Edge-LLM/experimental/builder/ops/backend.py", line 1179, in _add_bias
+    raise ValueError("external FP16 bias has no checkpoint recipe")
+ValueError: external FP16 bias has no checkpoint recipe
