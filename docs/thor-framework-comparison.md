@@ -211,6 +211,25 @@ board idle from 5.4 W to ~17.5 W — roughly 12 W to hold a model in memory doin
 nothing. On a power-budgeted board that is a real co-residency cost, and it is the
 kind of thing an "orchestrator + VLM tier together" deployment pays continuously.
 
+### Quantized 7B on Edge-LLM: still not possible, for two different reasons
+
+The obvious "best of both worlds" candidate - 7B's 94% `irrelevance` at closer to
+1.5B's latency/energy - would be a quantized 7B on Edge-LLM. Tried three real
+checkpoints, 2026-09-09, none reached a running server:
+
+| Checkpoint | quant path | Result |
+|---|---|---|
+| `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` (Qwen's own, ungated) | `int4_gptq` | **Same bias bug as AWQ**, identical stack trace, same line. Proves the failure is not AWQ-specific - it's any externalized int4 quant hitting Qwen2's attention bias in `int4_linear()`'s bias handling. |
+| `RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic` (llmcompressor, ungated) | `fp8` | **Different failure, and inconclusive**: rejected at config-parsing time - `unsupported compressed-tensors checkpoint format: float-quantized` - before any layer is built. Edge-LLM's `compressed-tensors` parser only accepts that quant_method when its format string contains `nvfp4`; llmcompressor's plain FP8-dynamic format isn't one of the formats it recognizes. Says nothing about whether `fp8_linear`'s bias handling (which, unlike `int4_linear`, calls `_add_bias` without even attempting to pass a recipe - if anything a worse sign) would have worked. |
+| NVIDIA ModelOpt FP8/NVFP4 (the code path this parser is actually built for) | — | **Not attempted** - no official/trustworthy ModelOpt-quantized checkpoint exists for base `Qwen2.5-7B-Instruct` as of 2026-09-09, only its VL sibling (`nvidia/Qwen2.5-VL-7B-Instruct-{FP8,NVFP4}`). Unofficial community NVFP4 quants exist but don't meet this lab's provenance bar. |
+
+**Conclusion: FP16 is not a choice, it is what remains.** Every quantized path tried
+either hit a real bug or a checkpoint-availability wall; this is not "quantization
+wasn't tried" but "quantization was tried and specifically blocked" for int4, and
+genuinely untested (not assumed safe or unsafe) for FP8/NVFP4. Revisit if upstream
+fixes the bias-recipe wiring for `int4_linear`, or if NVIDIA publishes a ModelOpt
+checkpoint for the base text model.
+
 ### 14B buys nothing
 
 7B and 14B agree on **98 of 100** BFCL cases. They differ on exactly two

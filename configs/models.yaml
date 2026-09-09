@@ -248,6 +248,72 @@ bielik-11b-awq-vllm-orin:
     irrelevance with `auto`) - the row the recommendation actually rests on,
     and the one vLLM's own hermes run (73% / 54%) is being compared against.
 
+# --- Quantization sweep on Edge-LLM, added 2026-09-09 ---
+# Every Edge-LLM row so far is FP16 because the ONLY quant path tried
+# (Qwen2.5-*-Instruct-AWQ, classic AutoAWQ format) hit a real build bug
+# (external FP16 bias has no checkpoint recipe). Edge-LLM's builder actually
+# supports six quant_types (fp16, fp8, fp8_block, mxfp8, nvfp4, int4_awq,
+# int4_awq_modelopt, int4_gptq, int8_sq per quantization.py's QUANT_TYPES) -
+# AWQ failing does not mean int4 itself is unsupported for this architecture.
+# This row tests Qwen's OWN official GPTQ-Int4 checkpoint (ungated, confirmed
+# live 2026-09-09) - a different int4 code path (int4_gptq, not int4_awq) on
+# the identical Qwen2ForCausalLM architecture whose QKV bias broke AWQ. If
+# this builds, it is the "best of both worlds" candidate this lab has been
+# missing: 7B's accuracy at closer to 1.5B's latency/energy. NOT yet
+# confirmed to build - this is exactly the kind of claim Phase 0's "device
+# enumeration is not a smoke test" lesson says to verify, not assume.
+# FP8 test: does Edge-LLM's fp8_linear path share int4_linear's bias bug?
+# fp8_linear/mxfp8_linear call _add_bias() WITHOUT passing name/recipe at all
+# (see int4_gptq's own note above for why that is a worse sign, not a better
+# one) - genuinely unknown until tested, not assumed either way.
+7b-fp8-edgellm-thor:
+  model: RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic
+  precision: "FP8 dynamic (compressed-tensors format, llmcompressor) - ungated, confirmed live 2026-09-09"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    INCONCLUSIVE, confirmed 2026-09-09 - fails, but NOT with the bias bug and
+    NOT informative about whether fp8_linear would hit it. Real error:
+    "unsupported compressed-tensors checkpoint format: float-quantized" -
+    Edge-LLM's compressed-tensors parser (quantization.py) only accepts that
+    quant_method when its format string contains "nvfp4"; this checkpoint's
+    llmcompressor-produced "float-quantized" FP8-dynamic format is rejected
+    before any layer is built, let alone the attention bias. A DIFFERENT,
+    NVIDIA-ModelOpt-authored checkpoint (embedding `quant_algo` rather than
+    `quant_method: compressed-tensors`) would take a different code path and
+    might not hit either failure - but no official/trustworthy ModelOpt-FP8
+    or NVFP4 checkpoint exists for base Qwen2.5-7B-Instruct as of 2026-09-09
+    (only VL variants: nvidia/Qwen2.5-VL-7B-Instruct-FP8/NVFP4; the text-model
+    hits found are unofficial community quants, which does not meet this lab's
+    provenance bar - see Apertus/Bielik's own GGUF sourcing for that standard).
+    Not pursued further on that basis, not because the code path is assumed
+    broken.
+
+7b-gptq-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4
+  precision: "GPTQ int4, group_size=128, symmetric, exllama v1 (Qwen's own official quant)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    BLOCKED, confirmed 2026-09-09 - IDENTICAL failure to the AWQ row, same
+    stack trace, same line (backend.py:1179 _add_bias, "external FP16 bias
+    has no checkpoint recipe"), raised from the SAME q_proj/k_proj call.
+    Proves the bug is not AWQ-specific: int4_awq and int4_gptq both route
+    through int4_linear()'s bias handling, and neither has a checkpoint
+    recipe wired up for Qwen2's attention bias in Edge-LLM's current builder
+    (0.10.1). So this is an "any externalized int4 quant on Qwen2's attention
+    bias" limitation, not a quirk of one quant format - int4_awq_modelopt and
+    int8_sq are untested but share the same code path and should be assumed
+    blocked too until shown otherwise. FP8/NVFP4 status: NOT assumed safe -
+    fp8_linear/mxfp8_linear (backend.py) call the same _add_bias() but WITHOUT
+    passing name/recipe at all (unlike int4_linear, which at least tries),
+    which if anything is a worse sign. See the 7b-fp8-edgellm-thor row below
+    for the real test rather than a guess either way.
+
 14b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-14B-Instruct
   precision: "fp16 (no quantization)"
