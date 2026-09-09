@@ -423,6 +423,14 @@ class EdgeLlmCoordinator:
         cache_dir: str = _DEFAULT_EDGELLM_CACHE,
         max_input_len: int = 2048,
         tool_call_parser: str = "auto",
+        served_model_name: str | None = None,  # what the SERVER registers the
+        # model as, which is not always what you launched it with. Passing a
+        # local checkpoint directory (as the self-quantized rows do) makes
+        # Edge-LLM register it under the directory's BASENAME, so a client
+        # sending the full path as `model` gets HTTP 404 - a real failure that
+        # cost a whole benchmark suite on 2026-09-09. When set, this is passed
+        # through as --served-model-name AND returned by `.model`, so the
+        # launch argument and the wire-format name stay independent.
         serve_bin: str = _DEFAULT_EDGELLM_BIN,
         work_dir: str | None = None,  # defaults to the Edge-LLM source tree
         # derived from serve_bin. THIS IS LOAD-BEARING, not tidiness: Edge-LLM
@@ -445,6 +453,7 @@ class EdgeLlmCoordinator:
         self._cache_dir = cache_dir
         self._max_input_len = max_input_len
         self._tool_call_parser = tool_call_parser
+        self._served_model_name = served_model_name
         self._serve_bin = serve_bin
         # <tree>/.venv/bin/tensorrt-edgellm-serve -> <tree>
         self._work_dir = work_dir or os.path.dirname(
@@ -466,7 +475,10 @@ class EdgeLlmCoordinator:
 
     @property
     def model(self) -> str:
-        return self._model
+        # The name the SERVER answers to, which differs from the launch
+        # argument when a local checkpoint directory is served - see
+        # served_model_name's own comment.
+        return self._served_model_name or self._model
 
     def start(self) -> None:
         if self._proc is not None:
@@ -479,6 +491,10 @@ class EdgeLlmCoordinator:
             "--max-input-len", str(self._max_input_len),
             "--enable-auto-tool-choice",
             "--tool-call-parser", self._tool_call_parser,
+        ]
+        if self._served_model_name:
+            cmd += ["--served-model-name", self._served_model_name]
+        cmd += [
             "--log-level", "info",
         ]
         cmd.extend(self._extra_args)

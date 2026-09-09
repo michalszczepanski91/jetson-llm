@@ -1,0 +1,767 @@
+
+=============
+== PyTorch ==
+=============
+
+NVIDIA Release 25.12 (build 245654591)
+PyTorch Version 2.10.0a0+b4e4ee8
+Container image Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+Copyright (c) 2014-2024 Facebook Inc.
+Copyright (c) 2011-2014 Idiap Research Institute (Ronan Collobert)
+Copyright (c) 2012-2014 Deepmind Technologies    (Koray Kavukcuoglu)
+Copyright (c) 2011-2012 NEC Laboratories America (Koray Kavukcuoglu)
+Copyright (c) 2011-2013 NYU                      (Clement Farabet)
+Copyright (c) 2006-2010 NEC Laboratories America (Ronan Collobert, Leon Bottou, Iain Melvin, Jason Weston)
+Copyright (c) 2006      Idiap Research Institute (Samy Bengio)
+Copyright (c) 2001-2004 Idiap Research Institute (Ronan Collobert, Samy Bengio, Johnny Mariethoz)
+Copyright (c) 2015      Google Inc.
+Copyright (c) 2015      Yangqing Jia
+Copyright (c) 2013-2016 The Caffe contributors
+All rights reserved.
+
+Various files include modifications (c) NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+
+GOVERNING TERMS: The software and materials are governed by the NVIDIA Software License Agreement
+(found at https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/)
+and the Product-Specific Terms for NVIDIA AI Products
+(found at https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/).
+
+WARNING: CUDA Minor Version Compatibility mode ENABLED.
+  Using driver version 580.00 which has support for CUDA 13.0.  This container
+  was built with CUDA 13.1 and will be run in Minor Version Compatibility mode.
+  CUDA Forward Compatibility is preferred over Minor Version Compatibility for use
+  with this container but was unavailable:
+  [[System has unsupported display driver / cuda driver combination (CUDA_ERROR_SYSTEM_DRIVER_MISMATCH) cuInit()=803]]
+  See https://docs.nvidia.com/deploy/cuda-compatibility/ for details.
+
+/usr/local/lib/python3.12/dist-packages/torch/library.py:356: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+  Overriding a previously registered kernel for the same operator and the same dispatch key
+  operator: flash_attn::_flash_attn_backward(Tensor dout, Tensor q, Tensor k, Tensor v, Tensor out, Tensor softmax_lse, Tensor(a6!)? dq, Tensor(a7!)? dk, Tensor(a8!)? dv, float dropout_p, float softmax_scale, bool causal, SymInt window_size_left, SymInt window_size_right, float softcap, Tensor? alibi_slopes, bool deterministic, Tensor? rng_state=None) -> Tensor
+    registered at /usr/local/lib/python3.12/dist-packages/torch/_library/custom_ops.py:922
+  dispatch key: ADInplaceOrView
+  previous kernel: no debug info
+       new kernel: registered at /usr/local/lib/python3.12/dist-packages/torch/_library/custom_ops.py:922 (Triggered internally at /opt/pytorch/pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+  self.m.impl(
+/work/venv/lib/python3.12/site-packages/modelopt/torch/__init__.py:51: UserWarning: transformers 5.14.1 is not tested with current version of modelopt and may cause issues. Please install recommended version with `pip install -U nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/339 [00:00<?, ?it/s]Loading weights:   0%|          | 1/339 [00:00<00:59,  5.70it/s]Loading weights:   5%|▌         | 18/339 [00:00<00:05, 59.38it/s]Loading weights:   8%|▊         | 28/339 [00:00<00:05, 60.91it/s]Loading weights:  12%|█▏        | 40/339 [00:00<00:05, 59.05it/s]Loading weights:  15%|█▌        | 52/339 [00:00<00:04, 66.62it/s]Loading weights:  18%|█▊        | 60/339 [00:01<00:04, 61.01it/s]Loading weights:  20%|█▉        | 67/339 [00:01<00:04, 60.76it/s]Loading weights:  22%|██▏       | 76/339 [00:01<00:03, 65.87it/s]Loading weights:  26%|██▌       | 88/339 [00:01<00:03, 64.97it/s]Loading weights:  29%|██▉       | 100/339 [00:01<00:03, 71.96it/s]Loading weights:  33%|███▎      | 112/339 [00:01<00:03, 74.64it/s]Loading weights:  37%|███▋      | 124/339 [00:01<00:02, 71.71it/s]Loading weights:  40%|████      | 136/339 [00:02<00:02, 79.64it/s]Loading weights:  44%|████▎     | 148/339 [00:02<00:02, 85.49it/s]Loading weights:  47%|████▋     | 160/339 [00:02<00:02, 85.62it/s]Loading weights:  51%|█████     | 172/339 [00:02<00:01, 88.50it/s]Loading weights:  54%|█████▎    | 182/339 [00:02<00:01, 90.09it/s]Loading weights:  58%|█████▊    | 196/339 [00:02<00:01, 94.84it/s]Loading weights:  61%|██████▏   | 208/339 [00:02<00:01, 100.24it/s]Loading weights:  65%|██████▍   | 220/339 [00:02<00:01, 105.05it/s]Loading weights:  68%|██████▊   | 232/339 [00:02<00:01, 98.66it/s] Loading weights:  72%|███████▏  | 245/339 [00:03<00:00, 97.91it/s]Loading weights:  76%|███████▌  | 257/339 [00:03<00:00, 91.14it/s]Loading weights:  83%|████████▎ | 280/339 [00:03<00:00, 116.36it/s]Loading weights:  86%|████████▌ | 292/339 [00:03<00:00, 114.56it/s]Loading weights:  90%|████████▉ | 305/339 [00:03<00:00, 110.58it/s]Loading weights:  94%|█████████▎| 317/339 [00:03<00:00, 107.52it/s]Loading weights:  97%|█████████▋| 328/339 [00:03<00:00, 92.54it/s] Loading weights: 100%|██████████| 339/339 [00:03<00:00, 85.93it/s]
+Updated quant_cfg with KV cache quantization: {'quant_cfg': [{'quantizer_name': '*', 'enable': False}, {'quantizer_name': '*weight_quantizer', 'cfg': {'num_bits': (4, 3), 'axis': None}}, {'quantizer_name': '*input_quantizer', 'cfg': {'num_bits': (4, 3), 'axis': None}}, {'quantizer_name': '*block_sparse_moe.gate*', 'enable': False}, {'quantizer_name': '*linear_attn.conv1d*', 'enable': False}, {'quantizer_name': '*linear_attn.in_proj_a*', 'enable': False}, {'quantizer_name': '*linear_attn.in_proj_b*', 'enable': False}, {'quantizer_name': '*lm_head*', 'enable': False}, {'quantizer_name': '*mixer.conv1d*', 'enable': False}, {'quantizer_name': '*mlp.gate.*', 'enable': False}, {'quantizer_name': '*mlp.shared_expert_gate.*', 'enable': False}, {'quantizer_name': '*output_layer*', 'enable': False}, {'quantizer_name': '*proj_out.*', 'enable': False}, {'quantizer_name': '*router*', 'enable': False}, {'quantizer_name': 'output.*', 'enable': False}, {'quantizer_name': '*embed_vision*', 'enable': False}, {'quantizer_name': '*vision_tower*', 'enable': False}, {'quantizer_name': '*visual*', 'enable': False}, {'quantizer_name': '*vision_model*', 'enable': False}, {'quantizer_name': '*multi_modal_projector*', 'enable': False}, {'quantizer_name': '*', 'parent_class': 'nn.BatchNorm1d', 'enable': False}, {'quantizer_name': '*', 'parent_class': 'nn.BatchNorm2d', 'enable': False}, {'quantizer_name': '*', 'parent_class': 'nn.BatchNorm3d', 'enable': False}, {'quantizer_name': '*', 'parent_class': 'nn.LeakyReLU', 'enable': False}, {'quantizer_name': '*', 'parent_class': 'nn.Embedding', 'enable': False}, {'quantizer_name': '*[kv]_bmm_quantizer', 'cfg': {'num_bits': (4, 3), 'axis': None}}], 'algorithm': 'max'}
+Calibrating:   0%|          | 0/128 [00:00<?, ?it/s]Text calibration dataset: cnn_dailymail
+Registered <class 'transformers.models.qwen2.modeling_qwen2.Qwen2Attention'> to _QuantAttention for KV Cache quantization
+Inserted 706 quantizers
+Calibrating:   1%|          | 1/128 [00:01<03:37,  1.71s/it]Calibrating:   2%|▏         | 2/128 [00:02<02:04,  1.01it/s]Calibrating:   2%|▏         | 3/128 [00:02<01:33,  1.34it/s]Calibrating:   3%|▎         | 4/128 [00:03<01:16,  1.62it/s]Calibrating:   4%|▍         | 5/128 [00:03<01:06,  1.86it/s]Calibrating:   5%|▍         | 6/128 [00:03<00:59,  2.05it/s]Calibrating:   5%|▌         | 7/128 [00:04<00:55,  2.20it/s]Calibrating:   6%|▋         | 8/128 [00:04<00:54,  2.21it/s]Calibrating:   7%|▋         | 9/128 [00:05<00:54,  2.17it/s]Calibrating:   8%|▊         | 10/128 [00:05<00:54,  2.15it/s]Calibrating:   9%|▊         | 11/128 [00:06<00:54,  2.14it/s]Calibrating:   9%|▉         | 12/128 [00:06<00:52,  2.20it/s]Calibrating:  10%|█         | 13/128 [00:06<00:50,  2.30it/s]Calibrating:  11%|█         | 14/128 [00:07<00:49,  2.31it/s]Calibrating:  12%|█▏        | 15/128 [00:07<00:48,  2.32it/s]Calibrating:  12%|█▎        | 16/128 [00:08<00:48,  2.31it/s]Calibrating:  13%|█▎        | 17/128 [00:08<00:48,  2.29it/s]Calibrating:  14%|█▍        | 18/128 [00:09<00:49,  2.23it/s]Calibrating:  15%|█▍        | 19/128 [00:09<00:49,  2.21it/s]Calibrating:  16%|█▌        | 20/128 [00:10<00:49,  2.18it/s]Calibrating:  16%|█▋        | 21/128 [00:10<00:49,  2.18it/s]Calibrating:  17%|█▋        | 22/128 [00:11<00:48,  2.17it/s]Calibrating:  18%|█▊        | 23/128 [00:11<00:48,  2.16it/s]Calibrating:  19%|█▉        | 24/128 [00:11<00:48,  2.12it/s]Calibrating:  20%|█▉        | 25/128 [00:12<00:48,  2.11it/s]Calibrating:  20%|██        | 26/128 [00:12<00:47,  2.15it/s]Calibrating:  21%|██        | 27/128 [00:13<01:00,  1.67it/s]Calibrating:  22%|██▏       | 28/128 [00:14<00:57,  1.73it/s]Calibrating:  23%|██▎       | 29/128 [00:14<00:53,  1.85it/s]Calibrating:  23%|██▎       | 30/128 [00:15<00:50,  1.95it/s]Calibrating:  24%|██▍       | 31/128 [00:15<00:47,  2.06it/s]Calibrating:  25%|██▌       | 32/128 [00:16<00:44,  2.14it/s]Calibrating:  26%|██▌       | 33/128 [00:16<00:43,  2.21it/s]Calibrating:  27%|██▋       | 34/128 [00:16<00:41,  2.26it/s]Calibrating:  27%|██▋       | 35/128 [00:17<00:40,  2.29it/s]Calibrating:  28%|██▊       | 36/128 [00:17<00:40,  2.29it/s]Calibrating:  29%|██▉       | 37/128 [00:18<00:40,  2.27it/s]Calibrating:  30%|██▉       | 38/128 [00:18<00:39,  2.27it/s]Calibrating:  30%|███       | 39/128 [00:19<00:39,  2.27it/s]Calibrating:  31%|███▏      | 40/128 [00:19<00:38,  2.26it/s]Calibrating:  32%|███▏      | 41/128 [00:19<00:38,  2.27it/s]Calibrating:  33%|███▎      | 42/128 [00:20<00:37,  2.28it/s]Calibrating:  34%|███▎      | 43/128 [00:20<00:37,  2.29it/s]Calibrating:  34%|███▍      | 44/128 [00:21<00:37,  2.26it/s]Calibrating:  35%|███▌      | 45/128 [00:21<00:37,  2.21it/s]Calibrating:  36%|███▌      | 46/128 [00:22<00:38,  2.15it/s]Calibrating:  37%|███▋      | 47/128 [00:22<00:38,  2.13it/s]Calibrating:  38%|███▊      | 48/128 [00:23<00:37,  2.11it/s]Calibrating:  38%|███▊      | 49/128 [00:23<00:37,  2.09it/s]Calibrating:  39%|███▉      | 50/128 [00:24<00:37,  2.10it/s]Calibrating:  40%|███▉      | 51/128 [00:24<00:36,  2.09it/s]Calibrating:  41%|████      | 52/128 [00:25<00:36,  2.10it/s]Calibrating:  41%|████▏     | 53/128 [00:25<00:38,  1.97it/s]Calibrating:  42%|████▏     | 54/128 [00:26<00:39,  1.87it/s]Calibrating:  43%|████▎     | 55/128 [00:26<00:40,  1.82it/s]Calibrating:  44%|████▍     | 56/128 [00:27<00:39,  1.80it/s]Calibrating:  45%|████▍     | 57/128 [00:28<00:40,  1.76it/s]Calibrating:  45%|████▌     | 58/128 [00:28<00:39,  1.76it/s]Calibrating:  46%|████▌     | 59/128 [00:29<00:39,  1.76it/s]Calibrating:  47%|████▋     | 60/128 [00:29<00:36,  1.85it/s]Calibrating:  48%|████▊     | 61/128 [00:30<00:35,  1.91it/s]Calibrating:  48%|████▊     | 62/128 [00:30<00:33,  1.96it/s]Calibrating:  49%|████▉     | 63/128 [00:31<00:31,  2.04it/s]Calibrating:  50%|█████     | 64/128 [00:31<00:30,  2.11it/s]Calibrating:  51%|█████     | 65/128 [00:31<00:29,  2.16it/s]Calibrating:  52%|█████▏    | 66/128 [00:32<00:28,  2.18it/s]Calibrating:  52%|█████▏    | 67/128 [00:32<00:27,  2.20it/s]Calibrating:  53%|█████▎    | 68/128 [00:33<00:27,  2.21it/s]Calibrating:  54%|█████▍    | 69/128 [00:33<00:26,  2.26it/s]Calibrating:  55%|█████▍    | 70/128 [00:34<00:25,  2.30it/s]Calibrating:  55%|█████▌    | 71/128 [00:34<00:24,  2.29it/s]Calibrating:  56%|█████▋    | 72/128 [00:35<00:24,  2.27it/s]Calibrating:  57%|█████▋    | 73/128 [00:35<00:24,  2.27it/s]Calibrating:  58%|█████▊    | 74/128 [00:35<00:23,  2.28it/s]Calibrating:  59%|█████▊    | 75/128 [00:36<00:23,  2.27it/s]Calibrating:  59%|█████▉    | 76/128 [00:36<00:22,  2.34it/s]Calibrating:  60%|██████    | 77/128 [00:37<00:21,  2.36it/s]Calibrating:  61%|██████    | 78/128 [00:37<00:21,  2.30it/s]Calibrating:  62%|██████▏   | 79/128 [00:38<00:21,  2.27it/s]Calibrating:  62%|██████▎   | 80/128 [00:38<00:22,  2.18it/s]Calibrating:  63%|██████▎   | 81/128 [00:38<00:20,  2.26it/s]Calibrating:  64%|██████▍   | 82/128 [00:39<00:19,  2.36it/s]Calibrating:  65%|██████▍   | 83/128 [00:39<00:18,  2.43it/s]Calibrating:  66%|██████▌   | 84/128 [00:40<00:17,  2.51it/s]Calibrating:  66%|██████▋   | 85/128 [00:40<00:16,  2.58it/s]Calibrating:  67%|██████▋   | 86/128 [00:40<00:16,  2.57it/s]Calibrating:  68%|██████▊   | 87/128 [00:41<00:16,  2.42it/s]Calibrating:  69%|██████▉   | 88/128 [00:41<00:16,  2.46it/s]Calibrating:  70%|██████▉   | 89/128 [00:42<00:15,  2.54it/s]Calibrating:  70%|███████   | 90/128 [00:42<00:14,  2.62it/s]Calibrating:  71%|███████   | 91/128 [00:42<00:13,  2.64it/s]Calibrating:  72%|███████▏  | 92/128 [00:43<00:14,  2.54it/s]Calibrating:  73%|███████▎  | 93/128 [00:43<00:14,  2.48it/s]Calibrating:  73%|███████▎  | 94/128 [00:44<00:13,  2.48it/s]Calibrating:  74%|███████▍  | 95/128 [00:44<00:13,  2.36it/s]Calibrating:  75%|███████▌  | 96/128 [00:45<00:13,  2.32it/s]Calibrating:  76%|███████▌  | 97/128 [00:45<00:13,  2.30it/s]Calibrating:  77%|███████▋  | 98/128 [00:45<00:13,  2.26it/s]Calibrating:  77%|███████▋  | 99/128 [00:46<00:12,  2.26it/s]Calibrating:  78%|███████▊  | 100/128 [00:46<00:12,  2.28it/s]Calibrating:  79%|███████▉  | 101/128 [00:47<00:12,  2.23it/s]Calibrating:  80%|███████▉  | 102/128 [00:47<00:11,  2.18it/s]Calibrating:  80%|████████  | 103/128 [00:48<00:11,  2.24it/s]Calibrating:  81%|████████▏ | 104/128 [00:48<00:10,  2.29it/s]Calibrating:  82%|████████▏ | 105/128 [00:48<00:09,  2.32it/s]Calibrating:  83%|████████▎ | 106/128 [00:49<00:09,  2.28it/s]Calibrating:  84%|████████▎ | 107/128 [00:49<00:09,  2.28it/s]Calibrating:  84%|████████▍ | 108/128 [00:50<00:08,  2.31it/s]Calibrating:  85%|████████▌ | 109/128 [00:50<00:08,  2.32it/s]Calibrating:  86%|████████▌ | 110/128 [00:51<00:07,  2.33it/s]Calibrating:  87%|████████▋ | 111/128 [00:51<00:07,  2.34it/s]Calibrating:  88%|████████▊ | 112/128 [00:52<00:06,  2.34it/s]Calibrating:  88%|████████▊ | 113/128 [00:52<00:06,  2.37it/s]Calibrating:  89%|████████▉ | 114/128 [00:52<00:05,  2.39it/s]Calibrating:  90%|████████▉ | 115/128 [00:53<00:05,  2.39it/s]Calibrating:  91%|█████████ | 116/128 [00:53<00:04,  2.41it/s]Calibrating:  91%|█████████▏| 117/128 [00:54<00:04,  2.41it/s]Calibrating:  92%|█████████▏| 118/128 [00:54<00:04,  2.42it/s]Calibrating:  93%|█████████▎| 119/128 [00:54<00:03,  2.44it/s]Calibrating:  94%|█████████▍| 120/128 [00:55<00:03,  2.43it/s]Calibrating:  95%|█████████▍| 121/128 [00:55<00:02,  2.45it/s]Calibrating:  95%|█████████▌| 122/128 [00:56<00:02,  2.44it/s]Calibrating:  96%|█████████▌| 123/128 [00:56<00:02,  2.41it/s]Calibrating:  97%|█████████▋| 124/128 [00:56<00:01,  2.37it/s]Calibrating:  98%|█████████▊| 125/128 [00:57<00:01,  2.40it/s]Calibrating:  98%|█████████▊| 126/128 [00:57<00:00,  2.39it/s]Calibrating:  99%|█████████▉| 127/128 [00:58<00:00,  2.41it/s]Calibrating: 100%|██████████| 128/128 [00:58<00:00,  2.40it/s]Calibrating: 100%|██████████| 128/128 [00:58<00:00,  2.18it/s]
+model.embed_tokens.weight_quantizer                                              TensorQuantizer(disabled)
+model.embed_tokens.input_quantizer                                               HardDisabledTensorQuantizer(disabled)
+model.embed_tokens.output_quantizer                                              TensorQuantizer(disabled)
+model.layers.0.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.19e+01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.0.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.39e-01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.19e+01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.0.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.21e-01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.19e+01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.0.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.71e-02 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=3.11e+00 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.0.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.89e-01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=6.98e+01 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.72e+02 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=3.18e+00 calibrator=MaxCalibrator quant)
+model.layers.0.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.0.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.08e+01 calibrator=MaxCalibrator quant)
+model.layers.0.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.0.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.13e-01 calibrator=MaxCalibrator quant)
+model.layers.0.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=1.08e+01 calibrator=MaxCalibrator quant)
+model.layers.0.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.0.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.42e-01 calibrator=MaxCalibrator quant)
+model.layers.0.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.90e+01 calibrator=MaxCalibrator quant)
+model.layers.0.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.0.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.12e-01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.74e+01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.1.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=6.68e-01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.74e+01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.1.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.77e-01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.74e+01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.1.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.27e-01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.65e+00 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.1.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.26e-01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=4.46e+01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=6.38e+01 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.99e+00 calibrator=MaxCalibrator quant)
+model.layers.1.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.1.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.54e+02 calibrator=MaxCalibrator quant)
+model.layers.1.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.1.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.68e-01 calibrator=MaxCalibrator quant)
+model.layers.1.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=1.54e+02 calibrator=MaxCalibrator quant)
+model.layers.1.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.1.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=3.52e-01 calibrator=MaxCalibrator quant)
+model.layers.1.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.28e+01 calibrator=MaxCalibrator quant)
+model.layers.1.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.1.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.09e-01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.16e+01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.2.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.02e-01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.16e+01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.2.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.97e-01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.16e+01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.2.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.96e-02 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=4.29e+00 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.2.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.42e-01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.74e+01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=3.44e+01 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=4.41e+00 calibrator=MaxCalibrator quant)
+model.layers.2.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.2.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.24e+02 calibrator=MaxCalibrator quant)
+model.layers.2.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.2.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.59e-01 calibrator=MaxCalibrator quant)
+model.layers.2.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=1.24e+02 calibrator=MaxCalibrator quant)
+model.layers.2.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.2.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=3.81e-01 calibrator=MaxCalibrator quant)
+model.layers.2.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.68e+01 calibrator=MaxCalibrator quant)
+model.layers.2.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.2.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.56e-01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.11e+01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.3.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e-01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.11e+01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.3.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.25e-01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.11e+01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.3.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.02e-01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.75e+00 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.3.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.28e-01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.79e+01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=7.44e+01 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=3.63e+00 calibrator=MaxCalibrator quant)
+model.layers.3.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.3.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.17e+02 calibrator=MaxCalibrator quant)
+model.layers.3.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.3.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.98e-01 calibrator=MaxCalibrator quant)
+model.layers.3.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=1.17e+02 calibrator=MaxCalibrator quant)
+model.layers.3.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.3.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.20e-01 calibrator=MaxCalibrator quant)
+model.layers.3.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=2.96e+02 calibrator=MaxCalibrator quant)
+model.layers.3.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.3.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.72e-01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.81e+01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.4.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.49e-01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.81e+01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.4.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.83e-01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.81e+01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.4.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.07e-01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=5.46e+00 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.4.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.93e-01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=2.56e+01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.29e+01 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=5.90e+00 calibrator=MaxCalibrator quant)
+model.layers.4.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.4.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=8.46e+01 calibrator=MaxCalibrator quant)
+model.layers.4.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.4.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.24e-01 calibrator=MaxCalibrator quant)
+model.layers.4.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=8.46e+01 calibrator=MaxCalibrator quant)
+model.layers.4.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.4.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.69e-01 calibrator=MaxCalibrator quant)
+model.layers.4.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.78e+02 calibrator=MaxCalibrator quant)
+model.layers.4.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.4.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.64e-01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.79e+01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.5.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.59e-01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.79e+01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.5.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.16e-01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=1.79e+01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.5.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.10e-01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=5.07e+00 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.5.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.63e-01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=2.63e+01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.80e+01 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=5.82e+00 calibrator=MaxCalibrator quant)
+model.layers.5.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.5.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.44e+02 calibrator=MaxCalibrator quant)
+model.layers.5.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.5.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.95e-01 calibrator=MaxCalibrator quant)
+model.layers.5.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=1.44e+02 calibrator=MaxCalibrator quant)
+model.layers.5.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.5.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=5.20e-01 calibrator=MaxCalibrator quant)
+model.layers.5.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=7.93e+01 calibrator=MaxCalibrator quant)
+model.layers.5.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.5.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.68e-01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.6.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.32e-01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.6.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.84e-01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.6.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.05e-01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=4.53e+00 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.6.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.77e-01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=3.52e+01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.83e+01 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=6.20e+00 calibrator=MaxCalibrator quant)
+model.layers.6.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.6.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.76e+01 calibrator=MaxCalibrator quant)
+model.layers.6.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.6.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.20e-01 calibrator=MaxCalibrator quant)
+model.layers.6.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=4.76e+01 calibrator=MaxCalibrator quant)
+model.layers.6.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.6.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=5.70e-01 calibrator=MaxCalibrator quant)
+model.layers.6.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=3.99e+01 calibrator=MaxCalibrator quant)
+model.layers.6.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.6.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=7.97e-01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.12e+01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.7.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.62e-01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.12e+01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.7.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e-01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.12e+01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.7.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.68e-01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=4.60e+00 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.7.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.39e-01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=2.00e+01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.59e+01 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=7.77e+00 calibrator=MaxCalibrator quant)
+model.layers.7.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.7.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=3.39e+01 calibrator=MaxCalibrator quant)
+model.layers.7.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.7.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.20e-01 calibrator=MaxCalibrator quant)
+model.layers.7.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=3.39e+01 calibrator=MaxCalibrator quant)
+model.layers.7.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.7.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=5.31e-01 calibrator=MaxCalibrator quant)
+model.layers.7.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.94e+01 calibrator=MaxCalibrator quant)
+model.layers.7.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.7.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=7.23e-01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.20e+01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.8.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.30e-01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.20e+01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.8.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.20e-01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.20e+01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.8.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.12e-01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=5.88e+00 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.8.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.16e-01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.62e+01 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=7.25e+00 calibrator=MaxCalibrator quant)
+model.layers.8.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.8.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=3.32e+01 calibrator=MaxCalibrator quant)
+model.layers.8.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.8.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.08e-01 calibrator=MaxCalibrator quant)
+model.layers.8.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=3.32e+01 calibrator=MaxCalibrator quant)
+model.layers.8.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.8.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.77e-01 calibrator=MaxCalibrator quant)
+model.layers.8.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.36e+01 calibrator=MaxCalibrator quant)
+model.layers.8.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.8.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=7.03e-01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.q_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.q_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.9.self_attn.q_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.22e-01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.k_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.k_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.9.self_attn.k_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.21e-01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.v_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.v_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.9.self_attn.v_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.35e-01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.o_proj.input_quantizer                                  TensorQuantizer((4, 3) bit fake per-tensor amax=6.52e+00 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.o_proj.output_quantizer                                 TensorQuantizer(disabled)
+model.layers.9.self_attn.o_proj.weight_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=6.84e-01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.q_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.87e+01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.k_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=1.93e+01 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.v_bmm_quantizer                                         TensorQuantizer((4, 3) bit fake per-tensor amax=6.66e+00 calibrator=MaxCalibrator quant)
+model.layers.9.self_attn.softmax_quantizer                                       TensorQuantizer(disabled)
+model.layers.9.mlp.gate_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.68e+01 calibrator=MaxCalibrator quant)
+model.layers.9.mlp.gate_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.9.mlp.gate_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.27e-01 calibrator=MaxCalibrator quant)
+model.layers.9.mlp.up_proj.input_quantizer                                       TensorQuantizer((4, 3) bit fake per-tensor amax=4.68e+01 calibrator=MaxCalibrator quant)
+model.layers.9.mlp.up_proj.output_quantizer                                      TensorQuantizer(disabled)
+model.layers.9.mlp.up_proj.weight_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.63e-01 calibrator=MaxCalibrator quant)
+model.layers.9.mlp.down_proj.input_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.74e+01 calibrator=MaxCalibrator quant)
+model.layers.9.mlp.down_proj.output_quantizer                                    TensorQuantizer(disabled)
+model.layers.9.mlp.down_proj.weight_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=7.42e-01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.29e+01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.10.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.30e-01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.29e+01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.10.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.94e-01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.29e+01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.10.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.31e-01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.07e+00 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.10.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.51e-01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.87e+01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.54e+01 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=5.35e+00 calibrator=MaxCalibrator quant)
+model.layers.10.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.10.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.74e+01 calibrator=MaxCalibrator quant)
+model.layers.10.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.10.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.60e-01 calibrator=MaxCalibrator quant)
+model.layers.10.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.74e+01 calibrator=MaxCalibrator quant)
+model.layers.10.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.10.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=6.25e-01 calibrator=MaxCalibrator quant)
+model.layers.10.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=4.55e+01 calibrator=MaxCalibrator quant)
+model.layers.10.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.10.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.85e-01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.42e+01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.11.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.79e-01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.42e+01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.11.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.11e-01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.42e+01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.11.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.08e-01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.22e+00 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.11.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.66e-01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=3.64e+01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.49e+01 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=6.01e+00 calibrator=MaxCalibrator quant)
+model.layers.11.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.11.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.94e+01 calibrator=MaxCalibrator quant)
+model.layers.11.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.11.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=4.77e-01 calibrator=MaxCalibrator quant)
+model.layers.11.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.94e+01 calibrator=MaxCalibrator quant)
+model.layers.11.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.11.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.02e-01 calibrator=MaxCalibrator quant)
+model.layers.11.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.46e+02 calibrator=MaxCalibrator quant)
+model.layers.11.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.11.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.03e-01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.78e+01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.12.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.11e-01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.78e+01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.12.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.17e-01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.78e+01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.12.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.12e-01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.47e+00 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.12.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.53e-01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.76e+01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.11e+01 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=7.65e+00 calibrator=MaxCalibrator quant)
+model.layers.12.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.12.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.12.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.12.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.99e-01 calibrator=MaxCalibrator quant)
+model.layers.12.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.54e+01 calibrator=MaxCalibrator quant)
+model.layers.12.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.12.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=9.45e-01 calibrator=MaxCalibrator quant)
+model.layers.12.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=4.25e+01 calibrator=MaxCalibrator quant)
+model.layers.12.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.12.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=1.02e+00 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e+01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.13.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.88e-01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e+01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.13.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.38e-01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e+01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.13.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.56e-01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.48e+00 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.13.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=6.21e-01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.66e+01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=4.57e+01 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=6.46e+00 calibrator=MaxCalibrator quant)
+model.layers.13.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.13.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.88e+01 calibrator=MaxCalibrator quant)
+model.layers.13.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.13.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=5.94e-01 calibrator=MaxCalibrator quant)
+model.layers.13.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.88e+01 calibrator=MaxCalibrator quant)
+model.layers.13.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.13.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.04e-01 calibrator=MaxCalibrator quant)
+model.layers.13.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.18e+01 calibrator=MaxCalibrator quant)
+model.layers.13.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.13.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.58e-01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.27e+01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.14.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.32e-01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.27e+01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.14.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.14e-01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.27e+01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.14.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.34e-01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.71e+00 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.14.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.05e+00 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=3.00e+01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.02e+01 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=6.18e+00 calibrator=MaxCalibrator quant)
+model.layers.14.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.14.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.81e+01 calibrator=MaxCalibrator quant)
+model.layers.14.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.14.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.13e-01 calibrator=MaxCalibrator quant)
+model.layers.14.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.81e+01 calibrator=MaxCalibrator quant)
+model.layers.14.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.14.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.27e-01 calibrator=MaxCalibrator quant)
+model.layers.14.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.69e+01 calibrator=MaxCalibrator quant)
+model.layers.14.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.14.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.30e-01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.42e+01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.15.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.34e-01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.42e+01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.15.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.67e-01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.42e+01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.15.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.47e-01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=6.62e+00 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.15.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.36e-01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=3.02e+01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.88e+01 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=7.05e+00 calibrator=MaxCalibrator quant)
+model.layers.15.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.15.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.67e+01 calibrator=MaxCalibrator quant)
+model.layers.15.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.15.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.48e-01 calibrator=MaxCalibrator quant)
+model.layers.15.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.67e+01 calibrator=MaxCalibrator quant)
+model.layers.15.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.15.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.88e-01 calibrator=MaxCalibrator quant)
+model.layers.15.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.77e+01 calibrator=MaxCalibrator quant)
+model.layers.15.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.15.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.62e-01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.56e+01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.16.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.77e-01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.56e+01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.16.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.30e-01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.56e+01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.16.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.37e-01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=6.94e+00 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.16.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.90e-01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.23e+01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.20e+01 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=7.88e+00 calibrator=MaxCalibrator quant)
+model.layers.16.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.16.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.56e+01 calibrator=MaxCalibrator quant)
+model.layers.16.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.16.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=8.79e-01 calibrator=MaxCalibrator quant)
+model.layers.16.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.56e+01 calibrator=MaxCalibrator quant)
+model.layers.16.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.16.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.39e-01 calibrator=MaxCalibrator quant)
+model.layers.16.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.52e+01 calibrator=MaxCalibrator quant)
+model.layers.16.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.16.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.30e-01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.95e+01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.17.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.83e-01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.95e+01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.17.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.11e-01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.95e+01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.17.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.54e-01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.89e+00 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.17.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=8.95e-01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.24e+01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.72e+01 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=6.88e+00 calibrator=MaxCalibrator quant)
+model.layers.17.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.17.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.61e+01 calibrator=MaxCalibrator quant)
+model.layers.17.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.17.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=5.12e-01 calibrator=MaxCalibrator quant)
+model.layers.17.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.61e+01 calibrator=MaxCalibrator quant)
+model.layers.17.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.17.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=6.45e-01 calibrator=MaxCalibrator quant)
+model.layers.17.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.88e+01 calibrator=MaxCalibrator quant)
+model.layers.17.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.17.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.23e-01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.00e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.18.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.05e-01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.00e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.18.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e-01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.00e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.18.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.57e-01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.40e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.18.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.35e-01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=5.59e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.64e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.64e+01 calibrator=MaxCalibrator quant)
+model.layers.18.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.18.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.87e+01 calibrator=MaxCalibrator quant)
+model.layers.18.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.18.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=8.63e-01 calibrator=MaxCalibrator quant)
+model.layers.18.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.87e+01 calibrator=MaxCalibrator quant)
+model.layers.18.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.18.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.74e-01 calibrator=MaxCalibrator quant)
+model.layers.18.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=4.28e+01 calibrator=MaxCalibrator quant)
+model.layers.18.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.18.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=8.59e-01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.33e+01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.19.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.28e-01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.33e+01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.19.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e-01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.33e+01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.19.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.47e-01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=6.61e+00 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.19.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.77e-01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=6.19e+01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=5.11e+01 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=7.64e+00 calibrator=MaxCalibrator quant)
+model.layers.19.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.19.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.01e+01 calibrator=MaxCalibrator quant)
+model.layers.19.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.19.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=9.65e-01 calibrator=MaxCalibrator quant)
+model.layers.19.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.01e+01 calibrator=MaxCalibrator quant)
+model.layers.19.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.19.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.86e-01 calibrator=MaxCalibrator quant)
+model.layers.19.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.01e+02 calibrator=MaxCalibrator quant)
+model.layers.19.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.19.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.77e-01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.90e+01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.20.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.25e-01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.90e+01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.20.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.25e-01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.90e+01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.20.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.73e-01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.80e+00 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.20.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.20e-01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.55e+01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.44e+01 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=8.43e+00 calibrator=MaxCalibrator quant)
+model.layers.20.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.20.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.20.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.20.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.46e-01 calibrator=MaxCalibrator quant)
+model.layers.20.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.20.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.20.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=1.16e+00 calibrator=MaxCalibrator quant)
+model.layers.20.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.90e+01 calibrator=MaxCalibrator quant)
+model.layers.20.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.20.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=1.02e+00 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.10e+01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.21.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.58e-01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.10e+01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.21.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.32e-01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.10e+01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.21.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.99e-01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.18e+00 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.21.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.34e-01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.53e+01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.72e+01 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=8.62e+00 calibrator=MaxCalibrator quant)
+model.layers.21.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.21.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=2.83e+01 calibrator=MaxCalibrator quant)
+model.layers.21.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.21.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.88e-01 calibrator=MaxCalibrator quant)
+model.layers.21.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=2.83e+01 calibrator=MaxCalibrator quant)
+model.layers.21.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.21.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=6.64e-01 calibrator=MaxCalibrator quant)
+model.layers.21.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=8.02e+01 calibrator=MaxCalibrator quant)
+model.layers.21.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.21.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.42e-01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.66e+01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.22.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.03e-01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.66e+01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.22.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.40e-01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.66e+01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.22.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.47e-01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.67e+00 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.22.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.87e-01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.26e+01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.61e+01 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=9.50e+00 calibrator=MaxCalibrator quant)
+model.layers.22.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.22.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.62e+01 calibrator=MaxCalibrator quant)
+model.layers.22.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.22.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.88e-01 calibrator=MaxCalibrator quant)
+model.layers.22.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=3.62e+01 calibrator=MaxCalibrator quant)
+model.layers.22.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.22.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.78e-01 calibrator=MaxCalibrator quant)
+model.layers.22.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.38e+02 calibrator=MaxCalibrator quant)
+model.layers.22.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.22.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.88e-01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.26e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.23.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.71e-01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.26e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.23.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.89e-01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=3.26e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.23.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.13e-01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.31e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.23.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.94e-01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.15e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.83e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.92e+01 calibrator=MaxCalibrator quant)
+model.layers.23.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.23.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=4.62e+01 calibrator=MaxCalibrator quant)
+model.layers.23.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.23.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=5.04e-01 calibrator=MaxCalibrator quant)
+model.layers.23.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.62e+01 calibrator=MaxCalibrator quant)
+model.layers.23.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.23.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=4.84e-01 calibrator=MaxCalibrator quant)
+model.layers.23.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.93e+02 calibrator=MaxCalibrator quant)
+model.layers.23.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.23.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.41e-01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.38e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.24.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.52e-01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.38e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.24.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.23e-01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.38e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.24.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.42e-01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.36e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.24.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=6.68e-01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=3.03e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.77e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.60e+01 calibrator=MaxCalibrator quant)
+model.layers.24.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.24.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=4.96e+01 calibrator=MaxCalibrator quant)
+model.layers.24.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.24.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=4.63e-01 calibrator=MaxCalibrator quant)
+model.layers.24.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=4.96e+01 calibrator=MaxCalibrator quant)
+model.layers.24.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.24.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=6.33e-01 calibrator=MaxCalibrator quant)
+model.layers.24.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.96e+02 calibrator=MaxCalibrator quant)
+model.layers.24.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.24.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.11e-01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.26e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.25.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.34e-01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.26e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.25.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.98e-01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=4.26e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.25.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.73e-01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.81e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.25.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.39e-01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.27e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.81e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.88e+01 calibrator=MaxCalibrator quant)
+model.layers.25.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.25.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=5.37e+01 calibrator=MaxCalibrator quant)
+model.layers.25.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.25.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=5.00e-01 calibrator=MaxCalibrator quant)
+model.layers.25.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=5.37e+01 calibrator=MaxCalibrator quant)
+model.layers.25.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.25.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=7.34e-01 calibrator=MaxCalibrator quant)
+model.layers.25.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.34e+02 calibrator=MaxCalibrator quant)
+model.layers.25.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.25.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=8.28e-01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.33e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.26.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.77e-01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.33e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.26.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=1.88e-01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=5.33e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.26.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.95e-01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=2.92e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.26.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=5.51e-01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=2.33e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=1.61e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=3.32e+01 calibrator=MaxCalibrator quant)
+model.layers.26.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.26.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=1.13e+02 calibrator=MaxCalibrator quant)
+model.layers.26.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.26.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=6.21e-01 calibrator=MaxCalibrator quant)
+model.layers.26.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=1.13e+02 calibrator=MaxCalibrator quant)
+model.layers.26.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.26.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=5.82e-01 calibrator=MaxCalibrator quant)
+model.layers.26.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=6.14e+03 calibrator=MaxCalibrator quant)
+model.layers.26.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.26.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=7.97e-01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.q_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.18e+02 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.q_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.27.self_attn.q_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=4.69e-01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.k_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.18e+02 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.k_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.27.self_attn.k_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=2.04e-01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.v_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=1.18e+02 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.v_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.27.self_attn.v_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=3.38e-01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.o_proj.input_quantizer                                 TensorQuantizer((4, 3) bit fake per-tensor amax=7.51e+01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.o_proj.output_quantizer                                TensorQuantizer(disabled)
+model.layers.27.self_attn.o_proj.weight_quantizer                                TensorQuantizer((4, 3) bit fake per-tensor amax=7.11e-01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.q_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=8.74e+01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.k_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=4.21e+02 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.v_bmm_quantizer                                        TensorQuantizer((4, 3) bit fake per-tensor amax=7.51e+01 calibrator=MaxCalibrator quant)
+model.layers.27.self_attn.softmax_quantizer                                      TensorQuantizer(disabled)
+model.layers.27.mlp.gate_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=9.69e+01 calibrator=MaxCalibrator quant)
+model.layers.27.mlp.gate_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.27.mlp.gate_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=3.98e-01 calibrator=MaxCalibrator quant)
+model.layers.27.mlp.up_proj.input_quantizer                                      TensorQuantizer((4, 3) bit fake per-tensor amax=9.69e+01 calibrator=MaxCalibrator quant)
+model.layers.27.mlp.up_proj.output_quantizer                                     TensorQuantizer(disabled)
+model.layers.27.mlp.up_proj.weight_quantizer                                     TensorQuantizer((4, 3) bit fake per-tensor amax=3.96e-01 calibrator=MaxCalibrator quant)
+model.layers.27.mlp.down_proj.input_quantizer                                    TensorQuantizer((4, 3) bit fake per-tensor amax=3.89e+03 calibrator=MaxCalibrator quant)
+model.layers.27.mlp.down_proj.output_quantizer                                   TensorQuantizer(disabled)
+model.layers.27.mlp.down_proj.weight_quantizer                                   TensorQuantizer((4, 3) bit fake per-tensor amax=9.84e-01 calibrator=MaxCalibrator quant)
+lm_head.input_quantizer                                                          TensorQuantizer(disabled)
+lm_head.output_quantizer                                                         TensorQuantizer(disabled)
+lm_head.weight_quantizer                                                         TensorQuantizer(disabled)
+706 TensorQuantizers found in model
+/work/venv/lib/python3.12/site-packages/modelopt/torch/export/unified_export_hf.py:571: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  weight_scaling_factor = torch.tensor(weight_quantizer.amax / weight_quantizer.maxbound)
+Large KV activations detected. Quantized KV cache may lead to higher accuracy drop.
+Quantization: 69.5s
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:33<00:00, 33.23s/it]Writing model shards: 100%|██████████| 1/1 [00:33<00:00, 33.23s/it]
+Exported calibrated Q-BMM scales for 28 attention layer(s).
+Saved to /work/qwen2.5-7b-fp8 (total 104.8s)

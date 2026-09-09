@@ -1,0 +1,221 @@
+16:14:03 INFO     edgellm.server: Using cached engine bundle: /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d
+16:14:03 INFO     edgellm.server: Loading runtime bundle from /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d
+[16:14:04.059] [INFO] [trtUtils.h:75:loadEdgellmPluginLib] EDGELLM_PLUGIN_PATH variable is not set. Default to build/libNvInfer_edgellm_plugin.so
+[16:14:05.096] [INFO] [externalWeightManager.cpp:888:load] Prepared 58 model weight tensor(s) and the embedding table from checkpoint in 1029 ms (index 2 ms, validate 0 ms, map/register 758 ms, peak mapped source 33558528 bytes, arena 2180398080 bytes, aliases saved 0 bytes in 20 ms, transform 1005 ms)
+[16:14:05.096] [INFO] [llmEngineConfig.cpp:672:parseEngineConfig] reading /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d/config.json
+[16:14:05.096] [INFO] [llmRuntimeUtils.cpp:422:collectRopeConfig] Collected rope config: RopeConfig:  type: Default  rotaryScale: 1  rotaryTheta: 1e+06  partialRotaryFactor: 1  maxPositionEmbeddings: 32768
+[16:14:05.096] [INFO] [llmEngineConfig.cpp:887:parseEngineConfig] LLMEngineConfig{ hiddenSize=3584 vocabSize=152064 outputVocabSize=152064 numDecoderLayers=28 numAttentionLayers=28 numKVHeads=4 headDim=128 rotaryDim=128 maxBatch=1 maxInputLen=2048 maxKVCapacity=8192 kvPoolPages=64 pleEnabled=false numPleInputs=0 pleHiddenSize=0 isSpecDecodeBase=false specDecodeType=0 loraRank=0 eosTokenIds=[151645] }
+[16:14:05.097] [INFO] [engineExecutor.cpp:135:TrtEngineExecutor] loading engine file: /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d/llm.engine
+[16:14:05.915] [INFO] [TensorRT] [MS] Running engine with multi stream info
+[16:14:05.915] [INFO] [TensorRT] [MS] Number of aux streams is 2
+[16:14:05.915] [INFO] [TensorRT] [MS] Number of total worker streams is 3
+[16:14:05.915] [INFO] [TensorRT] [MS] The main stream provided by execute/enqueue calls is the first worker stream
+[16:14:06.050] [INFO] [TensorRT] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +0, now: CPU 0, GPU 6223 (MiB)
+[16:14:06.050] [INFO] [trtUtils.cpp:374:setNonBlockingAuxStreams] configured 2 non-blocking auxiliary stream(s) for execution context
+[16:14:06.050] [INFO] [engineExecutor.cpp:166:TrtEngineExecutor] engine loaded successfully (121 I/O tensors)
+[16:14:06.050] [INFO] [modelArtifacts.cpp:213:loadFromEngineDir] Base EngineExecutor successfully loaded from /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d/llm.engine.
+[16:14:06.050] [INFO] [externalWeightManager.cpp:930:validateAgainstEngine] Validated 58 external weight tensor(s) for base
+[16:14:06.050] [INFO] [modelArtifacts.cpp:144:loadTokenizer] Start loading tokenizer from model directory: /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d
+[16:14:06.345] [INFO] [tokenizer.cpp:603:loadVocabulary] Loaded 151643 vocabulary tokens
+[16:14:06.431] [INFO] [tokenizer.cpp:135:loadFromHF] Loaded 22 special tokens
+[16:14:06.474] [INFO] [tokenizer.cpp:1090:loadChatTemplate] Successfully loaded chat template from /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d/processed_chat_template.json (for model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8)
+[16:14:06.474] [INFO] [tokenizer.cpp:167:loadFromHF] Successfully loaded tokenizer from /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d (vocab_size=151665)
+[16:14:06.493] [INFO] [modelArtifacts.cpp:147:loadTokenizer] Tokenizer successfully loaded from model directory: /opt/edgellm-cache/engines/model-d1b5f1682a1a3c3e/i2048-b1-kv8192-none-f53cfc53189d
+[16:14:06.493] [INFO] [modelArtifacts.cpp:154:loadTokenizer] Loaded 1 EOS token IDs from config
+[16:14:06.493] [INFO] [runtimeCoordinator.cpp:70:RuntimeCoordinator] RuntimeCoordinator running single-device inline (no worker thread).
+[16:14:06.493] [INFO] [llmRankRuntime.cpp:364:initializeCommon] Runtime batch size set to: 1 (from engine bundle)
+[16:14:06.501] [INFO] [ropeCache.cpp:128:getOrCreate] RopeCache: creating new entry (rotaryDim=128, maxSeqLen=8192)
+[16:14:06.502] [INFO] [llmRankRuntime.cpp:533:initializeCommon] Runtime tensors successfully allocated.
+[16:14:06.505] [INFO] [llmRankRuntime.cpp:676:initializeCommon] Setup shared execution context memory: 245366784 bytes (base requires: 245366784, strategy requires: 0, vision requires: 0, audio requires: 0, action requires: 0)
+[16:14:06.505] [INFO] [runtimeCoordinator.cpp:299:operator()] [parallel rank 0/1] Runtime initialized.
+[16:14:06.506] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:06.712] [INFO] [engineExecutor.cpp:360:captureGraph] captured graph (hash=0x8cbe9f77527c91ef)
+[16:14:06.712] [INFO] [decoderRegistry.cpp:126:captureCudaGraphs] Successfully captured decoding CUDA graphs for active decoding strategies.
+16:14:06 INFO     edgellm.server: Engine loaded and ready.
+16:14:06 INFO     edgellm.server: Loaded model=qwen2.5-7b-fp8 max_model_len=8192 kv_cache_dtype=fp8 speculative_decoding=False context_reuse=False
+INFO:     Started server process [746593]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+INFO:     127.0.0.1:37358 - "GET /health HTTP/1.1" 200 OK
+[16:14:07.454] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:07.519] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37368 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:08.649] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:08.691] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37376 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:09.712] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:09.754] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37384 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:10.770] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:10.811] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37390 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:11.824] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:11.865] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37406 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:12.876] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:12.917] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:37412 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:13.935] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:13.976] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34880 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:14.999] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:15.040] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34882 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:16.053] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:16.094] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34886 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:17.106] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:17.147] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34894 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:18.160] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:18.202] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34898 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:19.220] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:19.262] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34900 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:20.282] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:20.323] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34908 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:21.338] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:21.380] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34922 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:22.395] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:22.437] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34938 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:23.448] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:23.490] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:34950 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:24.506] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:24.548] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39878 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:25.566] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:25.607] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39888 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:26.624] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:26.666] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39890 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:27.678] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:27.720] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39896 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:28.733] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:28.774] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39908 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:29.786] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:29.828] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39920 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:30.841] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:30.883] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39924 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:31.897] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:31.939] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39940 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:32.958] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:32.999] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:39946 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:34.019] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:34.061] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59580 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:35.077] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:35.118] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59584 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:36.134] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:36.175] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59598 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:37.190] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:37.232] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59600 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:38.245] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:38.286] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59610 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:39.296] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:39.338] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59626 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:40.354] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:40.395] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59642 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:41.413] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:41.455] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59652 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:42.474] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:42.515] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59658 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:43.536] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:43.577] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:59672 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:44.594] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:44.635] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58166 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:45.649] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:45.691] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58178 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:46.703] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:46.745] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58194 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:47.760] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:47.802] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58208 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:48.812] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:48.853] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58210 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[16:14:49.866] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[16:14:49.908] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:58226 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [746593]
+{
+  "label": "orchestrator_llm_7b-fp8-selfquant-edgellm-thor",
+  "model": "/home/michal/dev/quantize-work/qwen2.5-7b-fp8",
+  "precision": "FP8 static per-tensor + FP8 KV cache, self-quantized via ModelOpt, cnn_dailymail/128",
+  "timestamp": "2026-09-09T16:14:50.922258+02:00",
+  "n_runs": 30,
+  "n_warmup": 11,
+  "warmup_reached_steady_state": true,
+  "cold_start_ms": 4066.3220150163397,
+  "latency_ms": {
+    "min": 1051.8732899799943,
+    "p50": 1057.1083159884438,
+    "p95": 1061.5032249770593,
+    "p99": 1062.0788340165745,
+    "max": 1062.0788340165745,
+    "n": 30
+  },
+  "rss_mb": {
+    "before": 23.875,
+    "peak": 23.875,
+    "steady": 23.875
+  },
+  "system_ram_mb": {
+    "peak": 37674.0,
+    "steady": 37669.375
+  },
+  "power_mw": {
+    "vdd_gpu_soc_mw": null,
+    "vdd_cpu_cv_mw": null,
+    "vin_sys_5v0_mw": {
+      "avg": 19729.04761904762,
+      "min": 19474.0,
+      "max": 19989.0,
+      "n": 63
+    }
+  },
+  "thermal_c": {
+    "start": 70.437,
+    "end": 71.625,
+    "max": 71.718
+  },
+  "nvpmodel_mode": "120W",
+  "jetson_clocks_locked": null,
+  "l4t_version": "R38.4.0",
+  "extra_metadata": {
+    "model_config": "7b-fp8-selfquant-edgellm-thor",
+    "backend": "edge-llm",
+    "platform": "thor",
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 32,
+    "target": "local",
+    "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+  }
+}

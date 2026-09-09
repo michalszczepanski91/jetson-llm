@@ -1159,3 +1159,7 @@ INFO:     127.0.0.1:40372 - "POST /v1/chat/completions HTTP/1.1" 200 OK
 [14:57:10.224] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
 [14:57:10.289] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
 INFO:     127.0.0.1:40374 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [707714]

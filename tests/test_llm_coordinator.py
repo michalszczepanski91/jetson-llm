@@ -338,6 +338,40 @@ def test_edgellm_runs_from_the_source_tree_so_its_trt_plugin_resolves():
     assert mock_popen.call_args[1]["cwd"] == "/opt/TensorRT-Edge-LLM"
 
 
+def test_edgellm_served_model_name_decouples_launch_arg_from_wire_name():
+    # Regression test for a real failure, 2026-09-09: serving a local
+    # checkpoint DIRECTORY makes Edge-LLM register the model under the
+    # directory's basename, so a client sending the full path as `model` gets
+    # HTTP 404 - which silently failed a whole 8-run benchmark suite. The
+    # launch argument and the wire-format name must be independent.
+    proc = _fake_proc()
+    with patch("llm_coordinator.subprocess.Popen", return_value=proc) as mock_popen, \
+         patch("llm_coordinator.urllib.request.urlopen", side_effect=urllib.error.URLError("refused")), \
+         patch("llm_coordinator.os.killpg"):
+        coordinator = EdgeLlmCoordinator(
+            model="/home/michal/dev/quantize-work/qwen2.5-7b-int8_sq",
+            served_model_name="qwen2.5-7b-int8_sq",
+            ready_timeout=0.1,
+        )
+        coordinator.start()
+        coordinator.wait_ready()
+        coordinator.stop()
+
+    cmd = mock_popen.call_args[0][0]
+    # launched with the PATH...
+    assert cmd[1] == "/home/michal/dev/quantize-work/qwen2.5-7b-int8_sq"
+    assert "--served-model-name" in cmd
+    assert cmd[cmd.index("--served-model-name") + 1] == "qwen2.5-7b-int8_sq"
+    # ...but requests must carry the NAME
+    assert coordinator.model == "qwen2.5-7b-int8_sq"
+
+
+def test_edgellm_model_defaults_to_launch_arg_when_no_served_name():
+    # HF repo ids are their own served name, so the common case is unchanged.
+    coordinator = EdgeLlmCoordinator(model="Qwen/Qwen2.5-7B-Instruct")
+    assert coordinator.model == "Qwen/Qwen2.5-7B-Instruct"
+
+
 def test_edgellm_stop_signals_the_process_group_not_just_the_parent():
     proc = _fake_proc()
     proc.pid = 4321

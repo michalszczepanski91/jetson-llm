@@ -39,6 +39,18 @@ _SIZES_EDGELLM = [
     ("Qwen2.5-14B", "14b-fp16-edgellm-thor"),
 ]
 
+# The precision sweep, all at 7B on Edge-LLM, so PRECISION is the only variable.
+# Ordered widest-to-narrowest so accuracy decay (if any) reads top to bottom.
+# GPTQ-Int4 needed patches/edgellm-int4-bias-recipe.patch to build at all; the
+# INT8/FP8 rows had to be self-quantized (no published checkpoint uses the
+# `quant_algo` format Edge-LLM's parser requires) - see configs/models.yaml.
+_PRECISIONS_7B = [
+    ("FP16", "7b-fp16-edgellm-thor"),
+    ("FP8 (self-quant)", "7b-fp8-selfquant-edgellm-thor"),
+    ("INT8-SQ (self-quant)", "7b-int8sq-selfquant-edgellm-thor"),
+    ("INT4 GPTQ", "7b-gptq-edgellm-thor"),
+]
+
 
 def _load(name: str):
     """Result files are a list of runs; the last one is the run of record."""
@@ -146,6 +158,12 @@ def main():
             "Size sweep, framework fixed at Edge-LLM",
             _SIZES_EDGELLM,
             ["overall", "irrelevance", "mmlu", "ttft", "toks", "turn32", "cold"],
+            pass_name,
+        ))
+        print(_table(
+            "Precision sweep at 7B, framework fixed at Edge-LLM",
+            _PRECISIONS_7B,
+            ["overall", "simple", "irrelevance", "mmlu", "ttft", "toks", "turn32", "cold"],
             pass_name,
         ))
     print("\n⚠ = the harness reported warmup_reached_steady_state=false; re-run before reporting.\n")

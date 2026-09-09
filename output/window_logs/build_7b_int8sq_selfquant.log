@@ -1,0 +1,110 @@
+15:52:22 INFO     experimental.builder.core.builder: Loaded plugin library build/libNvInfer_edgellm_plugin.so
+15:52:22 INFO     experimental.builder: Building 1 engines for qwen2: llm
+15:52:22 INFO     experimental.builder: Building component llm
+15:52:22 INFO     experimental.builder.core.builder: model_type=qwen2 layers=28 hidden=3584 experts=0 quant=int8_sq
+15:52:23 INFO     experimental.builder.core.builder: [TRT] [MemUsageChange] Init CUDA: CPU +17, GPU +0, now: CPU 45, GPU 108919 (MiB)
+15:52:24 INFO     experimental.builder.core.builder: [TRT] [MemUsageChange] Init builder kernel library: CPU +1229, GPU +1234, now: CPU 1475, GPU 110362 (MiB)
+15:52:24 INFO     experimental.builder.core.builder: Externalizing int4_ffn, int4_moe, nvfp4_moe, nvfp4_tp, lm_head, fp16, embedding
+15:52:24 INFO     experimental.builder.core.builder: Detected CUDA device 0 with compute capability 11.0
+[15:52:24.473] [INFO] [pluginJitCompiler.cpp:138:compilePluginJitKernel] Compiled XQA kernel for SM101, dtype=1, kv_dtype=1, head_dim=128, q_heads_per_kv=7, tokens_per_page=128, sliding_window=0, spec_decode=0 with NVRTC (107048 bytes, 154 ms)
+15:52:27 INFO     experimental.builder.core.artifacts.external_weights: Recorded 59 runtime checkpoint binding(s) (source layouts: fp16=59; destination dtypes: F16=59)
+15:52:27 INFO     experimental.builder.core.builder: Building serialized engine (this may take several minutes)...
+15:52:27 INFO     experimental.builder.core.builder: [TRT] Local timing cache in use. Profiling results in this builder pass will not be stored.
+15:52:27 INFO     experimental.builder.core.builder: [TRT] Compiler backend is used during engine build.
+15:53:15 INFO     experimental.builder.core.builder: [TRT] Detected 92 inputs and 29 output network tensors.
+15:53:15 INFO     experimental.builder.core.builder: [TRT] Total Host Persistent Memory: 80 bytes
+15:53:15 INFO     experimental.builder.core.builder: [TRT] Total Device Persistent Memory: 0 bytes
+15:53:15 INFO     experimental.builder.core.builder: [TRT] Max Scratch Memory: 252706816 bytes
+15:53:15 INFO     experimental.builder.core.builder: [TRT] [BlockAssignment] Started assigning block shifts. This will take 1 steps to complete.
+15:53:15 INFO     experimental.builder.core.builder: [TRT] [BlockAssignment] Algorithm ShiftNTopDown took 0.030565ms to assign 1 blocks to 1 nodes requiring 252706816 bytes.
+15:53:15 INFO     experimental.builder.core.builder: [TRT] Total Activation Memory: 252706816 bytes
+15:53:39 INFO     experimental.builder.core.builder: [TRT] Detected 92 inputs and 29 output network tensors.
+15:53:39 INFO     experimental.builder.core.builder: [TRT] Total Host Persistent Memory: 80 bytes
+15:53:39 INFO     experimental.builder.core.builder: [TRT] Total Device Persistent Memory: 0 bytes
+15:53:39 INFO     experimental.builder.core.builder: [TRT] Max Scratch Memory: 17068032 bytes
+15:53:39 INFO     experimental.builder.core.builder: [TRT] [BlockAssignment] Started assigning block shifts. This will take 1 steps to complete.
+15:53:39 INFO     experimental.builder.core.builder: [TRT] [BlockAssignment] Algorithm ShiftNTopDown took 0.028602ms to assign 1 blocks to 1 nodes requiring 17068032 bytes.
+15:53:39 INFO     experimental.builder.core.builder: [TRT] Total Activation Memory: 17068032 bytes
+15:53:44 INFO     experimental.builder.core.builder: [TRT] Total Weights Memory: 6537855232 bytes
+15:53:44 INFO     experimental.builder.core.builder: [TRT] Compiler backend is used during engine execution.
+15:53:44 INFO     experimental.builder.core.builder: [TRT] Engine generation completed in 76.8797 seconds.
+15:53:44 INFO     experimental.builder.core.builder: [TRT] [MemUsageStats] Peak memory usage of TRT CPU/GPU memory allocators: CPU 0 MiB, GPU 6235 MiB
+15:53:55 INFO     experimental.builder.core.builder: Engine written to /opt/edgellm-cache/engines/model-539410df96ae387d/.building-4udomcl2/llm.engine (6558105548 bytes)
+15:53:55 INFO     experimental.builder.core.builder: Build completed in 92.773 s (checkpoint identity 0.002 s, TensorRT 79.669 s, frontend and serialization 13.102 s)
+15:53:56 INFO     experimental.builder.core.artifacts.runtime_artifacts: Wrote config.json
+15:53:56 INFO     experimental.builder.core.artifacts.runtime_artifacts: Embedding stays in the checkpoint; the runtime loads it through its checkpoint binding
+15:53:57 INFO     experimental.builder.core.artifacts.tokenizer: Copied tokenizer.json
+15:53:57 INFO     experimental.builder.core.artifacts.tokenizer: Copied tokenizer_config.json
+15:53:57 INFO     experimental.builder.core.artifacts.tokenizer: Copied chat_template.jinja
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+15:54:10 INFO     experimental.builder.core.artifacts.chat_template: Chat template saved to /opt/edgellm-cache/engines/model-539410df96ae387d/.building-4udomcl2/processed_chat_template.json
+15:54:10 INFO     edgellm.server: Using cached engine bundle: /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80
+15:54:10 INFO     edgellm.server: Loading runtime bundle from /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80
+[15:54:10.925] [INFO] [trtUtils.h:75:loadEdgellmPluginLib] EDGELLM_PLUGIN_PATH variable is not set. Default to build/libNvInfer_edgellm_plugin.so
+[15:54:25.120] [INFO] [externalWeightManager.cpp:888:load] Prepared 58 model weight tensor(s) and the embedding table from checkpoint in 14183 ms (index 23 ms, validate 0 ms, map/register 13475 ms, peak mapped source 33558528 bytes, arena 2180398080 bytes, aliases saved 0 bytes in 43 ms, transform 14112 ms)
+[15:54:25.123] [INFO] [llmEngineConfig.cpp:672:parseEngineConfig] reading /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80/config.json
+[15:54:25.137] [INFO] [llmRuntimeUtils.cpp:422:collectRopeConfig] Collected rope config: RopeConfig:  type: Default  rotaryScale: 1  rotaryTheta: 1e+06  partialRotaryFactor: 1  maxPositionEmbeddings: 32768
+[15:54:25.137] [INFO] [llmEngineConfig.cpp:887:parseEngineConfig] LLMEngineConfig{ hiddenSize=3584 vocabSize=152064 outputVocabSize=152064 numDecoderLayers=28 numAttentionLayers=28 numKVHeads=4 headDim=128 rotaryDim=128 maxBatch=1 maxInputLen=2048 maxKVCapacity=8192 kvPoolPages=64 pleEnabled=false numPleInputs=0 pleHiddenSize=0 isSpecDecodeBase=false specDecodeType=0 loraRank=0 eosTokenIds=[151645] }
+[15:54:25.138] [INFO] [engineExecutor.cpp:135:TrtEngineExecutor] loading engine file: /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80/llm.engine
+[15:54:27.711] [INFO] [TensorRT] [MS] Running engine with multi stream info
+[15:54:27.711] [INFO] [TensorRT] [MS] Number of aux streams is 2
+[15:54:27.711] [INFO] [TensorRT] [MS] Number of total worker streams is 3
+[15:54:27.711] [INFO] [TensorRT] [MS] The main stream provided by execute/enqueue calls is the first worker stream
+[15:54:27.834] [INFO] [TensorRT] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +0, now: CPU 0, GPU 6234 (MiB)
+[15:54:27.835] [INFO] [trtUtils.cpp:374:setNonBlockingAuxStreams] configured 2 non-blocking auxiliary stream(s) for execution context
+[15:54:27.835] [INFO] [engineExecutor.cpp:166:TrtEngineExecutor] engine loaded successfully (121 I/O tensors)
+[15:54:27.835] [INFO] [modelArtifacts.cpp:213:loadFromEngineDir] Base EngineExecutor successfully loaded from /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80/llm.engine.
+[15:54:27.835] [INFO] [externalWeightManager.cpp:930:validateAgainstEngine] Validated 58 external weight tensor(s) for base
+[15:54:27.835] [INFO] [modelArtifacts.cpp:144:loadTokenizer] Start loading tokenizer from model directory: /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80
+[15:54:28.148] [INFO] [tokenizer.cpp:603:loadVocabulary] Loaded 151643 vocabulary tokens
+[15:54:28.233] [INFO] [tokenizer.cpp:135:loadFromHF] Loaded 22 special tokens
+[15:54:28.278] [INFO] [tokenizer.cpp:1090:loadChatTemplate] Successfully loaded chat template from /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80/processed_chat_template.json (for model: /home/michal/dev/quantize-work/qwen2.5-7b-int8_sq)
+[15:54:28.278] [INFO] [tokenizer.cpp:167:loadFromHF] Successfully loaded tokenizer from /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80 (vocab_size=151665)
+[15:54:28.298] [INFO] [modelArtifacts.cpp:147:loadTokenizer] Tokenizer successfully loaded from model directory: /opt/edgellm-cache/engines/model-539410df96ae387d/i2048-b1-kv8192-none-b282766c9c80
+[15:54:28.298] [INFO] [modelArtifacts.cpp:154:loadTokenizer] Loaded 1 EOS token IDs from config
+[15:54:28.298] [INFO] [runtimeCoordinator.cpp:70:RuntimeCoordinator] RuntimeCoordinator running single-device inline (no worker thread).
+[15:54:28.299] [INFO] [llmRankRuntime.cpp:364:initializeCommon] Runtime batch size set to: 1 (from engine bundle)
+[15:54:28.319] [INFO] [ropeCache.cpp:128:getOrCreate] RopeCache: creating new entry (rotaryDim=128, maxSeqLen=8192)
+[15:54:28.322] [INFO] [llmRankRuntime.cpp:533:initializeCommon] Runtime tensors successfully allocated.
+[15:54:28.330] [INFO] [llmRankRuntime.cpp:676:initializeCommon] Setup shared execution context memory: 252706816 bytes (base requires: 252706816, strategy requires: 0, vision requires: 0, audio requires: 0, action requires: 0)
+[15:54:28.330] [INFO] [runtimeCoordinator.cpp:299:operator()] [parallel rank 0/1] Runtime initialized.
+[15:54:28.331] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:54:28.589] [INFO] [engineExecutor.cpp:360:captureGraph] captured graph (hash=0x4256f8aff65e687e)
+[15:54:28.589] [INFO] [decoderRegistry.cpp:126:captureCudaGraphs] Successfully captured decoding CUDA graphs for active decoding strategies.
+15:54:28 INFO     edgellm.server: Engine loaded and ready.
+15:54:28 INFO     edgellm.server: Loaded model=qwen2.5-7b-int8_sq max_model_len=8192 kv_cache_dtype=fp16 speculative_decoding=False context_reuse=False
+INFO:     Started server process [737210]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8002 (Press CTRL+C to quit)
+[15:54:44.894] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:54:44.994] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+Engine outputs:
+  llm: /opt/edgellm-cache/engines/model-539410df96ae387d/.building-4udomcl2/llm.engine (6558105548 bytes)
+INFO:     127.0.0.1:40162 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+[15:54:45.784] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:54:46.007] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:40166 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:54:58.344] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:54:58.432] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:36260 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:55:11.098] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:55:11.187] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:43184 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:55:12.076] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:55:12.141] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:43200 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:55:12.903] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:55:12.947] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:43212 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:55:13.630] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:55:13.677] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:43216 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[15:55:14.359] [INFO] [TensorRT] Switching optimization profile from: 1 to 0. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+[15:55:14.406] [INFO] [TensorRT] Switching optimization profile from: 0 to 1. Please ensure there are no enqueued operations pending in this context prior to switching profiles
+INFO:     127.0.0.1:40318 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [737210]

@@ -295,6 +295,105 @@ bielik-11b-awq-vllm-orin:
 # and it reveals a routing bug rather than testing int8 at all - see this
 # row's own notes for why Qwen's official GPTQ-Int8 repo does NOT exercise
 # Edge-LLM's real int8 path.
+# --- SELF-QUANTIZED rows, 2026-09-09 ---
+# Every published quantized checkpoint tried for this model was either blocked
+# by Edge-LLM's int4 bias bug (AWQ, GPTQ-Int4, GPTQ-Int8-misrouted) or in a
+# format its parser rejects (llmcompressor FP8-dynamic: "float-quantized" is
+# not accepted, and it carries no static input_scale, which Edge-LLM's FP8
+# loader requires unconditionally). The way out was NOT to hunt for a better
+# checkpoint - it was to MAKE one, with Edge-LLM's own bundled quantizer
+# (`tensorrt-edgellm-quantize`, ModelOpt-based), which by construction emits
+# exactly the `quant_algo` config and static scales the builder expects.
+#
+# Produced on-device from the plain FP16 Qwen2.5-7B-Instruct checkpoint, run
+# inside nvcr.io/nvidia/pytorch:25.12-py3 (the host has no torch, and Jetson
+# torch wheels are fragile to install; that container already ships a
+# platform-correct torch 2.10+cu13 for Thor). Calibration: cnn_dailymail,
+# 128 samples (the tool's default is 512 - reduced for a first pass; re-run
+# larger if a row is promoted). See patches/README.md for the two Edge-LLM
+# bugs that had to be cleared first, and note the container ships modelopt
+# 0.39 whose quant_cfg is a dict, while this code needs 0.45's list form -
+# install nvidia-modelopt==0.45.0 --no-deps into a --system-site-packages
+# venv so the container's own torch is left alone.
+7b-int8sq-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-int8_sq
+  served_model_name: qwen2.5-7b-int8_sq  # Edge-LLM registers a local checkpoint
+    # DIRECTORY under its basename, not the path it was launched with - without
+    # this every request 404s. See EdgeLlmCoordinator's served_model_name comment.
+  precision: "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/128"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    WORKING, 2026-09-09 - this lab's first INT8 row on any backend, and only
+    possible because the checkpoint was made rather than downloaded: its
+    config carries `quant_algo: W8A8_SQ_PER_CHANNEL`, which is the exact
+    string quantization.py matches to reach QUANT_INT8_SQ (`if "W8A8" in
+    algorithm`). No published Qwen2.5-7B checkpoint uses that format. 8.2GB
+    vs FP16's 15GB. Engine built, server up, plain completion correct
+    ("Warsaw"), and unforced tool_choice="auto" returned a correctly
+    structured get_weather({"city":"Warsaw"}) on 5/5 repeated attempts.
+    (One earlier probe appeared to fail; that was a test artifact - it used a
+    terser tool description, so the model judged differently. Not a
+    reliability defect.) Full BFCL/MMLU pending.
+
+7b-fp8-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8
+  served_model_name: qwen2.5-7b-fp8  # see the int8 row above
+  precision: "FP8 static per-tensor + FP8 KV cache, self-quantized via ModelOpt, cnn_dailymail/128"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Quantized 2026-09-09 (`quant_algo: FP8`, `dynamic: false` - STATIC, with
+    calibrated input scales, which is precisely what the rejected llmcompressor
+    FP8-dynamic checkpoint lacked). Also carries fp8 kv_cache_quantization and
+    exported calibrated Q-BMM scales for all 28 attention layers. 8.2GB.
+    NOTE the quantizer's own warning during calibration: "Large KV activations
+    detected. Quantized KV cache may lead to higher accuracy drop" - so if this
+    row underperforms on BFCL/MMLU relative to the INT8 row, re-run it WITHOUT
+    --kv_cache_quantization fp8 before concluding FP8 weights are the problem.
+    Build/serve and full BFCL/MMLU pending.
+
+# --- Remediation rows for the damaged first self-quant attempt, 2026-09-09 ---
+# The first pair came back broken (INT8: MMLU 67.5%->44.5%; FP8: 0/50 tool
+# calls, so its "100% irrelevance" is an artifact of never calling anything,
+# not judgment). INT4-GPTQ being essentially lossless while INT8/FP8 were not
+# is backwards from theory and points at this lab's own quantization, so these
+# two rows change exactly one variable each.
+7b-fp8-nokv-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8-nokv
+  served_model_name: qwen2.5-7b-fp8-nokv
+  precision: "FP8 static per-tensor, NO kv-cache quantization, self-quantized via ModelOpt, cnn_dailymail/512"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Variable changed vs 7b-fp8-selfquant-edgellm-thor: kv-cache quantization
+    REMOVED (confirmed `kv_cache_quant_algo: None`), calibration raised
+    128->512. modelopt warned "Large KV activations detected. Quantized KV
+    cache may lead to higher accuracy drop" during the original run and that
+    warning was ignored - this row tests whether it explains FP8 emitting zero
+    tool calls. Not yet measured.
+
+7b-int8sq-512-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-int8_sq-512
+  served_model_name: qwen2.5-7b-int8_sq-512
+  precision: "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/512"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Variable changed vs 7b-int8sq-selfquant-edgellm-thor: calibration samples
+    128->512 (the quantizer's own default, reduced originally only for speed).
+    SmoothQuant derives per-channel activation scales from calibration, so an
+    under-calibrated run is a plausible cause of that row's 23-point MMLU
+    loss. Not yet measured.
+
 7b-gptq-int8-edgellm-thor:
   model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8
   precision: "GPTQ int8, group_size=128, symmetric, exllama v1 (Qwen's own official quant, bits=8)"
