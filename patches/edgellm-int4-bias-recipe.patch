@@ -1,0 +1,20 @@
+diff --git a/experimental/builder/core/weights.py b/experimental/builder/core/weights.py
+index a1e6356..47bbdd0 100644
+--- a/experimental/builder/core/weights.py
++++ b/experimental/builder/core/weights.py
+@@ -722,6 +722,15 @@ class Weights:
+             scale_recipe=scale_recipe,
+             pre_quant_recipe=pre_quant_recipe,
+             activation_permutation_recipe=activation_permutation_recipe,
++            bias_recipe=bias_recipe,  # PATCHED 2026-09-09 (jetson-llm) - this
++            # kwarg was simply missing from this return, even though
++            # bias_recipe is computed correctly a few lines above (shared with
++            # the QUANT_FP16 branch, which DOES pass it). Root cause of
++            # "external FP16 bias has no checkpoint recipe" for int4_awq,
++            # int4_awq_modelopt and int4_gptq on any architecture with a
++            # linear bias (Qwen2's q_proj/k_proj/v_proj). Upstream bug, not a
++            # checkpoint-format issue - reported nowhere yet, patched locally
++            # pending a real upstream fix.
+             logical_out_features=out_features,
+             logical_in_features=in_features,
+         )

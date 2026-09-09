@@ -327,20 +327,26 @@ bielik-11b-awq-vllm-orin:
   port: 8002
   max_input_len: 2048
   notes: >
-    BLOCKED, confirmed 2026-09-09 - IDENTICAL failure to the AWQ row, same
-    stack trace, same line (backend.py:1179 _add_bias, "external FP16 bias
-    has no checkpoint recipe"), raised from the SAME q_proj/k_proj call.
-    Proves the bug is not AWQ-specific: int4_awq and int4_gptq both route
-    through int4_linear()'s bias handling, and neither has a checkpoint
-    recipe wired up for Qwen2's attention bias in Edge-LLM's current builder
-    (0.10.1). So this is an "any externalized int4 quant on Qwen2's attention
-    bias" limitation, not a quirk of one quant format - int4_awq_modelopt and
-    int8_sq are untested but share the same code path and should be assumed
-    blocked too until shown otherwise. FP8/NVFP4 status: NOT assumed safe -
-    fp8_linear/mxfp8_linear (backend.py) call the same _add_bias() but WITHOUT
-    passing name/recipe at all (unlike int4_linear, which at least tries),
-    which if anything is a worse sign. See the 7b-fp8-edgellm-thor row below
-    for the real test rather than a guess either way.
+    UNBLOCKED, 2026-09-09 - root cause found and fixed. Traced the
+    "external FP16 bias has no checkpoint recipe" failure to its actual
+    source: weights.py's linear_metadata(), int4 branch (AWQ/AWQ_MODELOPT/
+    GPTQ all share one return statement) computes `bias_recipe` correctly
+    a few lines earlier (identically to the FP16 branch, which DOES use it)
+    but simply OMITS `bias_recipe=bias_recipe` from the LinearWeights(...) it
+    returns - a one-line omission in Edge-LLM 0.10.1's own source, not a
+    checkpoint-format or provenance issue. Confirmed by patching that one
+    line locally (~/dev/TensorRT-Edge-LLM, not upstreamed) and re-running
+    this exact checkpoint: engine built, `Engine loaded and ready`, and both
+    smoke tests passed - plain completion coherent ("Four" for 2+2), and an
+    UNFORCED tool_choice="auto" call correctly returned
+    get_weather({"city":"Warsaw"}) with finish_reason="tool_calls". This is
+    now this lab's first working quantized Edge-LLM row - the "best of both
+    worlds" candidate (7B judgment at lower memory/bandwidth than FP16) is
+    real, not theoretical. Same one-line fix should also unblock int4_awq
+    and int4_awq_modelopt (identical return statement) - not yet re-verified
+    per format, only GPTQ has been re-tested end to end. Full BFCL/MMLU/
+    timing comparison against 7b-fp16-edgellm-thor is the next step, not yet
+    run.
 
 14b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-14B-Instruct
