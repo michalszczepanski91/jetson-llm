@@ -222,12 +222,18 @@ checkpoints, 2026-09-09, none reached a running server:
 | `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` (Qwen's own, ungated) | `int4_gptq` | **Same bias bug as AWQ**, identical stack trace, same line. Proves the failure is not AWQ-specific - it's any externalized int4 quant hitting Qwen2's attention bias in `int4_linear()`'s bias handling. |
 | `RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic` (llmcompressor, ungated) | `fp8` | **Different failure, and inconclusive**: rejected at config-parsing time - `unsupported compressed-tensors checkpoint format: float-quantized` - before any layer is built. Edge-LLM's `compressed-tensors` parser only accepts that quant_method when its format string contains `nvfp4`; llmcompressor's plain FP8-dynamic format isn't one of the formats it recognizes. Says nothing about whether `fp8_linear`'s bias handling (which, unlike `int4_linear`, calls `_add_bias` without even attempting to pass a recipe - if anything a worse sign) would have worked. |
 | NVIDIA ModelOpt FP8/NVFP4 (the code path this parser is actually built for) | — | **Not attempted** - no official/trustworthy ModelOpt-quantized checkpoint exists for base `Qwen2.5-7B-Instruct` as of 2026-09-09, only its VL sibling (`nvidia/Qwen2.5-VL-7B-Instruct-{FP8,NVFP4}`). Unofficial community NVFP4 quants exist but don't meet this lab's provenance bar. |
+| `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8` (Qwen's own, `bits: 8`) | requested int8, got `int4_gptq` | **Not a real int8 test - a routing bug.** `quantization.py`'s GPTQ branch always returns `int4_gptq`, never reading the checkpoint's own `bits` field. So this "Int8" repo gets force-fed through the int4 unpacker and dies at the SAME line as the other two - a 4th confirmation of the attention-bias bug, not new information about int8. Edge-LLM's real int8 path (`int8_sq`) only activates via a ModelOpt-style `quant_algo` field containing "W8A8"/"INT8", which no official base-model checkpoint uses. |
 
-**Conclusion: FP16 is not a choice, it is what remains.** Every quantized path tried
-either hit a real bug or a checkpoint-availability wall; this is not "quantization
-wasn't tried" but "quantization was tried and specifically blocked" for int4, and
-genuinely untested (not assumed safe or unsafe) for FP8/NVFP4. Revisit if upstream
-fixes the bias-recipe wiring for `int4_linear`, or if NVIDIA publishes a ModelOpt
+**Conclusion: FP16 is not a choice, it is what remains.** Four checkpoints tried
+across three nominal precisions (int4-AWQ, int4-GPTQ, int8-GPTQ) all hit the identical
+`_add_bias` failure at the identical line - this is one bug, not three, and it blocks
+every quantized checkpoint Edge-LLM's builder currently routes through
+`int4_linear()`, regardless of what precision the checkpoint claims to be. FP8 hit a
+separate, inconclusive wall (checkpoint format, not the bias bug). Genuine int8
+(`int8_sq`) and NVFP4/ModelOpt-FP8 remain untested, not because they were assumed
+broken, but because no official checkpoint in the format Edge-LLM actually expects
+exists yet for the base text model. Revisit if upstream fixes the bias-recipe wiring
+for `int4_linear`, fixes GPTQ bit-width detection, or NVIDIA publishes a ModelOpt
 checkpoint for the base text model.
 
 ### 14B buys nothing

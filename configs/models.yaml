@@ -291,6 +291,34 @@ bielik-11b-awq-vllm-orin:
     Not pursued further on that basis, not because the code path is assumed
     broken.
 
+# A THIRD checkpoint at the "same" quant_method, tried after the first two,
+# and it reveals a routing bug rather than testing int8 at all - see this
+# row's own notes for why Qwen's official GPTQ-Int8 repo does NOT exercise
+# Edge-LLM's real int8 path.
+7b-gptq-int8-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8
+  precision: "GPTQ int8, group_size=128, symmetric, exllama v1 (Qwen's own official quant, bits=8)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    BLOCKED, confirmed 2026-09-09, but by a ROUTING bug, not a real int8 test.
+    quantization.py's `method == "gptq"` branch (core/quantization.py:154)
+    unconditionally returns quant_type=int4_gptq - it never reads this
+    checkpoint's own `bits: 8` field. So this "Int8" checkpoint gets force-fed
+    through the SAME int4 unpacking path as 7b-gptq-edgellm-thor, and dies at
+    the identical line for the identical reason (backend.py:1179 _add_bias,
+    "external FP16 bias has no checkpoint recipe"). This result says nothing
+    new about int8 - it is a 4th confirmation of the same attention-bias bug
+    (AWQ, GPTQ-Int4, GPTQ-Int8 all hit it identically) plus a separate,
+    genuine bits-mismatch bug in how Edge-LLM 0.10.1 detects GPTQ precision.
+    Edge-LLM's REAL int8 path (int8_sq) only activates via a `quant_algo`
+    field containing "W8A8" or "INT8" (ModelOpt-style config, NOT plain HF
+    `quant_method: gptq`) - no official checkpoint in that format exists for
+    base Qwen2.5-7B-Instruct as of 2026-09-09, same provenance gap as the
+    FP8/NVFP4 row above.
+
 7b-gptq-edgellm-thor:
   model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4
   precision: "GPTQ int4, group_size=128, symmetric, exllama v1 (Qwen's own official quant)"
