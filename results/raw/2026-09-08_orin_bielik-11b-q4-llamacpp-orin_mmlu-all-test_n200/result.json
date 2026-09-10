@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-08_orin_bielik-11b-q4-llamacpp-orin_mmlu-all-test_n200",
+  "timestamp": "2026-09-08T11:40:00.232219+02:00",
+  "manifest": {
+    "git_commit": "025d450beb0e70047eeb66b3324e3708e9dc2c95",
+    "git_dirty": true,
+    "command": "/home/michal/dev/embedded-ai-chain/third_party/jetson-llm/.venv/bin/python scripts/validate_mmlu.py --model-config bielik-11b-q4-llamacpp-orin --execution-condition standalone --limit 200",
+    "model_config_key": "bielik-11b-q4-llamacpp-orin",
+    "backend": "llama-cpp",
+    "backend_version": "b5058-6bf28f01",
+    "container_image": "dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04",
+    "platform": "orin",
+    "target": "local"
+  },
+  "model": {
+    "name": "speakleash/Bielik-11B-v3.0-Instruct-GGUF",
+    "precision": "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)",
+    "backend": "llama-cpp"
+  },
+  "dataset": {
+    "name": "MMLU",
+    "version": "all-test",
+    "source": "cais/mmlu",
+    "split": "all/test",
+    "n_available": 14042,
+    "n_evaluated": 200,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "generative-letter-parse",
+    "temperature": 0.0,
+    "tool_choice": null,
+    "max_tokens": 8,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.4,
+    "n": 200
+  },
+  "notes": "quantization-regression sanity check, not a model-ranking benchmark - compare same-size backend/precision pairs against each other, not across sizes. Generative letter-parsing scoring, not logprob-based. 39 response(s) had no parseable A/B/C/D letter; 0 case(s) failed at the server and are excluded from the accuracy figure.",
+  "outcomes_file": "results/raw/2026-09-08_orin_bielik-11b-q4-llamacpp-orin_mmlu-all-test_n200/outcomes.jsonl"
+}

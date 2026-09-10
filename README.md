@@ -69,9 +69,22 @@ curl http://localhost:8000/health
 make serve-1.5b-llamacpp                         # start llama-server serving the Q4_K_M GGUF
 curl http://localhost:8090/health  # not llama.cpp's conventional 8080 - see llm_coordinator.py's port comment
 
-make benchmark CONFIG=1.5b-awq-vllm-orin           # latency/cold-start/thermal/power
-make benchmark CONFIG=1.5b-q4-llamacpp-orin
-make benchmark-streaming CONFIG=1.5b-awq-vllm-orin # TTFT / tokens-per-sec
+make experiment EXP=configs/benchmarks/smoke.yaml    # the reportable path - config-driven
+make experiment EXP=configs/benchmarks/output_sweep.yaml DRY=1   # see it expand without starting
+# One config file defines the whole campaign (candidates, workload grid, sampling,
+# warmup/repetition floors, standalone/co-resident) - no CLI flag carries experimental
+# meaning. See configs/benchmarks/ for what ships: smoke (Tier 0), output_sweep
+# (the P3 experiment - see "Current State"), context_sweep.
+
+make benchmark-streaming CONFIG=1.5b-awq-vllm-orin CONDITION=standalone  # one ad-hoc cell
+# CONDITION is required and has no default: on unified memory a standalone and a
+# co-resident number are different physical quantities. Refused outright (no override
+# flag) if a Docker container OR a bare-metal process is found holding a GPU handle
+# and wasn't declared - see CLAUDE.md's "Measurement integrity" for why that bare-metal
+# check exists. Results land in results/raw/<experiment_id>/, schema-validated at
+# write time; a result caught as mislabelled after the fact is archived to
+# results/invalid/, never silently deleted.
+
 make validate-tool-calling CONFIG=1.5b-awq-vllm-orin  # BFCL tool-call judgment accuracy (needs staged data, see below)
 make validate-mmlu CONFIG=1.5b-awq-vllm-orin          # MMLU quantization-sanity accuracy (needs staged data, see below)
 make test                                          # unit tests, no Docker/GPU needed
@@ -112,7 +125,9 @@ local container, pass `--target remote --remote-host <ip>` to any `scripts/*.py`
 directly (no Makefile target - the host is environment-specific):
 
 ```bash
-uv run python scripts/benchmark.py --model-config 1.5b-awq-vllm-orin --target remote --remote-host <thor-ip>
+uv run python scripts/benchmark_streaming.py --model-config 1.5b-awq-vllm-orin \
+  --execution-condition standalone --target remote --remote-host <thor-ip>
+# scripts/benchmark.py is retired (docs/TODO.md Phase 2) - see CLAUDE.md
 uv run python scripts/validate_tool_calling.py --model-config 1.5b-awq-vllm-orin --target remote --remote-host <thor-ip>
 ```
 
@@ -172,6 +187,63 @@ This wrapper: no separate license claimed here (internal eval tooling).
 
 ## Current State
 
+### Phase 2-4: measurement integrity, then a real campaign (2026-09-04)
+
+This repo grew from a candidate-selection lab into a reproducible benchmark suite the
+same day the Phase 1 smoke tests below were done - see `docs/note.md` for the
+methodology and `docs/TODO.md` for the phased plan. The short version: three
+measurement bugs were found and fixed by actually running the instrument, then a real
+campaign ran clean on both backends.
+
+**What got fixed, in the order it was found:**
+
+1. **Prefix-cache contamination - a 6.6x TTFT error.** Sending the identical prompt
+   every repetition meant both backends served every rep after the first from a
+   cached prefill. TTFT p50 went 40.8ms -> **268.1ms** once prompts vary per run
+   (now the default, `--prompt-uniqueness unique-per-run`).
+2. **An inert HF cache mount.** `HUGGINGFACE_HUB_CACHE` baked into the vLLM image
+   overrode `HF_HOME`, so the `/opt/hf-cache` volume did nothing and every vLLM run
+   re-downloaded its weights into a `--rm` container. Cold start: 156.2s -> **136.2s**
+   once fixed (both `VllmCoordinator` and `docker-compose.yml`).
+3. **A `standalone` claim that wasn't - twice.** A container-only check let a real
+   campaign run labelled `standalone` while `embedded-ai-chain`'s entire production
+   pipeline (YOLO + orchestrator + STT/TTS) ran as one bare-metal process the whole
+   time, invisible to `docker ps`. A second, subtler version of the same gap: 5
+   already-committed `co-resident` results had *correctly* said co-resident but
+   named only `vllm-orchestrator`, missing that same bare-metal process. Both are now
+   closed: `assert_condition_matches_reality()` checks Docker containers **and**
+   bare-metal GPU-holding processes (`/proc/<pid>/fd` for `nvhost`/`nvgpu`/`nvmap`
+   handles), and checks a `co-resident` declaration for **completeness**, not just
+   whether `standalone` is literally false. No override flag on either check. Full
+   incident record in `docs/HISTORY.md`, "Phase 3".
+
+Energy (J/output-token) also went from uncomputable to real: the script with power
+telemetry didn't know token counts, the one with token counts started no sampler.
+`benchmarks/runner.py:measure_cell()` merges the two paths.
+
+**The campaign itself**, once the board was confirmed genuinely quiet (containers
+stopped, bare-metal pipeline stopped, by direct user confirmation - this device's
+production system is not this repo's to touch unilaterally): `output_sweep` (12
+cells) and `context_sweep` (8 cells), both backends, `standalone`, zero failures, zero
+errors, all schema-conformant. Two real signals, one replicate each:
+
+- **J/output-token amortizes with generation length**, both backends - highest at the
+  shortest output (16 tokens: 0.473 J/tok vLLM, 0.949 llama.cpp), settling lower by
+  128+ tokens (~0.297 / ~0.66). The shape `embedded-ai-chain/docs/paper.md`'s P3
+  predicts, reproduced cleanly on real hardware.
+- **A backend-specific context-scaling difference.** TTFT vs input length (128 to
+  1536 tokens): vLLM stays close to flat (40.8ms -> 81.8ms), llama.cpp is clearly
+  super-linear (213.2ms -> 897.7ms, roughly doubling from 512->1024 alone). Decode
+  throughput is flat on both, so this is specifically a *prefill* difference.
+  Confounded by quantization format (AWQ vs GGUF Q4_K_M) like every cross-backend
+  comparison in this lab so far - stated, not fixed.
+
+See `docs/project.diagram.md` §6 for the full tables and `docs/TODO.md` Phase 4 for
+the complete record, including what's *not* yet done (an analysis script generating
+plots from `results/raw/`, and drafting these numbers into `paper.md` itself).
+
+### Phase 1: candidate serving/tool-calling smoke tests (2026-09-04)
+
 Real Docker/GPU smoke tests done, 2026-09-04 - see `docs/TODO.md` Phase 1 for the
 full record:
 
@@ -209,5 +281,45 @@ full record:
   vLLM's per-family parsers detect - the opposite pattern from Qwen2.5, which
   works on both backends.
 
-Real BFCL numbers now exist for one row (`1.5b-q4-llamacpp-orin`, above, small
-sample). Everything else in `docs/TODO.md` Phase 3's full matrix is still pending.
+### Phase 5: the full 7-row scorecard (2026-09-08)
+
+BFCL (bounded ~30/category sample, n=60) and MMLU (n=200) now exist for all 7 active
+rows - see `docs/TODO.md` Phase 5 for the full table, the sampling decision (full
+BFCL corpus costed out at 6.9-95min/row from measured decode speeds; a uniform limit
+safe for the slowest row would starve the fastest, so the scorecard uses a comparable
+bounded sample on every row instead), and the tool-calling confusion matrix now
+recorded per row (`tool_call_outcomes` in each BFCL result,
+`confusion_matrix_and_taxonomy()` in `scripts/validate_tool_calling.py`).
+
+**The BFCL scorer was corrected 2026-09-09** and every row re-run: argument strings
+were compared with a plain `.strip().lower()` where official bfcl-eval first strips
+` ,./-_*^` and spaces, so `"3*x**2 + 2*x - 1"` scored as wrong against BFCL's accepted
+`"3x**2 + 2x - 1"` - the same maths, and the only spelling that is valid Python.
+Re-scoring identical model outputs under both rules flipped **21 cases across the 7
+rows**, all in the same four maths cases Thor independently hit (+3.3pp on the weakest
+row, +10 to +13.3pp on every other). Rankings did not change.
+
+The consequence is that **`simple` is now saturated** - five of seven rows score
+exactly 100% - so **`irrelevance` is the only accuracy axis still discriminating**,
+independently reproducing Thor's conclusion on different hardware and quantization.
+Two findings there, before either family is called a tool-calling winner:
+**Bielik-11B abstains on only 10% of irrelevance cases** despite a perfect 100% on
+`simple` - a real false-positive/unwanted-actuation risk its headline number hides -
+and **7B shows a real backend gap on irrelevance** (40.0% vLLM vs 56.7% llama.cpp,
+same model/size), consistent with this lab's running theme that backend, not just
+model, moves the number, and with Thor's much larger same-parser version of the same
+gap. Confounded here by AWQ vs GGUF Q4_K_M as usual.
+
+Performance/energy is done for all 7 rows at a confirmed-consistent platform state
+(`jetson_clocks_locked: true`, MAXN, standalone) - mid-campaign the board was found
+to be hard-resetting under sustained load on an underspec'd 65W supply (confirmed via
+the Tegra PMC's `reset_reason=SYS_RESET_N` register - measured peak draw hit 58.4W on
+3 rails alone against the devkit's specified 90W requirement). Fixed by swapping the
+adapter, then the 5 rows Phase 4 never touched were re-measured as a clean replicate.
+That correction surfaced a real finding, not just a methodology fix: **llama.cpp's
+TTFT roughly halves once `jetson_clocks` is genuinely locked** (Bielik-11B
+3181ms->1787ms, 7B 1984ms->1018ms, 3B 1284ms->563ms) - the uncorrected numbers were
+partly measuring GPU clock ramp-up (DVFS) latency between requests, not pure
+inference. vLLM barely moved, since it keeps the GPU continuously saturated and never
+idles down between requests. Full incident, tables, and decision log in
+`docs/TODO.md` Phase 5.

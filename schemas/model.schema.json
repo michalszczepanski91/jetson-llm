@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mszczep/jetson-llm/schemas/model.schema.json",
+  "title": "Model registry entry",
+  "description": "One row of configs/models.yaml - a candidate (model x precision x backend x platform), NOT a benchmark result. Per docs/note.md §28 the registry is append-only: rows are never deleted, including blocked and deprecated ones, because a negative result (apertus-8b-q4-llamacpp-orin) is part of the experimental record. Self-contained on purpose (no cross-file $ref) so a validator needs no resolver/registry and this repo stays clone-and-run. Conformance levels are documented in schemas/README.md: `required` below is what every row already satisfies today; the fields marked \"Phase 3 target\" are the docs/note.md §28 additions that become required once configs/models.yaml is backfilled.",
+  "type": "object",
+  "required": ["model", "precision", "backend", "platform", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the serving backend is actually pointed at: a HuggingFace repo id for vLLM (`Qwen/Qwen2.5-1.5B-Instruct-AWQ`), or the GGUF repo passed to llama-server's `-hf` for llama.cpp. Not a display name."
+    },
+    "revision": {
+      "type": "string",
+      "description": "Phase 3 target. Git revision / commit of the model repo. docs/note.md §3 counts an unpinned revision as an unreproducible experiment: a repo owner can republish weights under the same name."
+    },
+    "family": {
+      "type": "string",
+      "description": "Phase 3 target. Qwen2.5 / Bielik / Apertus / ... - the axis a cross-family comparison groups by. Must not be inferred from the `model` string at analysis time.",
+      "examples": ["Qwen2.5", "Qwen3", "Bielik", "Apertus"]
+    },
+    "parameters_b": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Phase 3 target. Parameter count in billions (1.5, 3, 7, 8, 11). Named `_b` rather than `parameters` because docs/note.md's own example writes `\"parameters\": 8` meaning billions, which is exactly the kind of unit ambiguity that ruins a merged results table."
+    },
+    "architecture": {
+      "type": "string",
+      "description": "Phase 3 target. The checkpoint's own architecture string (`LlamaForCausalLM`, `Qwen2ForCausalLM`, `apertus`). Load-bearing, not cosmetic: llama.cpp rejected Apertus on exactly this field (`unknown model architecture: 'apertus'`), and `llama3_json` was tried for Bielik because it is LlamaForCausalLM-architected."
+    },
+    "precision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable precision/quantization summary, written to be read by a person. docs/note.md §23 forbids a bare \"INT4\": name the actual method. The bielik-11b-awq-vllm-orin row is the standard to match - it records \"compressed-tensors int4, group_size=128, symmetric=false\" and explicitly flags that this is NOT classic AWQ despite the repo being named `-awq`. Prefer also filling `quantization` below, which is the machine-readable form of the same fact.",
+      "examples": [
+        "AWQ 4-bit",
+        "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)",
+        "compressed-tensors int4, group_size=128, symmetric=false (NOT classic AWQ despite the repo name - see note)"
+      ]
+    },
+    "quantization": {
+      "type": "object",
+      "description": "Phase 3 target. Machine-readable form of `precision`, so a quantization study can group by method rather than by string matching. docs/note.md §23: never merge two different methods under one label.",
+      "required": ["method"],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "The actual quantization path, as reported by the checkpoint's own config (vLLM: `quant_method`), not as implied by the repo name.",
+          "examples": ["none", "awq", "compressed-tensors", "gptq", "gguf-k-quant", "fp8", "smoothquant"]
+        },
+        "weight_bits": {"type": "number", "exclusiveMinimum": 0},
+        "activation_bits": {
+          "type": ["number", "null"],
+          "description": "null = activations not quantized (weight-only quantization, the usual case for AWQ/GGUF)."
+        },
+        "kv_cache_bits": {
+          "type": ["number", "null"],
+          "description": "KV-cache precision, separate from weights. On a unified-memory board this is often the dominant memory term at long context (docs/note.md §11), so it must not be folded into the weight precision."
+        },
+        "group_size": {"type": ["integer", "null"], "exclusiveMinimum": 0},
+        "symmetric": {"type": ["boolean", "null"]},
+        "calibration_dataset": {
+          "type": ["string", "null"],
+          "description": "For methods that need calibration (GPTQ, SmoothQuant, some AWQ). null for methods that don't."
+        },
+        "quantized_by": {
+          "type": "string",
+          "description": "Who produced the quantized artifact - the model's own authors, or a third party. This repo already distinguishes them for provenance (SpeakLeash's official GGUF vs bartowski's Apertus quant).",
+          "examples": ["model authors (official repo)", "third-party redistribution"]
+        }
+      }
+    },
+    "backend": {
+      "type": "string",
+      "enum": ["vllm", "llama-cpp"],
+      "description": "Serving backend. This enum is deliberately closed and short: docs/note.md §25 says a backend is added only once it actually runs on the target hardware with a reproducible, version-recorded configuration. TensorRT-LLM / TensorRT Edge-LLM are excluded for the reasons in docs/TODO.md Phase 0, not for lack of an enum entry."
+    },
+    "backend_image": {
+      "type": "string",
+      "description": "Phase 3 target. The container image this row is served by, when it differs from the coordinator's default. Record a digest where possible: `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` is a tag, not a llama.cpp version, and this lab has already had to tell builds 4579 / 5058 / 5283 apart by behaviour alone."
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["orin", "thor"],
+      "description": "Which board this row is tuned for. docs/note.md §26: never infer hardware from the config key's name. Serving args are NOT portable across platforms - an Orin row's gpu_memory_utilization is meaningless on a board with different unified memory."
+    },
+    "gpu_memory_utilization": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "description": "vLLM only. MUST be set explicitly and conservatively on this hardware: vLLM's own default (0.9) fails outright at startup on a ~30GB unified-memory Orin. See CLAUDE.md's \"Memory constraints\" for where the current values came from."
+    },
+    "max_model_len": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "vLLM only. Every current row is pinned to 2048 for cross-family comparability. Raising it is itself an experimental change (KV cache grows with it) and needs its own memory re-tune - never a silent flag bump. This field was once asserted as \"known-good: 4096\" without verification and was wrong; `docker inspect` on the real production container settled it at 2048."
+    },
+    "quant": {
+      "type": "string",
+      "description": "llama.cpp only. The GGUF quantization file selector passed to `-hf` (`Q4_K_M`). Distinct from `precision`, which is prose, and from `quantization.method`, which is the taxonomy.",
+      "examples": ["Q4_K_M", "Q5_K_M", "Q6_K", "Q8_0"]
+    },
+    "n_gpu_layers": {
+      "type": "integer",
+      "minimum": -1,
+      "description": "llama.cpp only. -1 = offload every layer. Unlike the vLLM rows, these values have no prior real measurement to inherit from; re-tune per row if a size doesn't fit."
+    },
+    "ctx_size": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "llama.cpp only. The llama-server equivalent of `max_model_len`; keep the two matched across backends or a backend comparison is confounded by context budget."
+    },
+    "extra_args": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Extra CLI args appended to the server command. docs/note.md §40: backend-specific tuning is allowed, but every tuning decision must be documented and reproducible - so anything here needs a sentence in `notes` saying why."
+    },
+    "sampling": {
+      "type": "object",
+      "description": "Phase 3 target. Row-specific sampling defaults, when a model documents a required exception (docs/note.md §41 allows exceptions only when documented). Performance benchmarks otherwise pin temperature in the experiment config, not here.",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": {"type": "number", "minimum": 0},
+        "top_p": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "top_k": {"type": "integer", "exclusiveMinimum": 0},
+        "repetition_penalty": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "chat_template": {
+      "type": "string",
+      "description": "Phase 3 target. Which chat template was used, if not the tokenizer's own. docs/note.md §21 counts a template change as an experimental change, so it may not live silently inside the benchmark implementation."
+    },
+    "tool_call_parser": {
+      "type": "string",
+      "description": "Phase 3 target. vLLM's `--tool-call-parser`. Recorded because it is a real, measured result axis here, not a detail: `hermes` is temperature-robust for Qwen2.5 where llama.cpp's detection is not, and both `hermes` and `llama3_json` fail outright for Bielik on vLLM.",
+      "examples": ["hermes", "llama3_json"]
+    },
+    "license": {
+      "type": "string",
+      "description": "Phase 3 target. SPDX identifier where one applies. Load-bearing for the parent project: embedded-ai-chain's Phase 5 includes a license audit, and a candidate that can't be shipped is not a candidate.",
+      "examples": ["Apache-2.0"]
+    },
+    "gated": {
+      "type": "boolean",
+      "description": "Phase 3 target. Whether the artifact this row actually pulls requires accepting a HuggingFace gate. Both Bielik and Apertus have gated original repos but ungated redistributions, and this lab uses the ungated ones - a staging-reproducibility fact, so it belongs in the registry rather than only in prose."
+    },
+    "source": {
+      "type": "string",
+      "description": "Phase 3 target. Provenance of the artifact: the model authors' own repo, or a named third party. This lab already treats the difference as material (SpeakLeash's official GGUF vs bartowski's Apertus quant).",
+      "examples": ["official (model authors)", "third-party redistribution"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["untested", "smoke-tested", "benchmark-ready", "fully-evaluated", "blocked", "deprecated"],
+      "description": "Phase 3 target, from docs/note.md §28. Machine-readable form of what `notes` already says in prose. `blocked` is a real terminal state with a recorded reason, not a gap to paper over - apertus-8b-q4-llamacpp-orin is blocked because llama.cpp does not recognise its GGUF architecture on any tried build."
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required, and required to be honest: configs/models.yaml's own standing rule is that notes must say plainly which claims are CONFIRMED by a real run and which are untested starting points. A row whose numbers are guesses must say so in this field."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"backend": {"const": "vllm"}}, "required": ["backend"]},
+      "then": {
+        "not": {"anyOf": [
+          {"required": ["quant"]},
+          {"required": ["n_gpu_layers"]},
+          {"required": ["ctx_size"]}
+        ]},
+        "$comment": "llama.cpp-only serving args on a vLLM row are silently ignored by the coordinator, so they would sit in the registry looking authoritative while affecting nothing."
+      }
+    },
+    {
+      "if": {"properties": {"backend": {"const": "llama-cpp"}}, "required": ["backend"]},
+      "then": {
+        "not": {"anyOf": [
+          {"required": ["gpu_memory_utilization"]},
+          {"required": ["max_model_len"]}
+        ]},
+        "$comment": "Same in reverse: vLLM-only args on a llama.cpp row are inert and misleading."
+      }
+    }
+  ],
+  "examples": [
+    {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",
+      "family": "Qwen2.5",
+      "parameters_b": 1.5,
+      "precision": "AWQ 4-bit",
+      "quantization": {"method": "awq", "weight_bits": 4, "activation_bits": null, "group_size": 128, "quantized_by": "model authors (official repo)"},
+      "backend": "vllm",
+      "platform": "orin",
+      "gpu_memory_utilization": 0.15,
+      "max_model_len": 2048,
+      "tool_call_parser": "hermes",
+      "license": "Apache-2.0",
+      "gated": false,
+      "status": "smoke-tested",
+      "notes": "CONFIRMED working 2026-09-04: cold start 158-162s, plain and tool-calling completions both succeed. max_model_len=2048 verified against the real production container, not guessed."
+    }
+  ]
+}

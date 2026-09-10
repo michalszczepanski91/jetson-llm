@@ -1,0 +1,49 @@
+schema_version: "1.0.0"
+name: output_sweep
+tier: full
+description: >
+  Hypothesis (embedded-ai-chain/docs/paper.md P3): generative extent dominates
+  the perception budget - increasing the generation budget raises latency and
+  energy substantially more than a comparable change to input length.
+  Varied: output_tokens. Held constant: model, backend, platform, input length,
+  batch, concurrency, sampling, power mode, execution condition.
+  Expected to move: e2e latency, decode time, energy per request.
+  Expected NOT to move: TTFT, prefill throughput - and if TTFT does move with
+  output length, something is wrong with the measurement, not with the model.
+
+models:
+  - 1.5b-awq-vllm-orin
+  - 1.5b-q4-llamacpp-orin
+
+workload:
+  input_tokens: [512]
+  output_tokens: [16, 32, 64, 128, 256, 512]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: true
+
+notes: >
+  12 cells (2 models x 6 output lengths), two server sessions. The 512-token
+  cells dominate the wall-clock cost; llama.cpp at ~21 tok/s spends ~25s per
+  repetition there, so budget accordingly rather than assuming cells are
+  equal. Cells sharing a server session share one cold-start measurement,
+  flagged in each result.

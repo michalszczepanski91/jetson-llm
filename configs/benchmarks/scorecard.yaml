@@ -1,0 +1,56 @@
+schema_version: "1.0.0"
+name: scorecard
+tier: full
+description: >
+  Hypothesis: none - this is Phase 5's scorecard entry, one fixed workload point
+  per candidate (matching the fixed transcript/scene-context spot-check
+  docs/promotion-contract.md's scorecard table calls for), not a sweep. Gives
+  every candidate a real TTFT/decode/energy figure to sit alongside its BFCL/MMLU
+  scores, so no row in the promotion decision is missing a performance number.
+  Varied: model only. Held constant: input=512/output=128 (the same point Phase 4's
+  two sweeps both include, so these numbers are directly comparable to that data),
+  batch, concurrency, sampling, execution condition.
+
+  Only the 5 rows Phase 4 never touched: 1.5b-awq-vllm-orin and
+  1.5b-q4-llamacpp-orin already have full output_sweep/context_sweep data at this
+  same input=512 point and are not re-run here - see docs/TODO.md Phase 4 for
+  their numbers.
+
+models:
+  - 3b-awq-vllm-orin
+  - 7b-awq-vllm-orin
+  - 3b-q4-llamacpp-orin
+  - 7b-q4-llamacpp-orin
+  - bielik-11b-q4-llamacpp-orin
+
+workload:
+  input_tokens: [512]
+  output_tokens: [128]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: true
+
+notes: >
+  512+128=640 tokens fits every active row's context comfortably (smallest is
+  llama.cpp's ctx_size=2048), so no per-row context tuning is needed for this
+  single point. bielik-11b-q4-llamacpp-orin's own untested cold-start caveat
+  (~6.7GB first download) applies here same as everywhere else in this lab.

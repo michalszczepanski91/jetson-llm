@@ -1,0 +1,32 @@
+{
+  "experiment_id": "...",
+  "run_id": 17,
+
+  "timing": {
+    "ttft_ms": 183.4,
+    "prefill_tok_s": 11234.5,
+    "decode_tok_s": 71.2,
+    "inter_token_latency_ms": 14.0,
+    "e2e_latency_ms": 1987.4
+  },
+
+  "tokens": {
+    "input_tokens": 2048,
+    "output_tokens": 128,
+    "total_generated_tokens": 128
+  },
+
+  "memory": {
+    "peak_memory_mb": 18432
+  },
+
+  "power": {
+    "average_watts": 52.1,
+    "energy_joules": 103.4,
+    "energy_per_output_token_j": 0.81
+  },
+
+  "thermal": {
+    "gpu_temperature_c": 67.2
+  }
+}

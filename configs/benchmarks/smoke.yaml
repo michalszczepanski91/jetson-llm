@@ -1,0 +1,43 @@
+schema_version: "1.0.0"
+name: smoke
+tier: smoke
+description: >
+  Hypothesis: none - this is not an experiment. It exists to prove a candidate
+  serves, streams, reports usage, and produces a schema-conformant document,
+  in about a minute rather than an hour. Run it before committing a candidate
+  to any real campaign; docs/note.md 18 calls this Tier 0, catching broken
+  serving, tokenizer, chat template or quantization.
+  Its numbers are not results and must never be quoted.
+
+models:
+  - 1.5b-q4-llamacpp-orin
+
+workload:
+  input_tokens: [128]
+  output_tokens: [64]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 2
+  warmup_max: 5
+  measurement_runs: 5
+  min_measurement_s: 10.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: true
+
+notes: >
+  measurement_runs is deliberately far below the >=30 a publication cell
+  needs. A 5-run p99 is not a p99, and the tier field says so machine-readably.

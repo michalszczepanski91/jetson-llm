@@ -1,0 +1,75 @@
+{
+  "_comment": "TARGET example - a complete, schema-conformant quality result. Unlike benchmark_result.target.json, the SCORES here are real: 85% simple / 65% irrelevance / 75% overall on n=40, the first working BFCL scorecard this lab produced (2026-09-04, 1.5b-q4-llamacpp-orin, docs/TODO.md Phase 1). The surrounding metadata is reconstructed to show the target shape, and n=40 of 638 is a sample - not the final scorecard docs/TODO.md Phase 5 will run.",
+
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-04_orin_1.5b-q4-llamacpp-orin_bfcl-v3_n40",
+  "timestamp": "2026-09-04T17:41:33+02:00",
+
+  "manifest": {
+    "git_commit": "494f9a9",
+    "git_dirty": false,
+    "command": "uv run python scripts/validate_tool_calling.py --model-config 1.5b-q4-llamacpp-orin --limit 20 --temperature 0.1",
+    "model_config_key": "1.5b-q4-llamacpp-orin",
+    "backend": "llama-cpp",
+    "backend_version": "build 5058",
+    "container_image": "dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04",
+    "platform": "orin",
+    "target": "local"
+  },
+
+  "model": {
+    "name": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "revision": null,
+    "family": "Qwen2.5",
+    "parameters_b": 1.5,
+    "precision": "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)",
+    "quantization_method": "gguf-k-quant",
+    "backend": "llama-cpp",
+    "tool_call_parser": null
+  },
+
+  "dataset": {
+    "name": "BFCL",
+    "version": "v3",
+    "source": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "split": "simple+irrelevance",
+    "n_available": 638,
+    "n_evaluated": 40,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "preprocessing_version": "v2-typefix",
+    "prompt_template_version": "v1"
+  },
+
+  "protocol": {
+    "scorer": "simplified-ast (this repo, not official bfcl-eval)",
+    "temperature": 0.1,
+    "tool_choice": "auto",
+    "max_tokens": 256,
+    "repetitions": 1
+  },
+
+  "scores": {
+    "overall_accuracy": 0.75,
+    "n": 40,
+    "by_category": {
+      "simple": {"accuracy": 0.85, "n": 20, "n_correct": 17},
+      "irrelevance": {"accuracy": 0.65, "n": 20, "n_correct": 13}
+    }
+  },
+
+  "tool_call_outcomes": {
+    "confusion_matrix": {"true_positive": 17, "false_positive": 7, "false_negative": 3, "true_negative": 13},
+    "correct_tool": 17,
+    "correct_arguments": 17,
+    "wrong_tool": 0,
+    "hallucinated_tool": 0,
+    "invalid_call": 0,
+    "formatting_failure": 3,
+    "server_error": 0
+  },
+
+  "outcomes_file": "results/raw/2026-09-04_orin_1.5b-q4-llamacpp-orin_bfcl-v3_n40/outcomes.jsonl",
+
+  "notes": "temperature pinned to 0.1: at llama.cpp's server default (~0.8) this model narrates in prose instead of calling the tool a fraction of the time (12/15 on a repeated identical call), which is a formatting failure rather than a judgment failure - see docs/TODO.md Phase 1. preprocessing_version v2-typefix is the loader after BFCL's non-standard type names (float/tuple/any) were rewritten; results from before that fix are not comparable, because llama.cpp's grammar builder returned HTTP 500 on them."
+}

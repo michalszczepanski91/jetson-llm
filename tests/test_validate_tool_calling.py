@@ -14,6 +14,7 @@ from validate_tool_calling import (  # noqa: E402
     _first_tool_call,
     _loose_equal,
     _params_match,
+    _standardize_string,
 )
 
 
@@ -133,3 +134,138 @@ def test_params_match_ignores_extra_actual_keys():
 
 def test_params_match_wrong_value_fails():
     assert _params_match({"base": [10]}, {"base": 99}) is False
+
+
+# --- confusion matrix and failure taxonomy (docs/TODO.md Phase 5's retrofit) -
+
+from validate_tool_calling import confusion_matrix_and_taxonomy  # noqa: E402
+
+
+def _simple(**kw):
+    base = {"category": "simple", "tool_called": False, "correct_tool": False,
+            "correct_arguments": False, "hallucinated": False, "correct": False, "error": None}
+    base.update(kw)
+    return base
+
+
+def _irrelevance(**kw):
+    base = {"category": "irrelevance", "tool_called": False, "correct": False, "error": None}
+    base.update(kw)
+    return base
+
+
+def test_correct_simple_call_is_true_positive_and_correct_arguments():
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=True, correct_arguments=True, correct=True),
+    ])
+    assert cm["confusion_matrix"] == {"true_positive": 1, "false_positive": 0, "false_negative": 0, "true_negative": 0}
+    assert cm["correct_tool"] == 1
+    assert cm["correct_arguments"] == 1
+    assert cm["invalid_call"] == 0
+
+
+def test_right_tool_wrong_arguments_is_invalid_call_not_correct():
+    """The tool called matches BFCL's expected function, but the arguments
+    don't - a TP in the confusion matrix (a tool WAS called), but
+    invalid_call in the taxonomy, distinct from a full pass."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=True, correct_arguments=False),
+    ])
+    assert cm["confusion_matrix"]["true_positive"] == 1
+    assert cm["correct_tool"] == 1
+    assert cm["correct_arguments"] == 0
+    assert cm["invalid_call"] == 1
+
+
+def test_no_call_on_a_simple_case_is_false_negative_and_formatting_failure():
+    """The exact failure mode this lab found for Qwen2.5-1.5B on llama.cpp at
+    default temperature: narrating in prose instead of calling the tool."""
+    cm = confusion_matrix_and_taxonomy([_simple(tool_called=False)])
+    assert cm["confusion_matrix"]["false_negative"] == 1
+    assert cm["formatting_failure"] == 1
+
+
+def test_hallucinated_name_is_true_positive_and_hallucinated_tool():
+    """Only one tool is ever offered per BFCL case - a call naming anything
+    else is a genuinely invented name, not a selection among alternatives."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(tool_called=True, correct_tool=False, hallucinated=True),
+    ])
+    assert cm["confusion_matrix"]["true_positive"] == 1
+    assert cm["hallucinated_tool"] == 1
+    assert cm["wrong_tool"] == 0
+
+
+def test_irrelevance_case_correctly_abstaining_is_true_negative():
+    cm = confusion_matrix_and_taxonomy([_irrelevance(tool_called=False, correct=True)])
+    assert cm["confusion_matrix"]["true_negative"] == 1
+
+
+def test_irrelevance_case_wrongly_escalating_is_false_positive():
+    cm = confusion_matrix_and_taxonomy([_irrelevance(tool_called=True, correct=False)])
+    assert cm["confusion_matrix"]["false_positive"] == 1
+
+
+def test_server_error_is_excluded_from_the_confusion_matrix():
+    """A backend defect (HTTP 500, timeout) is not a model judgment failure -
+    folding it into FN/FP would blame the model for an infrastructure
+    failure. Counted separately as server_error instead."""
+    cm = confusion_matrix_and_taxonomy([
+        _simple(error="HTTPError: 500"),
+        _irrelevance(error="TimeoutError: x"),
+    ])
+    assert cm["confusion_matrix"] == {"true_positive": 0, "false_positive": 0, "false_negative": 0, "true_negative": 0}
+    assert cm["server_error"] == 2
+
+
+def test_confusion_matrix_totals_match_input_count():
+    outcomes = [
+        _simple(tool_called=True, correct_tool=True, correct_arguments=True, correct=True),
+        _simple(tool_called=False),
+        _irrelevance(tool_called=False, correct=True),
+        _irrelevance(tool_called=True, correct=False),
+        _simple(error="x"),
+    ]
+    cm = confusion_matrix_and_taxonomy(outcomes)
+    counted = sum(cm["confusion_matrix"].values()) + cm["server_error"]
+    assert counted == len(outcomes)
+
+
+# --- BFCL standardize_string port -----------------------------------------
+#
+# These pin the exact false-negative class that depressed every `simple`
+# score in the 2026-09-08 campaign: 29 of 30 `simple` failures across all 7
+# Orin rows called the CORRECT function and were rejected purely on argument
+# string formatting, all in maths tools. Reproduced independently on Thor.
+
+
+def test_standardize_string_matches_official_bfcl_character_class():
+    """Port fidelity: spaces and , . / - _ * ^ stripped, lowercased, single
+    quotes normalized to double. Diverging from this silently re-breaks
+    the comparison against official bfcl-eval scores."""
+    assert _standardize_string("3*x**2 + 2*x - 1") == "3x2+2x1"
+    assert _standardize_string("3x**2 + 2x - 1") == "3x2+2x1"
+    assert _standardize_string("April 1, 2024") == "april12024"
+    assert _standardize_string("it's") == 'it"s'
+
+
+def test_explicit_multiplication_signs_are_not_a_wrong_answer():
+    """`3*x**2 + 2*x - 1` is the same maths as BFCL's accepted
+    `3x**2 + 2x - 1`, and is the only form that is valid Python. Scoring it
+    wrong measured the checker, not the model - simple_14 on every row."""
+    accepted = ["3x**2 + 2x - 1", "lambda x: 3x**2 + 2x - 1"]
+    assert _params_match({"function": accepted}, {"function": "3*x**2 + 2*x - 1"}) is True
+
+
+def test_caret_and_double_star_exponent_forms_are_equivalent():
+    """simple_13/15: a model writing `x^2`/`x^3` means the same as `x**2`."""
+    assert _params_match({"function": ["x**2", "y=x**2"]}, {"function": "y = x^2"}) is True
+    assert _params_match({"function": ["x**3", "lambda x: x**3"]}, {"function": "x^3"}) is True
+
+
+def test_standardization_still_rejects_genuinely_different_values():
+    """The normalization must not become a rubber stamp - stripping
+    punctuation could in principle collide unrelated values."""
+    assert _params_match({"function": ["x**2"]}, {"function": "x**3"}) is False
+    assert _loose_equal("units", "meters") is False
+    assert _params_match({"method": ["simpson"]}, {"method": "trapezoidal"}) is False

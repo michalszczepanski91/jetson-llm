@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-08_orin_3b-awq-vllm-orin_bfcl-v3_n60",
+  "timestamp": "2026-09-08T09:51:36.341167+02:00",
+  "manifest": {
+    "git_commit": "025d450beb0e70047eeb66b3324e3708e9dc2c95",
+    "git_dirty": true,
+    "command": "/home/michal/dev/embedded-ai-chain/third_party/jetson-llm/.venv/bin/python scripts/validate_tool_calling.py --model-config 3b-awq-vllm-orin --execution-condition standalone --limit 30",
+    "model_config_key": "3b-awq-vllm-orin",
+    "backend": "vllm",
+    "backend_version": "vllm 0.19.0",
+    "container_image": "ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin",
+    "platform": "orin",
+    "target": "local"
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-3B-Instruct-AWQ",
+    "precision": "AWQ int4 (weights), bf16 activations",
+    "backend": "vllm"
+  },
+  "dataset": {
+    "name": "BFCL",
+    "version": "v3",
+    "source": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "split": "simple+irrelevance",
+    "n_available": 640,
+    "n_evaluated": 60,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "preprocessing_version": "v2-typefix",
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "simplified-ast (this repo, not official bfcl-eval)",
+    "temperature": 0.1,
+    "tool_choice": "auto",
+    "max_tokens": 200,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.7666666666666667,
+    "n": 60,
+    "by_category": {
+      "simple": {
+        "accuracy": 0.8333333333333334,
+        "n": 30,
+        "n_correct": 25
+      },
+      "irrelevance": {
+        "accuracy": 0.7,
+        "n": 30,
+        "n_correct": 21
+      }
+    }
+  },
+  "tool_call_outcomes": {
+    "confusion_matrix": {
+      "true_positive": 30,
+      "false_positive": 9,
+      "false_negative": 0,
+      "true_negative": 21
+    },
+    "correct_tool": 30,
+    "correct_arguments": 25,
+    "wrong_tool": 0,
+    "hallucinated_tool": 0,
+    "invalid_call": 5,
+    "formatting_failure": 0,
+    "server_error": 0
+  },
+  "notes": "tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice workaround, since the point is measuring unforced judgment.",
+  "outcomes_file": "results/raw/2026-09-08_orin_3b-awq-vllm-orin_bfcl-v3_n60/outcomes.jsonl"
+}

@@ -1,0 +1,54 @@
+schema_version: "1.0.0"
+name: context_sweep
+tier: full
+description: >
+  Hypothesis (docs/note.md 11): prefill cost and KV-cache memory scale with
+  context length, and the scaling differs by backend.
+  Varied: input_tokens. Held constant: model, backend, platform, output length,
+  batch, concurrency, sampling, power mode, execution condition.
+  Expected to move: TTFT, prefill throughput, peak system RAM.
+  Expected to move much less: decode throughput.
+
+models:
+  - 1.5b-awq-vllm-orin
+  - 1.5b-q4-llamacpp-orin
+
+workload:
+  input_tokens: [128, 512, 1024, 1536]
+  output_tokens: [128]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: true
+
+notes: >
+  Stops at 1536, not 2048, and the reason is worth stating: every current
+  configs/models.yaml row pins max_model_len/ctx_size to 2048, and the
+  context window has to hold input AND output AND the chat template. A
+  2048-token input with output_tokens=128 overflows it - the first draft of
+  this file did exactly that, and tests/test_experiment_configs.py caught it
+  before any server was started. 1536 + 128 leaves ~384 tokens of headroom.
+  Extending the ladder to 4096+ is itself an experimental change - the KV
+  cache grows with it - and needs its own memory re-tune per row, not a
+  silent flag bump.
+  Note the prompt's per-run uniqueness marker sits at the front, so the
+  chat-template prefix stays cacheable; TTFT here is therefore
+  realistic-deployment prefill, not worst-case cold prefill.

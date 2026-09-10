@@ -18,6 +18,16 @@ services:
       - /opt/hf-cache:/root/.cache/huggingface  # shared HF cache convention across third_party/jetson-* repos
     environment:
       - HF_HOME=/root/.cache/huggingface
+      # HF_HOME alone does NOT redirect this image's downloads: it bakes in
+      # HUGGINGFACE_HUB_CACHE=/data/models/huggingface, which wins. Without
+      # these two the volume above is inert and every run re-downloads its
+      # weights into the container. Confirmed live 2026-09-04 - see
+      # src/llm_coordinator.py's VllmCoordinator.start() for the full story.
+      # Keep the two in sync: a drift between this file and that one has
+      # already cost this lab a debugging session once (docs/TODO.md Phase 1,
+      # --enable-auto-tool-choice was in compose but not in the coordinator).
+      - HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface/hub
+      - HF_HUB_CACHE=/root/.cache/huggingface/hub
     entrypoint: ["/opt/venv/bin/vllm"]
     command:
       - serve

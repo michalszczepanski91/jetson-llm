@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-09_orin_3b-q4-llamacpp-orin_bfcl-v3_n60",
+  "timestamp": "2026-09-09T14:45:05.117632+02:00",
+  "manifest": {
+    "git_commit": "041a5c621310b7340c7f72c4bbe429dd060c30a9",
+    "git_dirty": true,
+    "command": "/home/michal/dev/embedded-ai-chain/third_party/jetson-llm/.venv/bin/python scripts/validate_tool_calling.py --model-config 3b-q4-llamacpp-orin --execution-condition standalone --limit 30",
+    "model_config_key": "3b-q4-llamacpp-orin",
+    "backend": "llama-cpp",
+    "backend_version": "b5058-6bf28f01",
+    "container_image": "dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04",
+    "platform": "orin",
+    "target": "local"
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-3B-Instruct-GGUF",
+    "precision": "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)",
+    "backend": "llama-cpp"
+  },
+  "dataset": {
+    "name": "BFCL",
+    "version": "v3",
+    "source": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "split": "simple+irrelevance",
+    "n_available": 640,
+    "n_evaluated": 60,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "preprocessing_version": "v2-typefix",
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "simplified-ast-v2-bfcl-standardize (this repo, not official bfcl-eval)",
+    "temperature": 0.1,
+    "tool_choice": "auto",
+    "max_tokens": 200,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.7333333333333333,
+    "n": 60,
+    "by_category": {
+      "simple": {
+        "accuracy": 1.0,
+        "n": 30,
+        "n_correct": 30
+      },
+      "irrelevance": {
+        "accuracy": 0.4666666666666667,
+        "n": 30,
+        "n_correct": 14
+      }
+    }
+  },
+  "tool_call_outcomes": {
+    "confusion_matrix": {
+      "true_positive": 30,
+      "false_positive": 16,
+      "false_negative": 0,
+      "true_negative": 14
+    },
+    "correct_tool": 30,
+    "correct_arguments": 30,
+    "wrong_tool": 0,
+    "hallucinated_tool": 0,
+    "invalid_call": 0,
+    "formatting_failure": 0,
+    "server_error": 0
+  },
+  "notes": "tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice workaround, since the point is measuring unforced judgment.",
+  "outcomes_file": "results/raw/2026-09-09_orin_3b-q4-llamacpp-orin_bfcl-v3_n60/outcomes.jsonl"
+}

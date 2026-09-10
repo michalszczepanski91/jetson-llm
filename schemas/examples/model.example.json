@@ -1,0 +1,13 @@
+{
+  "name": "Qwen3-8B",
+  "family": "Qwen3",
+  "parameters": 8,
+  "precision": "FP8",
+  "quantization": {
+    "method": "FP8",
+    "bits": 8
+  },
+  "weights": "...",
+  "chat_template": "...",
+  "model_revision": "..."
+}
