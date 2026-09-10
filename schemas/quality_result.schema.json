@@ -68,8 +68,10 @@
           "type": "string",
           "enum": [
             "vllm",
-            "llama-cpp"
-          ]
+            "llama-cpp",
+            "edge-llm"
+          ],
+          "description": "Added 'edge-llm' 2026-09-10. configs/models.yaml has carried edge-llm rows since 2026-09-08 and model.schema.json was updated to accept them, but BOTH result schemas were missed - so every Edge-LLM result this lab has ever produced, including the campaign behind its own recommendation, failed validation on this enum alone. That is a large part of what docs/TODO.md means by Thor's documents 'failing both result schemas'; it was a one-word omission, not a design decision."
         },
         "backend_version": {
           "type": "string",
@@ -144,8 +146,10 @@
           "type": "string",
           "enum": [
             "vllm",
-            "llama-cpp"
-          ]
+            "llama-cpp",
+            "edge-llm"
+          ],
+          "description": "Added 'edge-llm' 2026-09-10. configs/models.yaml has carried edge-llm rows since 2026-09-08 and model.schema.json was updated to accept them, but BOTH result schemas were missed - so every Edge-LLM result this lab has ever produced, including the campaign behind its own recommendation, failed validation on this enum alone. That is a large part of what docs/TODO.md means by Thor's documents 'failing both result schemas'; it was a one-word omission, not a design decision."
         },
         "tool_call_parser": {
           "type": [

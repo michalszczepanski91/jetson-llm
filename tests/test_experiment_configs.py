@@ -34,7 +34,7 @@ def test_configs_exist():
     """Zero-parameter parametrisation passes silently, so assert the set."""
     assert {p.stem for p in CONFIGS} == {
         "smoke", "output_sweep", "context_sweep", "scorecard", "p5_cross_platform",
-        "precision_arm",
+        "precision_arm", "context_sweep_thor",
     }
 
 

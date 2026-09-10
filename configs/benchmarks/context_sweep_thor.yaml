@@ -1,0 +1,73 @@
+schema_version: "1.0.0"
+name: context_sweep_thor
+tier: full
+description: >
+  Thor replicate of context_sweep. Same hypothesis (embedded-ai-chain/docs/paper.md
+  P3's counterpart): input length should move TTFT and prefill work while leaving
+  decode throughput alone. The Orin arm found a real BACKEND-SPECIFIC shape - vLLM's
+  TTFT stays near flat from 128 to 1536 input tokens while llama.cpp's is clearly
+  super-linear - and that shape has never been measured on Thor, which is half of why
+  docs/TODO.md Phase 4 is still 🚧 for this board.
+  Varied: input_tokens. Held constant: model, backend, platform, output length,
+  batch, concurrency, sampling, power mode, execution condition.
+  Expected to move: TTFT, prefill throughput, e2e latency.
+  Expected NOT to move: decode tok/s.
+
+# Platform is the ONLY variable against context_sweep.yaml: 1.5b-awq-vllm-thor is
+# the AWQ twin of 1.5b-awq-vllm-orin, and 1.5b-q4-llamacpp-thor was added for this
+# config as the Q4_K_M twin of 1.5b-q4-llamacpp-orin. Do not substitute the fp16
+# Thor llama-cpp row here - that would confound board with precision, which is the
+# one thing this config exists to avoid.
+models:
+  - 1.5b-awq-vllm-thor
+  - 1.5b-q4-llamacpp-thor
+
+workload:
+  input_tokens: [128, 512, 1024, 1536]
+  output_tokens: [128]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v2  # NOT v1, unlike the Orin configs this mirrors. v1
+    # results from a multi-cell vLLM session can carry cross-cell prefix-cache hits
+    # in their TTFT: build_prompt() was a function of input length and run index
+    # only, so cells holding input length fixed sent byte-identical prompts, and a
+    # shorter cell's prompt was a literal PREFIX of a longer one's - which
+    # contaminated the CONTEXT sweep progressively with length, exactly the axis
+    # this config varies. Fixed upstream with a per-cell salt (benchmarks/runner.py
+    # cell_salt()). This config is written after that fix and must never be run
+    # against a build predating it.
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: false  # DELIBERATELY false, and NOT the same claim the Orin configs
+    # make. Pinning clocks needs root, which this lab does not have on this shared
+    # Thor. Declaring `true` here would assert a hardware state no one established -
+    # and this board is precisely where that matters, since Edge-LLM measured 27-37%
+    # SLOWER on a quiet box than beside a busy neighbour while drawing less power,
+    # which points at dynamic GPU clocks rather than contention
+    # (docs/thor-framework-comparison.md). So these numbers are unpinned-clock
+    # numbers and say so, rather than being quietly comparable to Orin's pinned ones.
+
+notes: >
+  8 cells (2 models x 4 input lengths), two server sessions. Cheaper than
+  output_sweep_thor because every cell generates only 128 tokens. Cells sharing a
+  server session share one cold-start measurement, flagged in each result.
+  Cross-platform reading: compare against results/raw/2026-09-04_orin_* from
+  context_sweep.yaml, but ONLY on shape, not on level - the Orin arm ran with
+  jetson_clocks pinned and this one cannot (see platform_state above), and the Orin
+  TTFT numbers additionally need the v1/v2 prompt caveat applied.

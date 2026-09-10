@@ -1075,3 +1075,29 @@ qwen3-8b-awq-vllm-thor:
     explanations. Not a serving recommendation either way: fp16 on a bf16-trained
     checkpoint carries its own overflow risk and would need its own MMLU check
     before anyone shipped it.
+
+# --- Thor twin of the Orin sweep pair, added 2026-09-10 ---
+# docs/TODO.md Phase 4 is 🚧 on Thor because the two Phase-4 sweeps (the
+# J/token amortization shape and the backend context-scaling gap) have only
+# ever run on Orin. Reproducing them here needs Thor rows that differ from the
+# Orin ones in PLATFORM ONLY - otherwise the comparison confounds board with
+# precision. `1.5b-awq-vllm-thor` already matches `1.5b-awq-vllm-orin`; this
+# row is the missing llama.cpp half, matching `1.5b-q4-llamacpp-orin` exactly.
+# Note it is deliberately Q4_K_M, NOT the fp16 the other Thor llama-cpp rows
+# use: those are fp16 to hold precision constant across the three-backend
+# framework comparison (Edge-LLM can only join at fp16), which is a different
+# experiment with a different control.
+1.5b-q4-llamacpp-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: thor
+  quant: Q4_K_M  # identical to 1.5b-q4-llamacpp-orin - platform is the only variable
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 2048  # identical to 1.5b-q4-llamacpp-orin
+  notes: >
+    Added 2026-09-10 so Phase 4's two sweeps can be reproduced on Thor against
+    a row that differs from its Orin counterpart in platform alone. Not a
+    serving candidate in its own right - the Thor framework comparison uses the
+    fp16 rows. Not yet run at the time this row was added.

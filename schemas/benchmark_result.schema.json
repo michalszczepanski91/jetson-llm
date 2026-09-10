@@ -2,42 +2,88 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/mszczep/jetson-llm/schemas/benchmark_result.schema.json",
   "title": "Performance benchmark result",
-  "description": "One experiment cell: one candidate x one workload point, with its raw per-run measurements AND the aggregates derived from them. The governing rule is docs/note.md §3 - a number without its experimental context is not a result - so nearly everything here exists to make the cell reproducible rather than to make it look complete. Two structural rules are load-bearing and are enforced by `required`: (1) `runs` holds every measured repetition, because docs/note.md §10 forbids storing only aggregates - aggregates are regenerable, raw data is not; (2) `execution_condition` has no default, because on a unified-memory board a standalone and a co-resident number are different physical quantities. Quality/accuracy results live in quality_result.schema.json, deliberately not merged here (docs/note.md §5 keeps the layers independently measurable). Self-contained (no cross-file $ref) so a validator needs no resolver. Conformance levels: see schemas/README.md - this schema is the contract docs/TODO.md Phase 2 implements, so today's harness output does not yet satisfy it.",
+  "description": "One experiment cell: one candidate x one workload point, with its raw per-run measurements AND the aggregates derived from them. The governing rule is docs/note.md \u00a73 - a number without its experimental context is not a result - so nearly everything here exists to make the cell reproducible rather than to make it look complete. Two structural rules are load-bearing and are enforced by `required`: (1) `runs` holds every measured repetition, because docs/note.md \u00a710 forbids storing only aggregates - aggregates are regenerable, raw data is not; (2) `execution_condition` has no default, because on a unified-memory board a standalone and a co-resident number are different physical quantities. Quality/accuracy results live in quality_result.schema.json, deliberately not merged here (docs/note.md \u00a75 keeps the layers independently measurable). Self-contained (no cross-file $ref) so a validator needs no resolver. Conformance levels: see schemas/README.md - this schema is the contract docs/TODO.md Phase 2 implements, so today's harness output does not yet satisfy it.",
   "type": "object",
-  "required": ["schema_version", "experiment_id", "timestamp", "manifest", "model", "workload", "execution_condition", "cold_start", "runs", "aggregates", "validity"],
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "timestamp",
+    "manifest",
+    "model",
+    "workload",
+    "execution_condition",
+    "cold_start",
+    "runs",
+    "aggregates",
+    "validity"
+  ],
   "additionalProperties": false,
-
   "$defs": {
     "percentiles": {
       "type": "object",
-      "description": "docs/note.md §32 / this project's standing convention: p50/p95/p99, never a mean as the primary figure. `mean` is permitted only alongside `stddev` and only where a distribution is genuinely being characterised - it is never the headline.",
-      "required": ["p50", "p95", "p99", "n"],
+      "description": "docs/note.md \u00a732 / this project's standing convention: p50/p95/p99, never a mean as the primary figure. `mean` is permitted only alongside `stddev` and only where a distribution is genuinely being characterised - it is never the headline.",
+      "required": [
+        "p50",
+        "p95",
+        "p99",
+        "n"
+      ],
       "additionalProperties": false,
       "properties": {
-        "min": {"type": "number"},
-        "p50": {"type": "number"},
-        "p95": {"type": "number"},
-        "p99": {"type": "number"},
-        "max": {"type": "number"},
-        "n": {"type": "integer", "minimum": 1, "description": "Sample count these percentiles were computed over. A p99 over n=30 is a weak statement and the reader is entitled to see n next to it."},
-        "mean": {"type": "number"},
-        "stddev": {"type": "number"}
+        "min": {
+          "type": "number"
+        },
+        "p50": {
+          "type": "number"
+        },
+        "p95": {
+          "type": "number"
+        },
+        "p99": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sample count these percentiles were computed over. A p99 over n=30 is a weak statement and the reader is entitled to see n next to it."
+        },
+        "mean": {
+          "type": "number"
+        },
+        "stddev": {
+          "type": "number"
+        }
       }
     },
     "rail_stats": {
       "type": "object",
-      "description": "One tegrastats power rail, averaged over the measurement window ONLY (docs/note.md §14: never an instantaneous reading taken at an arbitrary moment).",
-      "required": ["avg", "n"],
+      "description": "One tegrastats power rail, averaged over the measurement window ONLY (docs/note.md \u00a714: never an instantaneous reading taken at an arbitrary moment).",
+      "required": [
+        "avg",
+        "n"
+      ],
       "additionalProperties": false,
       "properties": {
-        "avg": {"type": "number"},
-        "min": {"type": "number"},
-        "max": {"type": "number"},
-        "n": {"type": "integer", "minimum": 1, "description": "Number of tegrastats samples inside the window. Small n means the window was too short for the 500ms sampler to characterise it - a validity concern, not a rounding detail."}
+        "avg": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of tegrastats samples inside the window. Small n means the window was too short for the 500ms sampler to characterise it - a validity concern, not a rounding detail."
+        }
       }
     }
   },
-
   "properties": {
     "_comment": {
       "type": "string",
@@ -46,14 +92,18 @@
     "schema_version": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-      "description": "Version of THIS schema the document conforms to. Recorded so an old campaign stays interpretable after the schema evolves; docs/note.md §7 allows the schema to change but not the principle behind it.",
-      "examples": ["1.0.0"]
+      "description": "Version of THIS schema the document conforms to. Recorded so an old campaign stays interpretable after the schema evolves; docs/note.md \u00a77 allows the schema to change but not the principle behind it.",
+      "examples": [
+        "1.0.0"
+      ]
     },
     "experiment_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Unique, human-readable, and traceable back to (model config, experiment config, git commit, hardware, software) - docs/note.md §30. Convention: <date>_<platform>_<model-config-key>_<experiment-name>_in<input>_out<output>_bs<batch>_r<NN>.",
-      "examples": ["2026-09-04_orin_1.5b-awq-vllm-orin_output-sweep_in512_out128_bs1_r01"]
+      "description": "Unique, human-readable, and traceable back to (model config, experiment config, git commit, hardware, software) - docs/note.md \u00a730. Convention: <date>_<platform>_<model-config-key>_<experiment-name>_in<input>_out<output>_bs<batch>_r<NN>.",
+      "examples": [
+        "2026-09-04_orin_1.5b-awq-vllm-orin_output-sweep_in512_out128_bs1_r01"
+      ]
     },
     "label": {
       "type": "string",
@@ -64,293 +114,764 @@
       "format": "date-time",
       "description": "Wall-clock start of the cell, ISO 8601 with offset. Note that all INTERVAL measurements in this document come from time.monotonic()/perf_counter(), not wall clock: this device's NTP sync is known-broken, so wall time orders results but never measures them."
     },
-
     "manifest": {
       "type": "object",
-      "description": "docs/note.md §31 - everything needed to re-run this cell. The single most common way a benchmark campaign becomes worthless is discovering months later that nobody recorded which build produced it.",
-      "required": ["git_commit", "git_dirty", "command", "hardware", "software"],
+      "description": "docs/note.md \u00a731 - everything needed to re-run this cell. The single most common way a benchmark campaign becomes worthless is discovering months later that nobody recorded which build produced it.",
+      "required": [
+        "git_commit",
+        "git_dirty",
+        "command",
+        "hardware",
+        "software"
+      ],
       "additionalProperties": false,
       "properties": {
-        "git_commit": {"type": "string", "minLength": 7, "description": "Full or short SHA of this repo at run time."},
-        "git_dirty": {"type": "boolean", "description": "Whether the working tree had uncommitted changes. true does not invalidate a run, but it does mean the commit alone cannot reproduce it - so it must be visible rather than assumed false."},
-        "command": {"type": "string", "description": "The exact command line invoked, verbatim."},
-        "experiment_config": {"type": "string", "description": "Path of the configs/benchmarks/*.yaml file this cell was expanded from."},
-        "model_config_key": {"type": "string", "description": "Key into configs/models.yaml. The registry row itself is not copied in - the key plus git_commit resolves it, and duplicating it would create two sources of truth that can disagree."},
+        "git_commit": {
+          "type": "string",
+          "minLength": 7,
+          "description": "Full or short SHA of this repo at run time."
+        },
+        "git_dirty": {
+          "type": "boolean",
+          "description": "Whether the working tree had uncommitted changes. true does not invalidate a run, but it does mean the commit alone cannot reproduce it - so it must be visible rather than assumed false."
+        },
+        "command": {
+          "type": "string",
+          "description": "The exact command line invoked, verbatim."
+        },
+        "experiment_config": {
+          "type": "string",
+          "description": "Path of the configs/benchmarks/*.yaml file this cell was expanded from."
+        },
+        "model_config_key": {
+          "type": "string",
+          "description": "Key into configs/models.yaml. The registry row itself is not copied in - the key plus git_commit resolves it, and duplicating it would create two sources of truth that can disagree."
+        },
         "hardware": {
           "type": "object",
-          "required": ["platform", "memory_total_mb", "nvpmodel_mode", "jetson_clocks_locked"],
+          "required": [
+            "platform",
+            "memory_total_mb",
+            "nvpmodel_mode",
+            "jetson_clocks_locked"
+          ],
           "additionalProperties": false,
           "properties": {
-            "platform": {"type": "string", "enum": ["orin", "thor"]},
-            "board": {"type": "string", "examples": ["Jetson AGX Orin Developer Kit"]},
+            "platform": {
+              "type": "string",
+              "enum": [
+                "orin",
+                "thor"
+              ]
+            },
+            "board": {
+              "type": "string",
+              "examples": [
+                "Jetson AGX Orin Developer Kit"
+              ]
+            },
             "memory_total_mb": {
               "type": "number",
-              "description": "Real unified memory, read from the device, never assumed. This Orin is ~30GB despite earlier notes claiming 64GB, and docs/note.md §7's own example hardcodes a 128GB Thor - which is exactly why this is measured per run instead of inferred from the platform name."
+              "description": "Real unified memory, read from the device, never assumed. This Orin is ~30GB despite earlier notes claiming 64GB, and docs/note.md \u00a77's own example hardcodes a 128GB Thor - which is exactly why this is measured per run instead of inferred from the platform name."
             },
-            "nvpmodel_mode": {"type": "string", "description": "As observed at run time. \"unknown (nvpmodel not queryable from this environment)\" is an acceptable and honest value; a fabricated one is not."},
+            "nvpmodel_mode": {
+              "type": "string",
+              "description": "As observed at run time. \"unknown (nvpmodel not queryable from this environment)\" is an acceptable and honest value; a fabricated one is not."
+            },
             "jetson_clocks_locked": {
-              "type": ["boolean", "null"],
+              "type": [
+                "boolean",
+                "null"
+              ],
               "description": "From the min==max sysfs heuristic (CPU scaling_min_freq == scaling_max_freq and GPU devfreq min == max). null = could not be determined. Two weaker checks (cur==max, governor=='performance') were each tried and each gave a WRONG answer live on this device - see benchmarks/harness.py for the full story."
             },
-            "l4t_version": {"type": ["string", "null"], "examples": ["R36.4.7"]}
+            "l4t_version": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "examples": [
+                "R36.4.7"
+              ]
+            }
           }
         },
         "software": {
           "type": "object",
-          "required": ["backend", "backend_version", "container_image"],
+          "required": [
+            "backend",
+            "backend_version",
+            "container_image"
+          ],
           "additionalProperties": false,
           "properties": {
-            "backend": {"type": "string", "enum": ["vllm", "llama-cpp"]},
+            "backend": {
+              "type": "string",
+              "enum": [
+                "vllm",
+                "llama-cpp",
+                "edge-llm"
+              ],
+              "description": "Added 'edge-llm' 2026-09-10. configs/models.yaml has carried edge-llm rows since 2026-09-08 and model.schema.json was updated to accept them, but BOTH result schemas were missed - so every Edge-LLM result this lab has ever produced, including the campaign behind its own recommendation, failed validation on this enum alone. That is a large part of what docs/TODO.md means by Thor's documents 'failing both result schemas'; it was a one-word omission, not a design decision."
+            },
             "backend_version": {
               "type": "string",
               "description": "Read from the RUNNING server (llama.cpp build number, vLLM version string), never inferred from the image tag. `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` is not a llama.cpp version, and this lab has already had to distinguish builds 4579 / 5058 / 5283 by behaviour alone - 4579 hard-errors on tool_choice, 5058 works."
             },
-            "container_image": {"type": "string", "description": "Image reference as run."},
-            "container_digest": {"type": "string", "description": "sha256 digest. The only thing that actually pins the image: `latest-jetson-orin` is a moving tag, so a campaign spanning weeks can silently change backends without it."},
-            "jetpack": {"type": "string"},
-            "cuda": {"type": "string"},
-            "driver": {"type": "string"},
-            "docker": {"type": "string"},
-            "python": {"type": "string"}
+            "container_image": {
+              "type": "string",
+              "description": "Image reference as run."
+            },
+            "container_digest": {
+              "type": "string",
+              "description": "sha256 digest. The only thing that actually pins the image: `latest-jetson-orin` is a moving tag, so a campaign spanning weeks can silently change backends without it."
+            },
+            "jetpack": {
+              "type": "string"
+            },
+            "cuda": {
+              "type": "string"
+            },
+            "driver": {
+              "type": "string"
+            },
+            "docker": {
+              "type": "string"
+            },
+            "python": {
+              "type": "string"
+            }
           }
         }
       }
     },
-
     "model": {
       "type": "object",
-      "description": "Snapshot of what was actually served. Duplicates part of the registry row on purpose: a result must remain interpretable if the registry is later edited, and docs/note.md §28 keeps rows forever precisely so this cross-check stays possible.",
-      "required": ["name", "precision", "backend", "platform"],
+      "description": "Snapshot of what was actually served. Duplicates part of the registry row on purpose: a result must remain interpretable if the registry is later edited, and docs/note.md \u00a728 keeps rows forever precisely so this cross-check stays possible.",
+      "required": [
+        "name",
+        "precision",
+        "backend",
+        "platform"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": {"type": "string", "description": "HF repo id or GGUF repo actually served."},
-        "revision": {"type": ["string", "null"], "description": "Model repo revision. null means unpinned - which makes the cell not strictly reproducible, and saying so is the point of allowing null."},
-        "family": {"type": "string"},
-        "parameters_b": {"type": "number", "exclusiveMinimum": 0},
-        "precision": {"type": "string", "description": "Prose summary, per the registry's rule against a bare \"INT4\"."},
-        "quantization_method": {"type": "string", "examples": ["awq", "compressed-tensors", "gguf-k-quant", "none"]},
-        "backend": {"type": "string", "enum": ["vllm", "llama-cpp"]},
-        "platform": {"type": "string", "enum": ["orin", "thor"]},
-        "serving_args": {"type": "array", "items": {"type": "string"}, "description": "The resolved server command's arguments. Recorded because a benchmark comparison is only fair if the tuning applied to each side is visible (docs/note.md §40)."}
+        "name": {
+          "type": "string",
+          "description": "HF repo id or GGUF repo actually served."
+        },
+        "revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Model repo revision. null means unpinned - which makes the cell not strictly reproducible, and saying so is the point of allowing null."
+        },
+        "family": {
+          "type": "string"
+        },
+        "parameters_b": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "precision": {
+          "type": "string",
+          "description": "Prose summary, per the registry's rule against a bare \"INT4\"."
+        },
+        "quantization_method": {
+          "type": "string",
+          "examples": [
+            "awq",
+            "compressed-tensors",
+            "gguf-k-quant",
+            "none"
+          ]
+        },
+        "backend": {
+          "type": "string",
+          "enum": [
+            "vllm",
+            "llama-cpp",
+            "edge-llm"
+          ],
+          "description": "Added 'edge-llm' 2026-09-10. configs/models.yaml has carried edge-llm rows since 2026-09-08 and model.schema.json was updated to accept them, but BOTH result schemas were missed - so every Edge-LLM result this lab has ever produced, including the campaign behind its own recommendation, failed validation on this enum alone. That is a large part of what docs/TODO.md means by Thor's documents 'failing both result schemas'; it was a one-word omission, not a design decision."
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "orin",
+            "thor"
+          ]
+        },
+        "serving_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The resolved server command's arguments. Recorded because a benchmark comparison is only fair if the tuning applied to each side is visible (docs/note.md \u00a740)."
+        }
       }
     },
-
     "workload": {
       "type": "object",
       "description": "The workload point this cell measured. Targets and achieved counts are separate fields: a prompt built for 2048 tokens that tokenises to 2031 is a 2031-token measurement, and the analysis must be able to see the difference.",
-      "required": ["input_tokens_target", "output_tokens_target", "batch_size", "concurrency", "sampling"],
+      "required": [
+        "input_tokens_target",
+        "output_tokens_target",
+        "batch_size",
+        "concurrency",
+        "sampling"
+      ],
       "additionalProperties": false,
       "properties": {
-        "input_tokens_target": {"type": ["integer", "null"], "exclusiveMinimum": 0, "description": "Prompt length the workload aimed at. null is permitted and means the run set no explicit target AND the server reported no usage block, so the achieved count could not be substituted - an honest gap rather than a fabricated target. The achieved count per run lives in runs[].input_tokens."},
-        "output_tokens_target": {"type": "integer", "exclusiveMinimum": 0, "description": "The max_tokens cap requested. Not the same as tokens actually generated - a model that stops early is a real effect that must not be hidden."},
-        "batch_size": {"type": "integer", "exclusiveMinimum": 0},
-        "concurrency": {"type": "integer", "exclusiveMinimum": 0, "description": "Kept distinct from batch_size (docs/note.md §13); the two are different experimental conditions."},
-        "prompt_source": {"type": "string"},
+        "input_tokens_target": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "description": "Prompt length the workload aimed at. null is permitted and means the run set no explicit target AND the server reported no usage block, so the achieved count could not be substituted - an honest gap rather than a fabricated target. The achieved count per run lives in runs[].input_tokens."
+        },
+        "output_tokens_target": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "The max_tokens cap requested. Not the same as tokens actually generated - a model that stops early is a real effect that must not be hidden."
+        },
+        "batch_size": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "concurrency": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "Kept distinct from batch_size (docs/note.md \u00a713); the two are different experimental conditions."
+        },
+        "prompt_source": {
+          "type": "string"
+        },
         "prompt_uniqueness": {
           "type": "string",
-          "enum": ["identical-per-run", "unique-per-run"],
+          "enum": [
+            "identical-per-run",
+            "unique-per-run"
+          ],
           "description": "Whether every repetition sent the SAME prompt. This is not a detail: with an identical prompt, both backends serve repetition 2..N from a reused KV cache (vLLM's --enable-prefix-caching, on by default in this lab's coordinator; llama-server's slot cache), so TTFT and prefill throughput measure a cache lookup rather than a prefill. Confirmed live 2026-09-04 - llama-server logged `prompt eval time = ... / 1 tokens` for a 40-token prompt on every run after the first, and the derived prefill figure was inflated by roughly the ratio of prompt length to 1. `unique-per-run` prefixes each request with a per-run marker to defeat that. An `identical-per-run` cell is measuring warm-cache behaviour and must be labelled as such rather than compared against a cold-prefill number."
         },
-        "prompt_template_version": {"type": "string", "description": "docs/note.md §21 - a template change is an experimental change."},
-        "tools_attached": {"type": "boolean", "description": "Whether tool schemas were in the request. They lengthen the prompt and can change the decode path, so a performance number is not comparable across this flag."},
+        "prompt_template_version": {
+          "type": "string",
+          "description": "docs/note.md \u00a721 - a template change is an experimental change."
+        },
+        "tools_attached": {
+          "type": "boolean",
+          "description": "Whether tool schemas were in the request. They lengthen the prompt and can change the decode path, so a performance number is not comparable across this flag."
+        },
         "sampling": {
           "type": "object",
-          "required": ["temperature"],
+          "required": [
+            "temperature"
+          ],
           "additionalProperties": false,
           "properties": {
-            "temperature": {"type": "number", "minimum": 0},
-            "top_p": {"type": "number"},
-            "top_k": {"type": "integer"},
-            "seed": {"type": ["integer", "null"]}
+            "temperature": {
+              "type": "number",
+              "minimum": 0
+            },
+            "top_p": {
+              "type": "number"
+            },
+            "top_k": {
+              "type": "integer"
+            },
+            "seed": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
           }
         }
       }
     },
-
     "execution_condition": {
       "type": "string",
-      "enum": ["standalone", "co-resident"],
-      "description": "Required, no default (docs/note.md §15). standalone = only this workload ran. co-resident = the real pipeline ran alongside. This is the distinction embedded-ai-chain's concurrency-starvation test turns on, and mixing the two conditions in one table is the most damaging error this schema exists to prevent."
+      "enum": [
+        "standalone",
+        "co-resident"
+      ],
+      "description": "Required, no default (docs/note.md \u00a715). standalone = only this workload ran. co-resident = the real pipeline ran alongside. This is the distinction embedded-ai-chain's concurrency-starvation test turns on, and mixing the two conditions in one table is the most damaging error this schema exists to prevent."
     },
     "co_resident_workload": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "description": "Which components were actually running alongside. Required in practice whenever execution_condition is co-resident - \"under load\" is not a reproducible condition.",
-      "examples": [["yolo", "stt", "tts"]]
+      "examples": [
+        [
+          "yolo",
+          "stt",
+          "tts"
+        ]
+      ]
     },
-
     "cold_start": {
       "type": "object",
-      "description": "docs/note.md §37 - measured separately from inference, and DECOMPOSED. An undecomposed cold start has already produced two misleading numbers in this lab: Bielik's 338s, which is mostly a 6.7GB first download, and llama.cpp's 2.0s, which is a warm-cache second run. Neither is a cold start; both looked like one.",
-      "required": ["measured", "total_s"],
+      "description": "docs/note.md \u00a737 - measured separately from inference, and DECOMPOSED. An undecomposed cold start has already produced two misleading numbers in this lab: Bielik's 338s, which is mostly a 6.7GB first download, and llama.cpp's 2.0s, which is a warm-cache second run. Neither is a cold start; both looked like one.",
+      "required": [
+        "measured",
+        "total_s"
+      ],
       "additionalProperties": false,
       "properties": {
         "measured": {
           "type": "boolean",
-          "description": "false for --target remote, where RemoteCoordinator.start() is a no-op and the server was already running. When false, total_s measures nothing and must never be reported as cold start (docs/note.md §37: record `cold_start = not measured` explicitly)."
+          "description": "false for --target remote, where RemoteCoordinator.start() is a no-op and the server was already running. When false, total_s measures nothing and must never be reported as cold start (docs/note.md \u00a737: record `cold_start = not measured` explicitly)."
         },
-        "total_s": {"type": ["number", "null"], "minimum": 0},
-        "download_s": {"type": ["number", "null"], "minimum": 0, "description": "Model artifact download. null = already cached, which is itself the fact that makes a 2.0s figure not a cold start."},
-        "weights_cached": {"type": "boolean", "description": "Whether the weights were already on disk before this run. The single field that would have prevented both misleading numbers above."},
-        "container_start_s": {"type": ["number", "null"], "minimum": 0},
-        "model_load_s": {"type": ["number", "null"], "minimum": 0},
-        "server_ready_s": {"type": ["number", "null"], "minimum": 0, "description": "Process start to first successful /health."},
-        "caveat": {"type": "string", "description": "Free text for anything that makes the numbers above non-comparable."}
+        "total_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "download_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Model artifact download. null = already cached, which is itself the fact that makes a 2.0s figure not a cold start."
+        },
+        "weights_cached": {
+          "type": "boolean",
+          "description": "Whether the weights were already on disk before this run. The single field that would have prevented both misleading numbers above."
+        },
+        "container_start_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "model_load_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "server_ready_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Process start to first successful /health."
+        },
+        "caveat": {
+          "type": "string",
+          "description": "Free text for anything that makes the numbers above non-comparable."
+        }
       }
     },
-
     "runs": {
       "type": "array",
       "minItems": 1,
-      "description": "EVERY measured repetition, in order. docs/note.md §10: raw per-run measurements are stored, not just aggregates - aggregates can always be recomputed from these, and nothing can recover them once discarded. Warmup repetitions are excluded (they are counted in `validity`).",
+      "description": "EVERY measured repetition, in order. docs/note.md \u00a710: raw per-run measurements are stored, not just aggregates - aggregates can always be recomputed from these, and nothing can recover them once discarded. Warmup repetitions are excluded (they are counted in `validity`).",
       "items": {
         "type": "object",
-        "required": ["run_index", "e2e_latency_ms"],
+        "required": [
+          "run_index",
+          "e2e_latency_ms"
+        ],
         "additionalProperties": false,
         "properties": {
-          "run_index": {"type": "integer", "minimum": 0},
-          "ttft_ms": {"type": ["number", "null"], "minimum": 0, "description": "Request start to first generated token. null for a non-streaming run, where it is genuinely not observable - not 0."},
-          "e2e_latency_ms": {"type": "number", "minimum": 0, "description": "Request start to final token."},
-          "decode_ms": {"type": ["number", "null"], "minimum": 0, "description": "First token to final token. e2e minus ttft, kept explicit so an analysis never has to re-derive it and get the sign wrong on a null."},
+          "run_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ttft_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Request start to first generated token. null for a non-streaming run, where it is genuinely not observable - not 0."
+          },
+          "e2e_latency_ms": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Request start to final token."
+          },
+          "decode_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "First token to final token. e2e minus ttft, kept explicit so an analysis never has to re-derive it and get the sign wrong on a null."
+          },
           "input_tokens": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "description": "ACHIEVED prompt tokens, from the server's own usage block - not the target, and not a client-side estimate."
           },
           "output_tokens": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "description": "ACHIEVED generated tokens, from the server's usage block. Counting streamed SSE content deltas gives a chunk count, not a token count; the two differ per backend and must not be substituted for each other."
           },
           "thinking_tokens": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
-            "description": "docs/note.md §22. For reasoning/thinking models, the hidden reasoning tokens. Becomes mandatory the moment a thinking-mode row enters the registry: comparing a reasoning model to a non-reasoning one on visible output tokens alone hides most of the computational work."
+            "description": "docs/note.md \u00a722. For reasoning/thinking models, the hidden reasoning tokens. Becomes mandatory the moment a thinking-mode row enters the registry: comparing a reasoning model to a non-reasoning one on visible output tokens alone hides most of the computational work."
           },
-          "prefill_tok_s": {"type": ["number", "null"], "minimum": 0},
-          "decode_tok_s": {"type": ["number", "null"], "minimum": 0},
+          "prefill_tok_s": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "decode_tok_s": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
           "inter_token_latency_ms": {
             "type": "array",
-            "items": {"type": "number", "minimum": 0},
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
             "description": "Per-token gaps, where the streaming path can observe them. Kept as a distribution rather than a mean because inter-token stalls are exactly what a mean hides - and a stall is what a listener actually perceives."
           },
-          "finish_reason": {"type": ["string", "null"], "description": "stop / length / tool_calls / error. A cell where most runs finished on `length` is measuring the cap, not the model."},
-          "error": {"type": ["string", "null"], "description": "Non-null if this repetition failed. Failed runs are recorded, not dropped - an OOM or a 500 is a result (docs/note.md §54)."}
+          "finish_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "stop / length / tool_calls / error. A cell where most runs finished on `length` is measuring the cap, not the model."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Non-null if this repetition failed. Failed runs are recorded, not dropped - an OOM or a 500 is a result (docs/note.md \u00a754)."
+          }
         }
       }
     },
-
     "aggregates": {
       "type": "object",
       "description": "Derived from `runs` and nothing else. Regenerating these from the raw array must reproduce them exactly; docs/TODO.md GATE 2 uses that as the proof the raw data is sufficient.",
-      "required": ["e2e_latency_ms"],
+      "required": [
+        "e2e_latency_ms"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ttft_ms": {"$ref": "#/$defs/percentiles"},
-        "e2e_latency_ms": {"$ref": "#/$defs/percentiles"},
-        "decode_ms": {"$ref": "#/$defs/percentiles"},
-        "inter_token_latency_ms": {"$ref": "#/$defs/percentiles"},
-        "prefill_tok_s": {"$ref": "#/$defs/percentiles"},
-        "decode_tok_s": {"$ref": "#/$defs/percentiles"},
-        "output_tokens": {"$ref": "#/$defs/percentiles"}
+        "ttft_ms": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "e2e_latency_ms": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "decode_ms": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "inter_token_latency_ms": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "prefill_tok_s": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "decode_tok_s": {
+          "$ref": "#/$defs/percentiles"
+        },
+        "output_tokens": {
+          "$ref": "#/$defs/percentiles"
+        }
       }
     },
-
     "memory": {
       "type": "object",
-      "description": "On unified memory there is no discrete VRAM to query, so the honest decomposition matters more than a single number. docs/note.md §9: do NOT report the client process's RSS as model memory - for every --target local run in this repo the model lives inside the server's container and this process is only an HTTP client.",
+      "description": "On unified memory there is no discrete VRAM to query, so the honest decomposition matters more than a single number. docs/note.md \u00a79: do NOT report the client process's RSS as model memory - for every --target local run in this repo the model lives inside the server's container and this process is only an HTTP client.",
       "additionalProperties": false,
       "properties": {
-        "system_ram_used_mb": {"type": "object", "additionalProperties": false, "properties": {"peak": {"type": ["number", "null"]}, "steady": {"type": ["number", "null"]}}, "description": "From tegrastats - the real figure on this hardware, since it already includes whatever CUDA allocated device-side."},
-        "system_ram_total_mb": {"type": ["number", "null"]},
-        "client_rss_mb": {"type": "object", "additionalProperties": false, "properties": {"before": {"type": ["number", "null"]}, "peak": {"type": ["number", "null"]}, "steady": {"type": ["number", "null"]}}, "description": "The benchmark process's own RSS. Retained for completeness and explicitly NOT a model-memory figure."},
-        "server_rss_mb": {"type": ["number", "null"], "description": "The serving container's RSS, where obtainable. Closer to a real footprint than client_rss_mb, still not the whole story on unified memory."},
-        "weights_mb": {"type": ["number", "null"], "description": "Model weights, where the backend reports them separately."},
-        "kv_cache_mb": {"type": ["number", "null"], "description": "KV cache. Broken out because it scales with context and becomes the dominant term first - the specific question docs/note.md §11's context sweep exists to answer."},
-        "attribution_caveat": {"type": "string", "description": "Says plainly which of the above are measured and which are inferred. Preferred over omitting a field and letting a reader assume it was measured."}
+        "system_ram_used_mb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "peak": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "steady": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "description": "From tegrastats - the real figure on this hardware, since it already includes whatever CUDA allocated device-side."
+        },
+        "system_ram_total_mb": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "client_rss_mb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "peak": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "steady": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "description": "The benchmark process's own RSS. Retained for completeness and explicitly NOT a model-memory figure."
+        },
+        "server_rss_mb": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The serving container's RSS, where obtainable. Closer to a real footprint than client_rss_mb, still not the whole story on unified memory."
+        },
+        "weights_mb": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Model weights, where the backend reports them separately."
+        },
+        "kv_cache_mb": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "KV cache. Broken out because it scales with context and becomes the dominant term first - the specific question docs/note.md \u00a711's context sweep exists to answer."
+        },
+        "attribution_caveat": {
+          "type": "string",
+          "description": "Says plainly which of the above are measured and which are inferred. Preferred over omitting a field and letting a reader assume it was measured."
+        }
       }
     },
-
     "power": {
       "type": "object",
-      "description": "Sampled continuously during the measurement window only. docs/note.md §14's headline metric is J per generated token, which requires the token counts in `runs` and the rails here to come from the SAME interval - the reason the streaming and power paths have to be merged rather than run separately.",
+      "description": "Sampled continuously during the measurement window only. docs/note.md \u00a714's headline metric is J per generated token, which requires the token counts in `runs` and the rails here to come from the SAME interval - the reason the streaming and power paths have to be merged rather than run separately.",
       "additionalProperties": false,
       "properties": {
         "rails_mw": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "vdd_gpu_soc_mw": {"$ref": "#/$defs/rail_stats"},
-            "vdd_cpu_cv_mw": {"$ref": "#/$defs/rail_stats"},
-            "vin_sys_5v0_mw": {"$ref": "#/$defs/rail_stats"}
+            "vdd_gpu_soc_mw": {
+              "$ref": "#/$defs/rail_stats"
+            },
+            "vdd_cpu_cv_mw": {
+              "$ref": "#/$defs/rail_stats"
+            },
+            "vin_sys_5v0_mw": {
+              "$ref": "#/$defs/rail_stats"
+            }
           }
         },
-        "measurement_window_s": {"type": "number", "minimum": 0, "description": "Duration the rails were integrated over. Energy figures below are only as good as this window's alignment with the actual inference."},
-        "energy_joules": {"type": "number", "minimum": 0, "description": "Rail power integrated across the measurement window."},
-        "energy_per_request_j": {"type": "number", "minimum": 0},
+        "measurement_window_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration the rails were integrated over. Energy figures below are only as good as this window's alignment with the actual inference."
+        },
+        "energy_joules": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Rail power integrated across the measurement window."
+        },
+        "energy_per_request_j": {
+          "type": "number",
+          "minimum": 0
+        },
         "energy_per_output_token_j": {
           "type": "number",
           "minimum": 0,
-          "description": "The headline efficiency metric (docs/note.md §14), and the quantity embedded-ai-chain/docs/paper.md §7.1 builds Semantic Decision Energy on."
+          "description": "The headline efficiency metric (docs/note.md \u00a714), and the quantity embedded-ai-chain/docs/paper.md \u00a77.1 builds Semantic Decision Energy on."
         },
         "rails_included": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Which rails the energy figures above actually sum. Required for comparability: a GPU+SoC-only figure and a board-total figure are different quantities and must never be plotted on one axis."
         },
-        "idle_baseline_w": {"type": ["number", "null"], "description": "Board idle draw under the same power mode, if measured. Lets a reader separate marginal inference energy from total board energy - and null says honestly that they can't."}
+        "idle_baseline_w": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Board idle draw under the same power mode, if measured. Lets a reader separate marginal inference energy from total board energy - and null says honestly that they can't."
+        }
       }
     },
-
     "thermal": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "start_c": {"type": ["number", "null"]},
-        "end_c": {"type": ["number", "null"]},
-        "max_c": {"type": ["number", "null"]},
-        "sensor": {"type": "string", "description": "Which reading these came from - `tj` preferred, `gpu` as fallback. Recorded because the two are not interchangeable across boards.", "examples": ["tj", "gpu"]}
+        "start_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "end_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sensor": {
+          "type": "string",
+          "description": "Which reading these came from - `tj` preferred, `gpu` as fallback. Recorded because the two are not interchangeable across boards.",
+          "examples": [
+            "tj",
+            "gpu"
+          ]
+        }
       }
     },
-
     "validity": {
       "type": "object",
-      "description": "Whether this cell should be believed. Kept as structured fields rather than prose so an analysis can filter on it - docs/note.md §38 requires a throttled run to be flagged or discarded, which is only enforceable if the flag is machine-readable.",
-      "required": ["warmup_runs", "warmup_reached_steady_state", "measurement_runs"],
+      "description": "Whether this cell should be believed. Kept as structured fields rather than prose so an analysis can filter on it - docs/note.md \u00a738 requires a throttled run to be flagged or discarded, which is only enforceable if the flag is machine-readable.",
+      "required": [
+        "warmup_runs",
+        "warmup_reached_steady_state",
+        "measurement_runs"
+      ],
       "additionalProperties": false,
       "properties": {
-        "warmup_runs": {"type": "integer", "minimum": 0},
+        "warmup_runs": {
+          "type": "integer",
+          "minimum": 0
+        },
         "warmup_reached_steady_state": {
           "type": "boolean",
           "description": "false = warmup hit its iteration/time cap before junction temperature went flat. The run is still usable, but it is not a thermal-steady-state measurement and may not be labelled as one."
         },
-        "measurement_runs": {"type": "integer", "minimum": 1},
-        "thermal_throttling_observed": {"type": "boolean", "description": "docs/note.md §38 - a throttled cell is flagged or invalid, never quietly averaged in."},
-        "failed_runs": {"type": "integer", "minimum": 0, "description": "Repetitions that errored. Counted here and kept in `runs`; a cell with a high count is reporting reliability, not latency."},
+        "measurement_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "thermal_throttling_observed": {
+          "type": "boolean",
+          "description": "docs/note.md \u00a738 - a throttled cell is flagged or invalid, never quietly averaged in."
+        },
+        "failed_runs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Repetitions that errored. Counted here and kept in `runs`; a cell with a high count is reporting reliability, not latency."
+        },
         "flags": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Machine-readable caveats, e.g. remote-target telemetry describing the client machine rather than the inference host.",
-          "examples": [["remote_target_telemetry_is_client_side", "cold_start_not_measured"]]
+          "examples": [
+            [
+              "remote_target_telemetry_is_client_side",
+              "cold_start_not_measured"
+            ]
+          ]
         },
-        "notes": {"type": "string"}
+        "notes": {
+          "type": "string"
+        }
       }
     }
   },
-
   "allOf": [
     {
-      "if": {"properties": {"execution_condition": {"const": "co-resident"}}, "required": ["execution_condition"]},
+      "if": {
+        "properties": {
+          "execution_condition": {
+            "const": "co-resident"
+          }
+        },
+        "required": [
+          "execution_condition"
+        ]
+      },
       "then": {
-        "required": ["co_resident_workload"],
+        "required": [
+          "co_resident_workload"
+        ],
         "$comment": "A co-resident number whose co-resident workload is unnamed cannot be reproduced or compared against any other co-resident number."
       }
     },
     {
-      "if": {"properties": {"cold_start": {"properties": {"measured": {"const": false}}, "required": ["measured"]}}, "required": ["cold_start"]},
+      "if": {
+        "properties": {
+          "cold_start": {
+            "properties": {
+              "measured": {
+                "const": false
+              }
+            },
+            "required": [
+              "measured"
+            ]
+          }
+        },
+        "required": [
+          "cold_start"
+        ]
+      },
       "then": {
-        "properties": {"cold_start": {"properties": {"total_s": {"type": "null"}}}},
-        "$comment": "docs/note.md §37: never report a remote server's already-running state as a cold-start duration. If it wasn't measured, the field is null, not a number that happens to be small."
+        "properties": {
+          "cold_start": {
+            "properties": {
+              "total_s": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        "$comment": "docs/note.md \u00a737: never report a remote server's already-running state as a cold-start duration. If it wasn't measured, the field is null, not a number that happens to be small."
       }
     }
   ]

@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-10_thor_7b-fp16-edgellm-thor_bfcl-v3_n100",
+  "timestamp": "2026-09-10T19:03:31.650777+02:00",
+  "manifest": {
+    "git_commit": "85b3c48bc6c6411fa1553c229fda3ea3ee437ddc",
+    "git_dirty": true,
+    "command": "/home/michal/dev/jetson-llm/.venv/bin/python3 scripts/validate_tool_calling.py --model-config 7b-fp16-edgellm-thor --execution-condition standalone --limit 50 --temperature 0 --top-k 1 --top-p 1.0 --ready-timeout 1800",
+    "model_config_key": "7b-fp16-edgellm-thor",
+    "backend": "edge-llm",
+    "backend_version": "unknown (server exposed no version endpoint)",
+    "container_image": "n/a (remote target - image not owned by this host)",
+    "platform": "thor",
+    "target": "local",
+    "execution_condition": "standalone"
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-7B-Instruct",
+    "precision": "fp16 (no quantization)",
+    "backend": "edge-llm"
+  },
+  "dataset": {
+    "name": "BFCL",
+    "version": "v3",
+    "source": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "split": "simple+irrelevance",
+    "n_available": 640,
+    "n_evaluated": 100,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "preprocessing_version": "v2-typefix",
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "simplified-ast-v2-bfcl-standardize (this repo, not official bfcl-eval)",
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "top_p": 1.0,
+    "top_k": 1,
+    "max_tokens": 200,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.96,
+    "n": 100,
+    "by_category": {
+      "simple": {
+        "accuracy": 0.98,
+        "n": 50,
+        "n_correct": 49
+      },
+      "irrelevance": {
+        "accuracy": 0.94,
+        "n": 50,
+        "n_correct": 47
+      }
+    }
+  },
+  "tool_call_outcomes": {
+    "confusion_matrix": {
+      "true_positive": 50,
+      "false_positive": 3,
+      "false_negative": 0,
+      "true_negative": 47
+    },
+    "correct_tool": 50,
+    "correct_arguments": 49,
+    "wrong_tool": 0,
+    "hallucinated_tool": 0,
+    "invalid_call": 1,
+    "formatting_failure": 0,
+    "server_error": 0
+  },
+  "notes": "tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice workaround, since the point is measuring unforced judgment.",
+  "outcomes_file": "results/raw/2026-09-10_thor_7b-fp16-edgellm-thor_bfcl-v3_n100/outcomes.jsonl"
+}
