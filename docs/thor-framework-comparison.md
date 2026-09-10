@@ -1,576 +1,202 @@
 # Thor framework comparison — which serving backend, and which model size?
 
-**Recommendation: TensorRT Edge-LLM serving `Qwen2.5-7B-Instruct`, quantized
-GPTQ-Int4 if the pipeline's turn budget is tight, FP16 otherwise.**
+Answers two questions for the orchestrator LLM on Jetson Thor: which of vLLM,
+llama.cpp, and TensorRT Edge-LLM to serve it with, and which precision of
+`Qwen2.5-7B-Instruct` to run. Measured 2026-09-08/10 on the user's Thor (JetPack 7.1,
+CUDA 13.0, TensorRT 10.13.3.9, 122 GiB unified memory). `docs/thor-precision-sweep.html`
+is a visual walkthrough of what each timing/energy column below actually measures -
+open it in a browser if the prose definitions in "Reading the numbers" aren't enough
+on their own. Raw JSON in `output/`; the
+full engineering story — dead-end images, a real bug found in Edge-LLM's own source,
+a self-quantization debugging saga — is kept below in "How we got here" rather than
+mixed into the numbers.
 
-This updates the campaign's original FP16-only conclusion (kept below for the
-record): quantized 7B was blocked by a real bug in Edge-LLM's own source, not by
-anything architectural, and it is fixed - see "GPTQ-Int4 7B" below. The two viable
-options now:
+## The decision
 
-| | BFCL `irrelevance` | turn latency (32 tok) | marginal J/token | cold start |
+**TensorRT Edge-LLM serving `Qwen2.5-7B-Instruct`, quantized GPTQ-Int4 if the turn
+budget is tight, FP16 otherwise.**
+
+| precision | BFCL `irrelevance` | 32-token turn | marginal J/token | cold start |
 |---|---|---|---|---|
-| **7B GPTQ-Int4** | 90% | **769 ms** | **0.27 J** | **0.03 s** |
-| **7B FP16** | **94%** | 1945 ms | 0.84 J | 12.1 s |
+| **INT4-GPTQ** | 90% | **769 ms** | **0.274 J** | **0.03 s** ¹ |
+| **FP16** | **94%** | 1945 ms | 0.839 J | 12.1 s ¹ |
+| FP8 (self-quant) | 90% | 1052 ms | 0.603 J | — |
+| INT8-SQ (self-quant) | 92% ² | 1074 ms | 0.610 J | — |
 
-GPTQ-Int4 gives up 4 points of `irrelevance` for 2.5x lower latency, 3x lower energy,
-and a near-instant cold start. Which one to ship is a genuine product call about the
-pipeline's turn budget - both are legitimate, and both already beat every non-Edge-LLM
-option by a wide margin (see the framework comparison below: llama.cpp and vLLM top
-out at 62%/54% `irrelevance` on the same FP16 weights).
+¹ Cold start is a cache **hit** for both — a miss (first run, or an empty cache)
+takes minutes for either precision. Only llama.cpp's cold start is unconditionally
+fast; see the framework table below. ² INT8-SQ still has an unexplained 12.5-point
+MMLU gap (54.0% vs FP16's 67.5%) — not yet trusted for production; see "Still open."
 
-**Update, 2026-09-09/10 - the full 4-way precision sweep (FP16/INT4-GPTQ/FP8/INT8-SQ)
-confirms GPTQ-Int4 as the best all-round quantized choice**, not merely the only one
-tested: it wins every timing and energy column outright against the two other working
-precisions too (see "The full precision sweep at 7B" below for the complete table and
-what each column means). FP8 is essentially lossless on accuracy but only ~1.4x FP16's
-throughput; INT8-SQ still carries an unexplained 12.5-point MMLU gap. Neither beats
-GPTQ-Int4 on any axis that matters for this deployment.
+INT4-GPTQ wins every timing and energy column outright against all three other
+precisions, for 4 points of `irrelevance`. FP8 is essentially lossless on accuracy but
+only ~1.4× FP16's throughput, nowhere near INT4's 2.5×. Both are legitimate; which to
+ship is a genuine product call about the pipeline's turn budget.
 
-The backend-vs-framework finding below is unaffected by this update - it explains WHY
-Edge-LLM is the right backend regardless of which precision runs on it:
+**Why Edge-LLM and not vLLM or llama.cpp** — same model, same weights, same 100 BFCL
+cases, FP16:
 
-The decision rests on one axis where the backends differ by 40 points and every other
-axis is close. If tool-call judgement did *not* matter, llama.cpp would win — it is
-the fastest and the most energy-efficient of the three, and needs one `docker pull`
-rather than a per-device source build. It loses because it cannot abstain.
-
-| 7B FP16, the three axes that matter | Edge-LLM | llama.cpp | vLLM |
+| | Edge-LLM | llama.cpp | vLLM |
 |---|---|---|---|
-| **Escalation judgement** (BFCL `irrelevance`) | **94%** | 62% | 54% |
-| **Real turn latency** (32 tokens) | 1945 ms | **1899 ms** | 2539 ms |
-| **Energy** (marginal J/token) | 0.85 J | **0.73 J** | 0.96 J |
+| **BFCL `irrelevance`** | **94%** | 62% | 54% |
+| Turn latency (32 tok) | 1945 ms | **1899 ms** | 2539 ms |
+| Energy (marginal J/token) | 0.85 J | **0.73 J** | 0.96 J |
 
-Edge-LLM costs ~2% more turn latency and ~16% more energy than llama.cpp, and buys
-**+32 points of escalation accuracy** for it. vLLM — what `embedded-ai-chain` ships
-today — is worst on all three. (llama.cpp/vLLM were not re-tested with GPTQ-Int4 -
-their own quantized paths are a separate, untried follow-up, not assumed to behave
-the same way Edge-LLM's did.)
+If tool-call judgment didn't matter, llama.cpp would win outright — it's the fastest
+and most energy-efficient, and needs one `docker pull` instead of a source build. It
+loses because it structurally cannot abstain (see "Why the gap exists" below). vLLM —
+`embedded-ai-chain`'s current production backend — is worst on every axis measured
+here, at either precision.
 
-Three findings drive that, and the third would be missed by looking only at headline
-scores:
+## Reading the numbers
 
-1. **The backend determines whether model size buys you anything — or costs you.**
-   Going 1.5B → 7B takes BFCL `irrelevance` from 78% to **94%** on Edge-LLM, moves
-   llama.cpp only 60% → 62%, and makes vLLM **worse, 68% → 54%**. Same weights, same
-   cases; all three score 90-92% on `simple`. llama.cpp's tool-call path is
-   grammar-*constrained*, so a more capable model has no way to express "call
-   nothing"; vLLM's tool-call handling appears to misread the richer output of a
-   larger model as tool calls. **Not a configuration artifact:** with the *same*
-   parser (`hermes`) pinned on both, Edge-LLM and vLLM score an identical 92% on
-   `simple` and 94% vs 54% on `irrelevance` — the gap is entirely in abstention.
-   Choose llama.cpp or vLLM and extra parameters buy you nothing on the axis that
-   matters.
-2. **The size curve flattens completely after 7B.** 14B scores *identically* to 7B —
-   not approximately, but 98/100 identical per-case verdicts — while costing 2x the
-   latency and 2.1x the energy per token. 14B is wasted memory, time and power.
-3. **It is not a decoding artifact.** Forcing deterministic argmax (`top_k=1`) on all
-   three reproduced every score exactly, so sampling, temperature and truncation
-   explain none of the gap — see "Decoding is NOT the cause" below. This mattered to
-   check: the campaign originally pinned only `temperature`, and the three backends
-   turned out to apply three different truncation defaults.
+- **TTFT** (time to first token): wall-clock until the first token arrives, dominated
+  by prompt processing. What a user perceives as "how long before it starts talking."
+- **tok/s**: decode throughput once generation is underway. `1 / tok/s` is the
+  average time per token.
+- **32-token turn**: end-to-end time for one complete, non-streaming response of 32
+  tokens — a realistic reply or tool call, not a 128-token essay and not one token.
+  Measured by a *separate* non-streaming call from TTFT/tok-s, so the two aren't
+  arithmetically identical (a 32-tok turn isn't exactly `TTFT + 31 × (1/tok⁄s)`).
+- **Marginal J/token**: `(board power while generating − idle board power) ÷ tok/s`.
+  Isolates what generation itself costs, subtracting the **5.42 W** the board draws
+  fully idle (measured with the box quiet, no containers). Board power is the whole
+  board's 5 V rail, not GPU-only.
+- **`irrelevance`**: the BFCL category where the correct action is to call **no**
+  tool. It's the direct analogue of `embedded-ai-chain`'s documented `ask_vlm`
+  over-escalation bug, and the only BFCL axis that still discriminates between
+  capable models — see "BFCL `simple` is saturated" below.
 
-`irrelevance` is the category where the correct action is to call **no** tool. It is
-the direct analogue of `embedded-ai-chain`'s documented `ask_vlm` over-escalation
-gap, and it is the only accuracy metric here that still discriminates (see
-"Measurement ceiling" below).
+## Why the gap exists, and what it isn't
 
-**vLLM — what `embedded-ai-chain` ships today — loses on every axis measured.**
+**It's abstention, not detection.** All three backends score 90–92% on `simple` (a
+tool call is wanted) at 7B — identical, even with the same parser pinned on both
+Edge-LLM and vLLM. The entire 40-point spread is in `irrelevance`. llama.cpp
+constrains generation to a tool-call grammar: a structurally-forced call leaves no
+room to abstain, so its `irrelevance` sits near 60% regardless of model size (60%→62%
+from 1.5B→7B). vLLM and Edge-LLM detect tool tags in free generation instead — which
+is why Edge-LLM can turn extra capacity into judgment (78%→94%) while vLLM gets
+**worse** with more parameters (68%→54%).
 
-Measured 2026-09-08 on the user's Jetson Thor (JetPack 7.1 / L4T R38.4.0, CUDA 13.0,
-TensorRT 10.13.3.9, 122 GiB unified memory, `nvpmodel` 120W). Raw JSON in `output/`,
-collated by `scripts/collate_thor_results.py`, campaign driver in
-`scripts/thor_exclusive_window.sh`.
+**Ruled out, not assumed:**
+- *Not the parser* — Edge-LLM scored identically with `auto` and `hermes` pinned,
+  100/100 identical per-case verdicts at both sizes.
+- *Not decoding/sampling* — the three backends turned out to apply three different
+  truncation defaults (a real flaw in the original setup, which had pinned only
+  `temperature`). Forcing `top_k=1` (deterministic argmax on all three, making
+  `top_p`/`min_p`/temperature inert) reproduced every backend's own score exactly.
+  With weights, parser, and decoding all controlled, the gap is structural — most
+  likely in how each backend renders the tools prompt or decides a generation counts
+  as a tool call. Not yet isolated further.
 
----
+**14B buys nothing.** It agrees with 7B on 98/100 BFCL cases — not approximately,
+byte-identical aggregates — while costing 2× the latency and 2.1× the energy. Thor's
+122 GiB makes 14B *possible* (Orin's ~30 GB never could), but the memory is better
+spent on co-residency headroom or a bigger KV cache.
 
-## The numbers of record (exclusive box)
+**BFCL `simple` is saturated.** Both 7B and 14B fail the same four cases — and in
+every one, the model called the exactly right function; the failures are argument
+*formatting* mismatches (`"x**2"` vs `"lambda x: x**2"`) that this repo's simplified
+AST checker doesn't normalize, not model errors. `simple` has an ~8-point
+false-negative floor; `irrelevance` is the axis actually worth trusting.
 
-Taken with the box's other user's container stopped and **no other GPU compute
-process running** — the campaign script hard-aborts rather than measure otherwise.
-Every latency figure below reached thermal steady state
-(`warmup_reached_steady_state: true`); any that had not would be marked and re-run.
+**A quiet box is not the fast box, for Edge-LLM specifically.** It ran 27–37% slower
+alone than beside a busy neighbor, while drawing *less* power — pointing at Thor's
+dynamic GPU clocks rather than contention (vLLM/llama.cpp barely moved). Since
+production co-resides with the VLM tier, the shared condition may be closer to
+reality than the clean one. Unconfirmed without a `jetson_clocks`-locked run (needs
+root).
 
-### Framework, model fixed at Qwen2.5-1.5B-Instruct FP16
-
-| | BFCL overall | simple | **irrelevance** | MMLU | TTFT p50 | tok/s | lat p50 | **lat p95** | cold start | power |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **Edge-LLM** | **83%** | 88% | **78%** | 42.0% | 34 ms | 48.0 | 1314 ms | **1331 ms** | 4.1 s ¹ | 15.8 W |
-| **llama.cpp** | 74% | 88% | 60% | 38.5% | **31 ms** | **54.4** | **972 ms** | 1502 ms | **4.0 s** | 15.1 W |
-| **vLLM** | 75% | 82% | 68% | 40.5% | 46 ms | 43.6 | 1338 ms | 1702 ms | 98.1 s ¹ | **14.9 W** |
-
-### Framework at Qwen2.5-7B-Instruct FP16
-
-| | BFCL overall | simple | **irrelevance** | MMLU | TTFT p50 | tok/s | lat p50 | **lat p95** | 32-tok turn | cold start | power |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| **Edge-LLM** | **93%** | 92% | **94%** | 67.5% | 74 ms | 16.6 | **2706 ms** | **2713 ms** | **1945 ms** | 10.1 s ¹ | 19.5 W |
-| **llama.cpp** | 76% | 90% | 62% | 66.5% | **72 ms** | **17.0** | 3254 ms | 4556 ms | 1899 ms | **6.1 s** | 17.8 W |
-| **vLLM** | 73% | 92% | **54%** | 68.5% | 144 ms | 11.3 | 4451 ms | 5950 ms | 2539 ms | 214.1 s ¹ | 16.3 W |
-
-### Size sweep, backend fixed at Edge-LLM
-
-| | BFCL overall | **irrelevance** | MMLU | TTFT p50 | tok/s | **32-tok turn** | cold start ¹ | power |
-|---|---|---|---|---|---|---|---|---|
-| Qwen2.5-**1.5B** | 83% | 78% | 42.0% | **34 ms** | **48.0** | **697 ms** | **4.1 s** | **15.8 W** |
-| **Qwen2.5-7B** | **93%** | **94%** | **67.5%** | 74 ms | 16.6 | 1945 ms | 10.1 s | 19.5 W |
-| Qwen2.5-**14B** | **93%** | **94%** | **67.5%** | 133 ms | 8.4 | 3791 ms | 20.1 s | 20.1 W |
-
-¹ **Cold start is bimodal for Edge-LLM and vLLM and these are the warm numbers.**
-Edge-LLM's figures are engine-cache HITS; a miss compiles TensorRT engines for
-minutes. vLLM's are with a warm torch.compile cache. Only llama.cpp's is
-unconditional. If a deployment cannot guarantee cache persistence across restarts,
-this ranking changes — an operational property, not a benchmark artifact.
-
-² vLLM's 7B BFCL first died on the memory-profiling assert described below; the row
-above is the re-run after mounting the patched `gpu_worker.py`.
-
----
-
-## What the numbers mean
-
-### `irrelevance` is the whole story, and it is backend-bound
-
-On `simple` (a tool IS wanted) all three backends land within a few points at both
-sizes. On `irrelevance` they separate sharply, and only Edge-LLM converts extra model
-capacity into better judgement:
-
-| irrelevance | 1.5B | 7B | change from 4.7x the parameters |
-|---|---|---|---|
-| **Edge-LLM** | 78% | **94%** | **+16 pts** |
-| llama.cpp | 60% | 62% | +2 pts |
-| **vLLM** | 68% | **54%** | **−14 pts** |
-
-**vLLM gets worse at abstaining as the model grows.** The backend does not merely gate
-the benefit of scale — it can invert it. All three serve identical weights and all
-three score 90-92% on `simple`, so this is not a capability difference in the model;
-it is what each backend does with the model's output.
-
-Mechanism, in the two directions:
-
-- **llama.cpp** constrains generation to a tool-call grammar. A grammar that forces a
-  structurally valid call leaves no room to abstain, so extra capability cannot
-  express itself as restraint. Its `irrelevance` is pinned near 60% at both sizes.
-- **vLLM and Edge-LLM** *detect* tool tags in free generation instead, which is why
-  Edge-LLM can convert capacity into judgement.
-
-**The parser confound is settled, 2026-09-09 — it was not the parser.** Edge-LLM was
-re-run with `--tool-call-parser hermes` pinned (the same parser vLLM used), at both
-sizes:
-
-| Edge-LLM | parser `auto` | parser `hermes` | per-case agreement |
-|---|---|---|---|
-| 7B | 92 / 94 / 93% | 92 / 94 / 93% | **100/100 identical** |
-| 1.5B | 88 / 78 / 83% | 88 / 78 / 83% | **100/100 identical** |
-
-Not merely equal aggregates — every individual case decided the same way. So the
-head-to-head can be stated with no configuration difference left standing:
-
-| 7B, parser `hermes` on both | simple | **irrelevance** | overall |
-|---|---|---|---|
-| **Edge-LLM** | 92% | **94%** | **93%** |
-| **vLLM** | 92% | **54%** | 73% |
-
-`simple` is *identical* at 92%: both backends recognise a wanted tool call equally
-well. The whole 40-point gap is **abstention** — vLLM emits tool calls when the
-correct action is to emit none, and does so more as the model grows. That is a
-property of vLLM's tool-call handling, not of its parser choice, not of the weights,
-and not of this lab's configuration of it.
-
-The llama.cpp result reproduces the Orin finding (85/65/75 there) on different
-hardware, a different image family, and now at a second model size — it is a property
-of the backend, not of a build.
-
-### Decoding is NOT the cause — settled by a greedy control, 2026-09-09
-
-The comparison above pinned `temperature` and treated sampling as controlled. **It was
-not**, and that was a real flaw: each server applies its own truncation defaults, and
-all three differ.
-
-| | `top_k` | `top_p` | `min_p` |
-|---|---|---|---|
-| Edge-LLM | 50 | 0.90 | (not supported) |
-| vLLM | −1 (off) | 1.00 | 0 |
-| llama.cpp | 40 | 0.95 | **0.05** |
-
-Two experiments removed that confound. First, vLLM re-run with Edge-LLM's exact
-truncation (`top_p=0.9, top_k=50`): `irrelevance` moved 54% → 58%, i.e. 4 points of a
-40-point gap. Then the decisive one — **`top_k=1` on all three, which forces
-deterministic argmax and makes `top_p`/`min_p`/temperature inert**
-(`scripts/greedy_framework_control.sh`):
-
-| 7B, greedy `top_k=1` | simple | **irrelevance** | overall | vs its own default sampling |
-|---|---|---|---|---|
-| **Edge-LLM** | 92% | **94%** | 93% | **identical** |
-| **vLLM** | 92% | **54%** | 73% | **identical** |
-| **llama.cpp** | 90% | **62%** | 76% | **identical** |
-
-Every backend reproduced its own score exactly. **Sampling explains none of the gap.**
-With decoding provably identical and deterministic, and the weights identical, the
-remaining explanations are structural: what prompt each backend actually renders from
-the tool definitions, llama.cpp's grammar-constrained emission, and how each decides a
-generation counts as a tool call. Identifying which of those dominates is the obvious
-next investigation — the candidate this campaign could not rule out is chat-template
-rendering, since Edge-LLM, vLLM and llama.cpp each build the tools prompt themselves.
-
-### Energy per token
-
-Board power is nearly flat across backends (14.9-19.5 W, a 1.3x spread) while
-throughput varies 6.5x, so **energy per token is dominated by speed, not draw**.
-Marginal figures subtract a measured idle baseline of **5.42 W** (box fully quiet, no
-containers, GPU idle) to isolate what inference actually costs:
-
-| 7B | board | marginal | tok/s | marginal J/token | marginal J per 32-tok turn |
-|---|---|---|---|---|---|
-| **llama.cpp** | 17.8 W | 12.4 W | **17.0** | **0.73 J** | **23.3 J** |
-| Edge-LLM | 19.5 W | 14.0 W | 16.6 | 0.85 J | 27.1 J |
-| vLLM | 16.3 W | 10.9 W | 11.3 | 0.96 J | 30.8 J |
-
-| 1.5B | marginal J/token | | 14B | marginal J/token |
-|---|---|---|---|---|
-| llama.cpp | **0.18 J** | | Edge-LLM 14B | 1.75 J |
-| Edge-LLM | 0.22 J | | | |
-| vLLM | 0.22 J | | | |
-
-llama.cpp is the most energy-efficient at every size — 14% better than Edge-LLM at 7B,
-32% better than vLLM. vLLM draws the *least* power yet costs the *most* per token,
-because it is slowest. Going 7B → 14B costs 2.1x the energy per token for zero
-accuracy gain.
-
-**Worth recording separately:** the other user's idle-but-resident container raised
-board idle from 5.4 W to ~17.5 W — roughly 12 W to hold a model in memory doing
-nothing. On a power-budgeted board that is a real co-residency cost, and it is the
-kind of thing an "orchestrator + VLM tier together" deployment pays continuously.
-
-### Quantized 7B on Edge-LLM: still not possible, for two different reasons
-
-The obvious "best of both worlds" candidate - 7B's 94% `irrelevance` at closer to
-1.5B's latency/energy - would be a quantized 7B on Edge-LLM. Tried three real
-checkpoints, 2026-09-09, none reached a running server:
-
-| Checkpoint | quant path | Result |
-|---|---|---|
-| `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` (Qwen's own, ungated) | `int4_gptq` | **Same bias bug as AWQ**, identical stack trace, same line. Proves the failure is not AWQ-specific - it's any externalized int4 quant hitting Qwen2's attention bias in `int4_linear()`'s bias handling. |
-| `RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic` (llmcompressor, ungated) | `fp8` | **Different failure, and inconclusive**: rejected at config-parsing time - `unsupported compressed-tensors checkpoint format: float-quantized` - before any layer is built. Edge-LLM's `compressed-tensors` parser only accepts that quant_method when its format string contains `nvfp4`; llmcompressor's plain FP8-dynamic format isn't one of the formats it recognizes. Says nothing about whether `fp8_linear`'s bias handling (which, unlike `int4_linear`, calls `_add_bias` without even attempting to pass a recipe - if anything a worse sign) would have worked. |
-| NVIDIA ModelOpt FP8/NVFP4 (the code path this parser is actually built for) | — | **Not attempted** - no official/trustworthy ModelOpt-quantized checkpoint exists for base `Qwen2.5-7B-Instruct` as of 2026-09-09, only its VL sibling (`nvidia/Qwen2.5-VL-7B-Instruct-{FP8,NVFP4}`). Unofficial community NVFP4 quants exist but don't meet this lab's provenance bar. |
-| `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8` (Qwen's own, `bits: 8`) | requested int8, got `int4_gptq` | **Not a real int8 test - a routing bug.** `quantization.py`'s GPTQ branch always returns `int4_gptq`, never reading the checkpoint's own `bits` field. So this "Int8" repo gets force-fed through the int4 unpacker and dies at the SAME line as the other two - a 4th confirmation of the attention-bias bug, not new information about int8. Edge-LLM's real int8 path (`int8_sq`) only activates via a ModelOpt-style `quant_algo` field containing "W8A8"/"INT8", which no official base-model checkpoint uses. |
-
-**UPDATE, 2026-09-09 — this section is superseded. Quantized 7B now works.** The
-`_add_bias` failure was traced to a one-line omission in Edge-LLM's own source (not a
-checkpoint problem) and patched locally. See "GPTQ-Int4 7B: quantization actually
-works now" below for the real result - it changes the recommendation.
+## How we got here
 
 <details>
-<summary>Original investigation (kept for the record - the debugging process matters as much as the fix)</summary>
-
-**Conclusion at the time: FP16 is not a choice, it is what remains.** Four checkpoints tried
-across three nominal precisions (int4-AWQ, int4-GPTQ, int8-GPTQ) all hit the identical
-`_add_bias` failure at the identical line - this is one bug, not three, and it blocks
-every quantized checkpoint Edge-LLM's builder currently routes through
-`int4_linear()`, regardless of what precision the checkpoint claims to be. FP8 hit a
-separate, inconclusive wall (checkpoint format, not the bias bug). Genuine int8
-(`int8_sq`) and NVFP4/ModelOpt-FP8 remain untested, not because they were assumed
-broken, but because no official checkpoint in the format Edge-LLM actually expects
-exists yet for the base text model. Revisit if upstream fixes the bias-recipe wiring
-for `int4_linear`, fixes GPTQ bit-width detection, or NVIDIA publishes a ModelOpt
-checkpoint for the base text model.
-
-</details>
-
-### GPTQ-Int4 7B: quantization actually works now, and it changes the recommendation
-
-**Root cause found**: `weights.py`'s `linear_metadata()` computes `bias_recipe`
-correctly for every quant type - it's shared code, evaluated before the branch - and
-the `QUANT_FP16` return uses it. The three int4 branches (`int4_awq`,
-`int4_awq_modelopt`, `int4_gptq`) share ONE return statement further down the same
-function, and that statement simply **omits** `bias_recipe=bias_recipe` from its
-kwargs, even though the value sits right there, computed and unused. `bias` itself
-*is* passed correctly. Not a checkpoint-format problem, not a provenance problem - a
-one-line omission in Edge-LLM 0.10.1's own source, affecting every int4 checkpoint on
-any architecture with a linear bias, regardless of quant tool.
-
-Patched the local clone (`patches/edgellm-int4-bias-recipe.patch`, pure Python, no
-rebuild) and re-ran the exact `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` checkpoint (Qwen's
-own official quant) that had failed twice before:
-
-| | 1.5B FP16 | **7B GPTQ-Int4** | 7B FP16 |
-|---|---|---|---|
-| BFCL overall | 83% | **92%** | 93% |
-| BFCL **irrelevance** | 78% | **90%** | 94% |
-| MMLU | 42.0% | **66.0%** | 67.5% |
-| TTFT p50 | 34 ms | 65 ms | 74 ms |
-| tok/s p50 | 48.0 | **40.7** | 16.6 |
-| 32-tok turn | 697 ms | **769 ms** | 1945 ms |
-| marginal J/token | 0.206 J | **0.274 J** | 0.839 J |
-| cold start ¹ | 4.05 s | **0.03 s** | 12.07 s |
-
-¹ Int4's engine file is much smaller than FP16's, so even a cache-hit load is
-near-instant - a real, structural advantage of quantization, not a fluke.
-
-**This captures 12 of the 16-point `irrelevance` gain from going 1.5B→7B (78%→90%
-against FP16's 78%→94%), at a turn latency only 72ms slower than 1.5B and 2.5x faster
-than FP16-7B, and at a third of FP16-7B's energy per token.** Zero unparsed MMLU
-responses, so the small accuracy dip (93%→92% overall, 94%→90% irrelevance, 67.5%→66.0%
-MMLU) is real quantization cost, not a broken run - and it is a small, typical cost for
-INT4 GPTQ, not a red flag.
-
-**This is now the strongest candidate in the whole campaign for a latency-sensitive
-deployment.** If the pipeline's turn budget cannot afford FP16-7B's 1945ms, GPTQ-Int4
-7B is a materially better trade than falling back to 1.5B: it beats 1.5B's own
-`irrelevance` by 12 points at a turn-latency cost of only 72ms.
-
-**What is not yet done, so this is not yet the final word**: BFCL parser-parity and
-the `top_k=1` greedy control (both already run for the FP16 rows) have not been
-re-run against this quantized row - given the earlier finding that neither mattered
-for any other backend, they are expected to be similarly inert here, but "expected"
-is not "confirmed." Also not yet attempted: `int4_awq`/`int4_awq_modelopt` against the
-same patch (should work, share the identical return statement, not re-verified
-per-format) and whether the same one-line pattern is what was blocking int4 for other
-model families in this repo (Apertus, Bielik) - worth a look before assuming it's
-Qwen2-specific.
-
-### The full precision sweep at 7B, and what each column actually measures
-
-Four precisions of the identical `Qwen2.5-7B-Instruct` weights, same backend
-(Edge-LLM), same 100 BFCL cases, same 200 MMLU questions, same 32-token turn shape.
-FP8 and INT8-SQ are **self-quantized** (see "Quantization actually works now" above
-and "Self-quantized precisions needed real debugging" below) - no published checkpoint
-in either format exists for this model.
-
-| precision | BFCL overall | BFCL **irrelevance** | MMLU | **TTFT** | **tok/s** | **32-tok turn** | board power | **marginal J/token** |
-|---|---|---|---|---|---|---|---|---|
-| **FP16** (baseline) | 93% | 94% | 67.5% | 74 ms | 16.6 | 1945 ms | 19.3 W | 0.839 J |
-| **INT4-GPTQ** | 92% | 90% | 66.0% | **65 ms** | **40.7** | **769 ms** | 16.6 W | **0.274 J** |
-| **FP8** (self-quant) | 91% | 90% | 66.5% | 61 ms | 23.5 | 1052 ms | 19.6 W | 0.603 J |
-| **INT8-SQ** (self-quant) | 91% | 92% | **54.0%** | 64 ms | 22.8 | 1074 ms | 19.3 W | 0.610 J |
-
-**What each timing column actually means** (asked directly - worth being precise
-about, since these numbers get compared casually otherwise):
-
-- **TTFT (time to first token)**: wall-clock from sending the request to the first
-  token arriving. Dominated by *prefill* - processing the input prompt - plus
-  scheduling overhead. This is what a user perceives as "how long before it starts
-  talking." It is **not** a per-token number.
-- **tok/s (tokens per second)**: *decode* throughput - once generation has started,
-  how many tokens per second stream out. Its reciprocal, `1/tok/s`, is the average
-  wall-clock time to produce **one** token during generation (e.g. INT4-GPTQ's 40.7
-  tok/s = ~24.6 ms per token; FP16's 16.6 tok/s = ~60.2 ms per token).
-- **32-tok turn**: the number this lab actually cares about for the orchestrator.
-  End-to-end wall-clock time for one **complete, non-streaming** response of 32
-  generated tokens - roughly TTFT plus 31 more decode steps, measured as a single
-  blocking round trip rather than split into TTFT+tok/s. 32 tokens approximates a
-  real orchestrator turn (a short spoken reply or a tool call), not one token and not
-  the 128-token essay the raw `tok/s`/TTFT figures above use for their own separate
-  streaming measurement - **the two are measured by different scripts and are not
-  arithmetically identical**, which is why `769ms` for INT4 is not exactly `65ms +
-  31×24.6ms` (≈826ms): TTFT/tok/s come from a *streaming* 128-token call while the
-  32-tok turn comes from a separate *non-streaming* call, and non-streaming skips
-  some per-chunk overhead streaming pays.
-- **Energy per token (marginal J/token)**: `(board power during generation − idle
-  board power) ÷ tokens per second`. "Marginal" means it isolates the energy
-  *generation itself* costs, subtracting what the board burns just being powered on
-  and idle (measured at **5.42 W** with the box fully quiet, no containers, GPU
-  idle - see "Energy per token" above). Board power here is the **whole board's** 5V
-  input rail (`vin_sys_5v0`), not GPU-only, sampled via `tegrastats` throughout each
-  run. This is a *rate* (joules per token generated), not a total energy budget for a
-  turn - multiply by a turn's token count for that (e.g. INT4-GPTQ's 32-token turn
-  costs roughly `32 × 0.274J ≈ 8.8J` in generation energy, on top of whatever the
-  board burns just being on for those ~770ms).
-
-**Reading the sweep**: INT4-GPTQ wins every timing and energy column outright while
-giving up only 4 points of `irrelevance` from FP16 - it remains the best all-round
-quantized choice. FP8 is essentially lossless on accuracy (66.5% MMLU, 90%
-irrelevance) but only mid-pack on speed - roughly 1.4x FP16's throughput, nowhere
-near INT4's 2.5x. **INT8-SQ is the one number here still worth distrusting**: 54.0%
-MMLU is a real, uninvestigated 12.5-point gap even after doubling calibration
-samples from 128→512 fixed most of the damage (44.5%→54.0%) - see the debugging
-section below for what was tried and what remains open.
-
-### Self-quantized precisions needed real debugging - a cautionary result on its own
-
-The first self-quantized attempt at both FP8 and INT8 came back **damaged**, not
-merely suboptimal, and it is worth walking through because "we quantized it
-ourselves" is not automatically "it works":
-
-| | MMLU | BFCL simple | what that means |
-|---|---|---|---|
-| FP8, first attempt (with `--kv_cache_quantization fp8`) | 46.5% | **0%** | never emitted a single tool call in 50 attempts - its "100% irrelevance" was an artifact of calling nothing ever, not good judgment |
-| INT8-SQ, first attempt (128 calibration samples) | **44.5%** | 90% | tool-calling intact, but 23 points of MMLU lost - a materially dumber model |
-
-Two fixes, one variable changed each, both re-quantized from scratch:
-
-1. **FP8**: the quantizer's own calibration log had warned *"Large KV activations
-   detected. Quantized KV cache may lead to higher accuracy drop"* - a warning the
-   first run ignored. Re-quantizing with `--kv_cache_quantization` simply omitted
-   fixed it completely: 0%→91% BFCL simple, 46.5%→66.5% MMLU, matching FP16 almost
-   exactly. **Confirmed cause, not a guess** - the fix targeted precisely the
-   mechanism the tool's own warning named.
-2. **INT8-SQ**: raised `--num_samples` from 128 to the tool's own default of 512.
-   This helped substantially (44.5%→54.0% MMLU) but **did not fully close the gap**
-   to FP16's 67.5%. SmoothQuant's per-channel activation scales are
-   calibration-sensitive, so more samples was a reasonable first guess, and it was
-   partially right - but 54.0% is still a real, unexplained 12.5-point loss. Not yet
-   tried: a different calibration dataset (`wikitext` instead of `cnn_dailymail`),
-   more than 512 samples, or comparing against `modelopt`'s own INT8 recipe defaults
-   for known trouble spots (attention output projections, embedding layers) that
-   SmoothQuant is documented to be sensitive to.
-
-**The lesson generalizes beyond this one repo**: a self-quantization tool completing
-without error is not evidence the result is usable - the FP8 checkpoint built, served,
-and answered plain questions coherently while being unable to call a single tool. Only
-running the *same* accuracy suite every other candidate in this campaign went through
-caught it.
-
-Also found and fixed along the way, unrelated to quantization quality: **a real
-routing bug in `scripts/benchmark_streaming.py`**, discovered when the streaming
-benchmark 404'd for a self-quantized row while BFCL/MMLU/latency all succeeded
-against the same server. That script read the raw config path (`variant["model"]`)
-instead of `coordinator.model` (which correctly resolves through
-`served_model_name` for a locally-served checkpoint directory) - silent for every
-other row in this file because vLLM/llama.cpp rows use an HF repo id as both values,
-so they happen to be identical there. Fixed to use `coordinator.model` like the other
-three eval scripts already did.
-
-### 14B buys nothing
-
-7B and 14B agree on **98 of 100** BFCL cases. They differ on exactly two
-(`simple_13`, `simple_42`) and those offset, producing byte-identical aggregate
-scores (46/50 simple, 47/50 irrelevance, 135/200 MMLU). Meanwhile 14B doubles TTFT
-(74 → 133 ms), halves throughput (16.6 → 8.4 tok/s), and doubles the real turn cost
-(1945 → 3791 ms).
-
-Thor's 122 GiB makes 14B *possible* — the Orin's ~30 GB never could — but this
-measurement says the memory is better spent elsewhere: co-residency with the VLM
-tier, longer context, or a bigger KV cache.
-
-### Measurement ceiling: BFCL `simple` cannot score capable models
-
-Both 7B and 14B fail the same four `simple` cases — `simple_13/14/15/16`, consecutive
-maths problems — and in every one **the model called exactly the right function**
-(`calculate_derivative`, `integrate`, `calculus.derivative`, …). They fail on argument
-matching: ground truth accepts several string forms of a maths expression
-(`"x**2"`, `"lambda x: x**2"`, `"y=x**2"`) and this repo's *simplified* AST checker —
-which `scripts/validate_tool_calling.py`'s own docstring warns is not the official
-`bfcl-eval` checker — does not match the model's formatting variant.
-
-So `simple` has a systematic ~8-point false-negative floor, and every capable model
-sits on it. **`irrelevance` is the only accuracy axis here that still discriminates**,
-which is fortunate, because it is also the one that maps to the production failure.
-Anyone quoting `simple` across models should use the official checker instead.
-
-### The idle box is not the faster box (for Edge-LLM)
-
-Edge-LLM ran measurably *slower* alone than it did next to a busy neighbour, while the
-other two barely moved:
-
-| Edge-LLM 1.5B | exclusive box | shared box | change |
-|---|---|---|---|
-| TTFT p50 | 34 ms | 26 ms | **+31%** |
-| tok/s p50 | 48.0 | 65.9 | **−27%** |
-| 32-tok turn | 697 ms | 509 ms | **+37%** |
-| power | 15.8 W | 17.1 W | **−8%** |
-
-Slower *and* drawing less power points at GPU clocks: Thor's frequency scaling is
-dynamic (`jetson_clocks_locked: null` in every result), so the other user's
-crash-looping container was inadvertently holding the GPU in a boosted state that
-Edge-LLM — evidently the most clock-sensitive of the three — was riding. vLLM and
-llama.cpp keep the GPU busy enough per token to hold clocks themselves.
-
-**Consequence for interpretation:** a quiet box is the *reproducible* environment, not
-necessarily the *representative* one. In production this orchestrator co-resides with
-the VLM tier, so the GPU will be loaded — closer to the shared condition. The
-disambiguating experiment is a `jetson_clocks`-locked run, which needs root and has
-not been done.
-
----
-
-## Serving viability — most of the work was getting here
-
-Five of the eight backend/image paths tried do not work on this board:
+<summary>Serving viability — five of eight image/backend paths tried do not work on Thor</summary>
 
 | Path | Outcome |
 |---|---|
-| **Edge-LLM**, built from source (0.10.1) | **Works.** No wheel, no image — an on-device CMake build (~1h, CPU-only, no sudo). Thor + JetPack 7.0/7.1 is an *Official* row in its support matrix. |
-| **vLLM** `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor` | **Works**, with the patch below. Note the tag differs from this repo's Orin default (`-jetson-orin`). |
-| **llama.cpp** `ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2...` | **Works.** The dated `b*` tag from NVIDIA's GHCR. |
-| llama.cpp `dustynv/llama_cpp` (the Orin source) | **No Thor tag exists** on Docker Hub — r35/r36 only. jetson-containers publishes r38-era images to GHCR under `nvidia-ai-iot/`. |
-| llama.cpp `ghcr.io/ggml-org/llama.cpp:server-cuda` | **Fails at inference.** Enumerates the GPU (`CUDA0: NVIDIA Thor`) and loads the model, then dies on the first request in `cublas_handle`. Generic CUDA arm64 targets sbsa/discrete, not Tegra. |
-| llama.cpp `nvidia-ai-iot/llama_cpp:r38.2...` (rolling tag) | **Fails at startup** — `libcudart.so.12: cannot open shared object file`. An Apr-2025 CUDA-12 binary inside a CUDA-13 image. |
-| Edge-LLM + `Qwen2.5-*-Instruct-AWQ` | **Cannot build.** `external FP16 bias has no checkpoint recipe` — its direct builder has no recipe for an externalized attention bias on an `int4_awq` `qwen2` graph. Qwen2 carries QKV biases; Qwen3 dropped them. **This is why every Thor row is FP16.** |
-| Apertus-8B (Orin, for reference) | Blocked — llama.cpp does not recognise its GGUF architecture. |
+| **Edge-LLM**, built from source (0.10.1) | Works. No wheel or image exists; ~1h on-device build, no sudo, no GPU needed. |
+| **vLLM** `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor` | Works, once the memory-profiling assert below is patched around. Tag differs from the Orin default (`-jetson-orin`). |
+| **llama.cpp** `ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2...` | Works — the dated `b*` tag from NVIDIA's GHCR. |
+| llama.cpp `dustynv/llama_cpp` (Orin's source) | No Thor tag on Docker Hub — jetson-containers publishes r38-era images to GHCR instead. |
+| llama.cpp `ghcr.io/ggml-org/llama.cpp:server-cuda` | Enumerates the GPU and loads the model, then dies on the first inference (`cublas_handle`). Generic CUDA arm64 targets discrete GPUs, not Tegra — device enumeration is not a working-backend test. |
+| llama.cpp `nvidia-ai-iot/llama_cpp:r38.2...` (rolling tag) | Fails at startup — ships a CUDA-12 binary inside a CUDA-13 image. |
+| Edge-LLM + `Qwen2.5-*-Instruct-AWQ` | Cannot build (see the bias-recipe bug below) — this is why every Thor row is FP16, not AWQ. |
+| Apertus-8B (Orin) | Blocked — llama.cpp doesn't recognize its GGUF architecture. |
 
-**Two method notes worth keeping:**
+**vLLM's own bug found along the way**: it asserts free memory never *increases*
+during startup profiling and kills the engine when it does — observed on a
+completely idle box at 7B. `embedded-ai-chain` hit the same assert in August and
+ships a patched `gpu_worker.py`; the Thor vLLM rows mount it. Affects startup only,
+not inference, so it can't flatter a performance number.
 
-- `--list-devices` reporting `CUDA0: NVIDIA Thor` is **not** evidence of a working
-  backend. The ggml-org image enumerated the GPU, loaded the model, started the
-  server, and only died on the first real inference. Device enumeration is not a smoke
-  test.
-- **vLLM asserts that free memory never increases during startup profiling** and kills
-  the engine when it does — observed here at 7B on a *completely idle* box
-  (`Initial free memory 52.65 GiB, current free memory 52.83 GiB`). More free memory
-  than expected is harmless; the assert cannot tell. `embedded-ai-chain` hit this on
-  this board in August and ships a patched `gpu_worker.py`; the Thor vLLM rows now
-  mount it via `extra_volumes`. It affects startup profiling only and touches no
-  inference path, so it cannot flatter a performance number. **The earlier
-  shared-box failure blamed on "contention" was this same assert** — the box being
-  busy was incidental.
+</details>
 
----
+<details>
+<summary>The Edge-LLM quantization bug — root cause, patch, and what it unblocked</summary>
 
-## The decision, stated with its costs
+Every int4 checkpoint tried (Qwen's official AWQ, GPTQ-Int4, and a mis-routed
+GPTQ-Int8) failed identically: `ValueError: external FP16 bias has no checkpoint
+recipe`. Root cause, found by reading Edge-LLM's own source rather than assumed:
+`weights.py`'s `linear_metadata()` computes the bias recipe correctly for every
+quant type, and the FP16 return path uses it — but the shared int4 return statement
+simply omits `bias_recipe=bias_recipe` from its kwargs. Not a checkpoint problem; a
+one-line omission that hits any int4 checkpoint on any architecture with a linear
+bias (Qwen2's `q_proj`/`k_proj`/`v_proj`).
 
-**Edge-LLM + Qwen2.5-7B FP16** gives 93% BFCL overall and 94% `irrelevance` — a
-16-point improvement on exactly the failure mode `embedded-ai-chain` documents — at
-**1945 ms per orchestrator-shaped turn** (32 generated tokens) versus 697 ms for
-1.5B. TTFT stays at 74 ms, so with streaming the user hears speech begin almost
-immediately; what grows is turn completion.
+Patched the local clone (`patches/edgellm-int4-bias-recipe.patch`, pure Python, no
+rebuild). Re-ran `Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4` and it served correctly —
+coherent completions, correctly structured unforced tool calls. This unblocked the
+INT4-GPTQ row in the decision table above.
 
-**The trade is +1.25 s per turn for +16 points of escalation accuracy.** Whether that
-fits is a product judgement about the pipeline's turn budget, not something this
-benchmark settles.
+</details>
 
-**What would argue against it** (the parser confound is no longer one of these —
-see above):
+<details>
+<summary>Self-quantized FP8/INT8-SQ — needed real debugging before they were trustworthy</summary>
 
-- **Operational cost.** Edge-LLM has no wheel and no image; every device needs a
-  ~1h source build. llama.cpp is one `docker pull`, starts in 4-6 s unconditionally,
-  and is within ~50 ms of Edge-LLM on 7B median turn time — it is simply a much worse
-  *judge*, and cannot be improved by a bigger model.
-- **Experimental status.** Edge-LLM's OpenAI server is labelled experimental upstream.
-- **Cache dependence.** Its fast start assumes a persistent engine cache
-  (`/opt/edgellm-cache`, shared group-writable on this box).
-- ~~**Parser confound.**~~ **Settled 2026-09-09 and it was not the parser** —
-  Edge-LLM scores identically with `auto` and `hermes` (100/100 identical per-case
-  verdicts at both sizes), so the 40-point `irrelevance` gap against vLLM stands with
-  the same parser pinned on both. See "irrelevance is the whole story" above.
+No published checkpoint exists in FP8 or true INT8 format for this model (checked
+against NVIDIA's own 0.10.1 supported-models page). Self-quantized both with
+Edge-LLM's own `tensorrt-edgellm-quantize` (ModelOpt-based) — and the first attempt
+at each came back **damaged**, not merely suboptimal:
+
+| | MMLU | BFCL simple | what that meant |
+|---|---|---|---|
+| FP8, 1st attempt (`--kv_cache_quantization fp8`) | 46.5% | **0%** | never emitted a single tool call in 50 tries — its "100% irrelevance" was calling nothing, ever, not judgment |
+| INT8-SQ, 1st attempt (128 calibration samples) | 44.5% | 90% | tool-calling intact, but 23 points of MMLU lost |
+
+Two fixes, one variable each: dropping `--kv_cache_quantization` (the tool's own
+calibration log had warned about exactly this) fixed FP8 completely — 0%→91% BFCL
+simple, 46.5%→66.5% MMLU. Raising calibration samples 128→512 for INT8-SQ helped
+substantially (44.5%→54.0% MMLU) but didn't fully close the gap to FP16's 67.5% — see
+"Still open." **The lesson**: a quantization run completing without error is not
+evidence the result is usable; only running the same accuracy suite every other
+candidate went through caught this.
+
+Also found and fixed while chasing this: `scripts/benchmark_streaming.py` read the
+raw config path instead of the coordinator's resolved model name, 404-ing every
+streaming request for a self-quantized (locally-served) checkpoint while
+BFCL/MMLU/latency succeeded against the same server. Silent until now because
+vLLM/llama.cpp rows use an HF repo id as both values.
+
+</details>
 
 ## Still open
 
-- [x] ~~Re-run BFCL with `--tool-call-parser hermes` pinned on both Edge-LLM and
-      vLLM.~~ Done 2026-09-09: no effect on Edge-LLM whatsoever (100/100 identical
-      per-case verdicts at 1.5B and 7B), so the backend gap is real and not a
-      configuration artifact.
-- [ ] `jetson_clocks`-locked run to settle the DVFS effect (needs root).
-- [ ] Replace the simplified AST checker with official `bfcl-eval` so `simple` stops
-      saturating.
+- [ ] `jetson_clocks`-locked run to settle the idle-box DVFS effect (needs root).
+- [ ] Replace the simplified BFCL AST checker with the official `bfcl-eval` so
+      `simple` stops saturating.
 - [ ] Cold-start-from-empty-cache as its own measurement for Edge-LLM and vLLM.
-- [ ] Co-residency run: orchestrator + VLM tier together, which is the real
-      deployment shape and the condition the DVFS finding says matters. Now with a
-      measured price tag: the other user's idle-but-resident container raised board
-      idle from 5.4 W to ~17.5 W, so co-residency costs ~12 W continuously before any
-      inference happens.
-- [x] Self-quantize FP8/INT8-SQ for Qwen2.5-7B (no published checkpoint exists in
-      either format - confirmed against NVIDIA's own 0.10.1 supported-models page).
-      Done 2026-09-09/10 via `tensorrt-edgellm-quantize`; both needed real debugging
-      (see "Self-quantized precisions needed real debugging" above) before producing
-      usable checkpoints.
-- [ ] **INT8-SQ still has an unexplained 12.5-point MMLU gap** (54.0% vs FP16's
-      67.5%) after fixing the calibration-sample-count issue. Try `--text_dataset
-      wikitext`, more than 512 samples, or compare against modelopt's documented
-      SmoothQuant trouble spots (attention output / embedding layers) before treating
-      this precision as usable.
-- [ ] `int4_awq`/`int4_awq_modelopt` against the same bias-recipe patch that fixed
-      GPTQ-Int4 - should work (identical return statement) but not re-verified
-      per-format.
+- [ ] Co-residency run: orchestrator + VLM tier together — the real deployment
+      shape. Known price tag so far: an idle-but-resident neighbor container raises
+      board idle from 5.4 W to ~17.5 W, ~12 W continuous before any inference.
+- [ ] **INT8-SQ's 12.5-point MMLU gap is still unexplained** after the calibration
+      fix. Try `--text_dataset wikitext`, more than 512 samples, or check against
+      modelopt's documented SmoothQuant trouble spots (attention output /
+      embedding layers) before treating this precision as usable.
+- [ ] `int4_awq`/`int4_awq_modelopt` against the same bias-recipe patch — should
+      work (identical return statement) but not re-verified per format.
 - [ ] Whether the same bias-recipe bug was silently blocking int4 for Apertus/Bielik
-      elsewhere in this repo's Orin rows - worth checking before assuming it is
-      Qwen2-specific.
+      on this repo's Orin rows — worth checking before assuming it's Qwen2-specific.
+- [ ] Identify *what* structural difference actually causes the backend gap (leading
+      candidate: chat-template rendering). Cheap decisive test: send one identical
+      pre-rendered prompt to all three via `/v1/completions` with no `tools`
+      parameter and compare raw output.
