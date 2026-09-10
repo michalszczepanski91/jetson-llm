@@ -5,6 +5,16 @@ this repository.
 
 ## Project Overview
 
+**Before doing anything else: `git fetch origin && git log origin/thor-edge-llm`.**
+That branch has a completed Thor bring-up this file does not yet describe - a third
+backend (TensorRT Edge-LLM), a full framework comparison, a quantization campaign,
+and a real one-line bug fixed in Edge-LLM's own source. Kept off `main` deliberately
+(it would collide with `origin/phase2-measurement-integrity`'s own in-flight work on
+the same files), not because it's unfinished - see that branch's
+`docs/thor-framework-comparison.md` for the current recommendation. If you are
+picking this repo back up and `main` is all you've looked at, you are missing the
+most recent and most decisive results in it.
+
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, eventually Thor) -
 tests candidate models across two serving backends (vLLM, llama.cpp; see
 `docs/TODO.md` Phase 0 for why TensorRT is explicitly excluded), not one fixed

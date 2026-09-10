@@ -1,5 +1,18 @@
 # jetson-llm
 
+> **Thor work in progress, not yet on `main`.** A full Thor bring-up - a third
+> backend (TensorRT Edge-LLM), a framework comparison, a real quantization campaign,
+> and a bug fixed in Edge-LLM's own source - lives on **`origin/thor-edge-llm`**
+> (14+ commits, 2026-09-09/10), kept off `main` deliberately because `main` still
+> needs to reconcile with `origin/phase2-measurement-integrity`'s own in-flight
+> `results/raw/` restructuring, which touches the same files
+> (`configs/models.yaml`, `docs/TODO.md`, `src/llm_coordinator.py`). Anyone
+> continuing this work - including another agent session - should start with:
+> `git fetch origin && git log origin/thor-edge-llm` (or check it out directly)
+> rather than assume `main` has the current state. Interim recommendation from
+> that branch: **TensorRT Edge-LLM serving Qwen2.5-7B-Instruct, INT4-GPTQ
+> quantized** - see `docs/thor-framework-comparison.md` there for the full case.
+
 Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, and eventually Thor -
 see `configs/models.yaml`'s `platform` field). Compares candidate models - currently
 Qwen2.5-Instruct at 1.5B/3B/7B, plus Apertus-8B-Instruct and Bielik-11B-v3.0-Instruct
