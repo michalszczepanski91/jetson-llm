@@ -64,6 +64,12 @@ question this file gets asked most and it should not take eleven sections to ans
   GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
   cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking
   *every* int4 checkpoint, so it may have been masking an Apertus/Bielik path too.
+- **The chat-template test — still NOT run.** Repeatedly called the "cheap decisive
+  test" for *why* the three backends differ by 40 points, and repeatedly not done. Send
+  one identical pre-rendered prompt to all three via `/v1/completions` (no `tools`
+  param, no template) and compare raw output. Until it runs, the mechanism behind this
+  lab's headline finding stays unidentified.
+- **Bielik on Thor — still NOT smoke-tested.** Unchanged since it was first flagged.
 - **Co-residency on either board** (Phase 9) — the single most valuable unmeasured
   quantity in the project, per both `paper.md` and `embedded-ai-chain`'s own TODO.
 
@@ -452,6 +458,21 @@ Also open, tracked in the comparison doc's own "Still open": the `jetson_clocks`
 timing run, the official `bfcl-eval` checker, a co-residency run with the VLM tier,
 INT8-SQ's unexplained MMLU gap, and identifying the exact mechanism behind the
 framework gap (chat-template rendering is the leading candidate).
+
+**Two bugs found 2026-09-10 by actually running an Edge-LLM row**, both silently
+live until then — recorded here because each broke something wider than its own row:
+
+- [x] **`EdgeLlmCoordinator` had no `cold_start_breakdown()`**, so `smoke_test.py` and
+      `benchmark_streaming.py` crashed on **every** edge-llm row — the whole Thor
+      backend was broken for the main measurement path. A merge-integration gap: the
+      Orin branch added `_ColdStartMixin` to its two container coordinators, the Thor
+      branch added this class, git merged both cleanly (different lines), and every
+      test passed. Implemented for a process-owning coordinator: the bimodal cost is a
+      TensorRT **engine-cache** miss, not a weight download.
+- [x] **`smoke_test.py` returned `PASS` for an engine emitting pure garbage** — its
+      only criterion was that the HTTP call hadn't raised. Same hole that let a damaged
+      FP8 checkpoint through earlier. Now checks for degenerate output, tuned to flag
+      *broken* and never merely *bad*.
 
 **Measurement integrity note, since this Thor is a shared box**: wall latency, TTFT,
 tokens/sec, cold start, and any `tegrastats` power/thermal reading need the box
