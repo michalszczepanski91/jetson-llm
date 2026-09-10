@@ -570,12 +570,19 @@ qwen3-8b-awq-edgellm-thor:
     it - so hypothesis (2) in the comment block above is supported, but the
     resulting engine is unusable anyway, which is a different failure further
     down the pipeline.
-    NOT yet root-caused, and the patch in patches/ is a live suspect: it was
-    applied when this engine was built, so "Qwen3 avoids the bias path" and
-    "the patch silently produced a wrong engine" are not yet distinguishable.
-    Cheap next test: revert the patch, invalidate this engine's cache entry,
-    and rebuild - if it then fails LOUDLY with the bias error, the patch is
-    being exercised here and its output for this checkpoint is wrong.
+    Root cause still open, but the patch in patches/ is now CLEARED (2026-09-10)
+    and the two hypotheses ARE distinguishable after all - by reading, not by
+    rebuilding. (a) The checkpoint is good: the same Qwen/Qwen3-8B-AWQ on vLLM
+    here answers coherently and returns a correct unforced tool call - see
+    qwen3-8b-awq-vllm-thor. (b) The patch is provably inert for this checkpoint:
+    weights.py sets bias_recipe only inside `if self.has(prefix + ".bias")`,
+    LinearWeights.bias_recipe already defaults to None, and this checkpoint has
+    ZERO bias tensors (Qwen3 dropped Qwen2's QKV biases), so the patched line
+    passes None exactly as the unpatched code did. Reverting and rebuilding
+    could not change the engine, so that test was not run - the static argument
+    is the stronger one. The fault is elsewhere in Edge-LLM's AWQ path,
+    specifically its AWQ path rather than int4 generally, since the GPTQ-Int4
+    row built by the same patched builder is validated end-to-end.
     This does NOT undermine 7b-gptq-edgellm-thor (the recommended row, built
     with the same patch): that one was validated end-to-end at 90% BFCL
     irrelevance and 66.5% MMLU, which a broken engine cannot score.
@@ -953,10 +960,40 @@ bielik-11b-q4-llamacpp-thor:
     the strongest llama.cpp result of any family in this lab (correctly
     structured get_weather tool call on the first try, 2026-09-04). Exists to
     settle whether Bielik's CONFIRMED vLLM tool-calling failure is
-    backend-specific or platform-specific: the Orin has one working backend
-    (llama.cpp) and one failing one (vLLM) for this family, and until Thor has
-    both legs the platform cannot be ruled in or out. Not yet smoke-tested at
-    the time this row was added.
+    backend-specific or platform-specific.
+
+    SMOKE-TESTED 2026-09-10, and the answer reframes the question. Serving
+    works (cold start 260s including the ~6.7GB GGUF pull; "What is the capital
+    of Poland?" -> "The capital of Poland is Warsaw."). Tool-calling as shipped
+    does NOT: 0/9 structured calls across temperature {server-default, 0.1,
+    0.0}, 0/6 more with tool_choice {required, forced-name}, and 0/6 again with
+    --jinja removed entirely. But that is NOT a model limitation, and the
+    lab's recorded "works on llama.cpp / broken on vLLM" framing is wrong:
+
+      1. This GGUF's embedded chat template is a bare 209-character ChatML
+         loop with NO tools handling - it never mentions `tools`, `tool_call`
+         or `function` (confirmed via llama-server's own GET /props). Under
+         --jinja llama.cpp renders through that template, so the `tools`
+         parameter is silently DROPPED and the model never sees the tool at
+         all. That is blocker one, and it explains every zero above.
+      2. Given a tool-aware ChatML template instead (Qwen2.5-7B-Instruct's own,
+         structurally compatible since Bielik is also ChatML - passed via
+         --chat-template-file), the model emits a CORRECT tool call
+         6/6 times:
+           <tool_call> \n{"name":"get_weather","arguments":{"city":"Warsaw"}}\n</tool_call>
+         and llama.cpp still reports tool_calls=None, 0/6. The emission is
+         right; the EXTRACTION drops it. Leading explanation, not proven: the
+         emitted opening tag is `<tool_call> ` with a trailing space before the
+         newline, where llama.cpp's extractor expects `<tool_call>\n`.
+
+    So Bielik is tool-capable and this is a serving-stack problem in two
+    independent layers (template, then parser). That also makes the Orin vLLM
+    result worth re-reading: "empty tool_calls on two parsers" is exactly what
+    layer 2 looks like, so the model may have been emitting correct calls there
+    too and nobody checked `content`. Cheap re-check for whoever holds the Orin.
+    Not fixed here - a working row would need a bundled tool-aware template and
+    a parser that tolerates the whitespace, which is a change to how
+    LlamaCppCoordinator launches, not a registry edit.
 
 # --- Qwen3-8B-AWQ on vLLM: the checkpoint-vs-Edge-LLM discriminator ---
 # Added 2026-09-10 to settle an open question this lab cannot leave open:

@@ -120,13 +120,25 @@ question this file gets asked most and it should not take eleven sections to ans
   mid-JSON, which scores as an abstention. Worst-case bounds (counting every
   truncation as a call) are Edge-LLM 76% / llama.cpp 50% / vLLM 36% — the ordering and
   the size of the gap both survive, but the absolute numbers are upper bounds.
-- **Bielik on Thor — row added 2026-09-10, still NOT smoke-tested.**
-  `bielik-11b-q4-llamacpp-thor` now exists, so the *working* Bielik path finally has a
-  Thor row (the pre-existing `bielik-11b-awq-vllm-thor` is the variant already known to
-  fail on Orin). No Edge-LLM Bielik row is possible: `speakleash/Bielik-11B-v3.0-Instruct`
-  is still **gated** (re-confirmed live via the HF API, 2026-09-10) and the ungated
-  `-awq` sibling is compressed-tensors, which Edge-LLM's builder does not read — so
-  that leg is blocked on gate acceptance, not on lab work.
+- **Bielik on Thor — DONE 2026-09-10, and it overturns the recorded conclusion.**
+  `bielik-11b-q4-llamacpp-thor` added and smoke-tested. Serving and Polish work;
+  tool-calling as shipped does not (0/9 across temperatures, 0/6 with `tool_choice`
+  required/forced, 0/6 with `--jinja` removed). **But Bielik is not the problem.** Its
+  GGUF ships a bare 209-character ChatML template with no tools handling at all, so
+  llama.cpp silently drops the `tools` parameter and the model never sees the tool.
+  Given a tool-aware ChatML template instead (Qwen2.5's own), **the model emits a
+  correct `get_weather({"city":"Warsaw"})` call 6/6 — and llama.cpp parses it 0/6**,
+  because the emitted tag is `<tool_call> \n` where the extractor expects
+  `<tool_call>\n`. Two independent serving-stack layers, neither of them the model.
+  This lab's "Bielik works on llama.cpp, is broken on vLLM" framing is therefore
+  wrong on both halves: the Orin llama.cpp success came from an older build's generic
+  grammar fallback, and the Orin vLLM failure ("empty `tool_calls` on two parsers") is
+  exactly what an extraction failure looks like — **nobody checked whether `content`
+  contained the call.** That re-check is cheap and belongs to whoever holds the Orin.
+  No Edge-LLM Bielik row is possible: `speakleash/Bielik-11B-v3.0-Instruct` is still
+  **gated** (re-confirmed live via the HF API, 2026-09-10) and the ungated `-awq`
+  sibling is compressed-tensors, which Edge-LLM's builder does not read — so that leg
+  is blocked on gate acceptance, not on lab work.
 - **Co-residency on either board** (Phase 9) — the single most valuable unmeasured
   quantity in the project, per both `paper.md` and `embedded-ai-chain`'s own TODO.
 

@@ -36,6 +36,31 @@ re-verified per-format for `int4_awq`/`int4_awq_modelopt` specifically, though
 they share the identical return statement and should be expected to behave the
 same way.
 
+**Cleared of silently corrupting engines, 2026-09-10.** `Qwen3-8B-AWQ` builds
+and serves under Edge-LLM and then emits degenerate output (`"0000000..."`), and
+because this patch was applied when that engine was built, it was recorded as a
+live suspect — an unexplained silent-corruption path in a patch the recommended
+`7b-gptq-edgellm-thor` row depends on. It is not the cause, and the argument is
+static rather than empirical, which makes it stronger than the rebuild test
+originally proposed:
+
+1. `bias_recipe` is initialised to `None` and only assigned inside
+   `if self.has(bias_name):` (`weights.py`, `linear_metadata()`).
+2. `LinearWeights.bias_recipe` already defaults to `None`, so the patched line
+   passing `bias_recipe=None` is **identical in effect** to the unpatched code
+   omitting the kwarg.
+3. `Qwen3-8B-AWQ`'s checkpoint contains **zero bias tensors of any kind**
+   (`model.safetensors.index.json` weight map: 0 entries ending in `.bias`) —
+   Qwen3 dropped the attention QKV biases Qwen2 carried.
+
+So for this checkpoint the patched line is provably a no-op, and reverting it
+could not change the engine. Independently, the *checkpoint* is fine: the same
+`Qwen/Qwen3-8B-AWQ` on vLLM/Thor answers "capital of Poland" coherently and
+returns a correct unforced `get_weather` tool call (`qwen3-8b-awq-vllm-thor`,
+smoke-tested 2026-09-10). Both halves of the original two-part test therefore
+land the same way: the fault is somewhere else in Edge-LLM's AWQ path, and this
+patch is not implicated in it.
+
 **Apply it** (from `~/dev/TensorRT-Edge-LLM`, pure Python - no rebuild needed):
 
 ```bash
