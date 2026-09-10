@@ -137,7 +137,25 @@ belong to the still-open latency question this document defers to Phase 4.
    document's framing that "every accuracy-improving alternative is slower": the
    alternative that may not be slower was never on the table.
 
-   It is **not** a recommendation yet. `1.5b-fp16-vllm-orin` has no latency, energy or
-   MMLU measurement at all, and fp16 weights are ~4× AWQ int4's, which on a
-   bandwidth-bound decode is the axis most likely to hurt. Measuring it is the cheapest
-   input to the latency decision and should happen before that decision is made.
+   **Measured 2026-09-10 (`configs/benchmarks/precision_arm.yaml`, same-day matched
+   pair, one cell per model, v2 salt) — and it is not affordable.** The suspicion that
+   fp16's ~4× weight traffic would hurt a bandwidth-bound decode was right, and by more
+   than enough to settle it:
+
+   | row | TTFT p50 | decode tok/s | J/out-tok | BFCL irrelevance |
+   |---|---:|---:|---:|---:|
+   | `1.5b-awq-vllm-orin` (shipping) | 80.3ms | 109.3 | 0.322 | 36.7% |
+   | `1.5b-fp16-vllm-orin` | 95.6ms | **48.7** | 0.661 | 66.7% |
+   | `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 | 70.0% |
+
+   **`1.5b-fp16-vllm-orin` is dominated by `3b-awq-vllm-orin`** — worse decode (48.7 vs
+   64.4 tok/s), worse energy (0.661 vs 0.566 J/token) and no better judgment (66.7% vs
+   70.0%, one case apart). Its only advantage is TTFT, the smaller term. Dropping AWQ
+   costs more than doubling the parameter count and keeping it.
+
+   So the precision arm closes as a **negative result, and a useful one**: it identifies
+   AWQ int4 as *a real cause* of the shipping default's judgment failure - 36.7% → 66.7%
+   with model, backend, board and prompt all held fixed - while ruling fp16 out as the
+   *remedy* on this board. The mechanism and the fix are different questions and this
+   separates them. MMLU for the fp16 row is still unmeasured; it would sharpen the causal
+   story but cannot revive fp16 as a candidate.
