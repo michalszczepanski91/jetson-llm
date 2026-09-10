@@ -64,11 +64,18 @@ question this file gets asked most and it should not take eleven sections to ans
   GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
   cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking
   *every* int4 checkpoint, so it may have been masking an Apertus/Bielik path too.
-- **The chat-template test — still NOT run.** Repeatedly called the "cheap decisive
-  test" for *why* the three backends differ by 40 points, and repeatedly not done. Send
-  one identical pre-rendered prompt to all three via `/v1/completions` (no `tools`
-  param, no template) and compare raw output. Until it runs, the mechanism behind this
-  lab's headline finding stays unidentified.
+- **The chat-template test — two of three legs RUN, 2026-09-10; the Edge-LLM leg is
+  still outstanding and is Thor-only.** `scripts/chat_template_probe.py`, full record in
+  `results/raw/2026-09-10_orin_chat-template-probe/`. On Orin, with the template removed
+  and the prompt bytes verified identical, **the gap survives**: vLLM 33.3%
+  correct-abstain vs llama.cpp 60.0% (against 36.7% / 70.0% through the chat path), only
+  5/30 byte-identical completions, and all 8 call-vs-abstain disagreements running the
+  same direction. So the template/parser layer accounts for little of the difference on
+  this board. **But the Orin leg is confounded by precision** — AWQ int4 vs GGUF Q4_K_M
+  — and the precision arm the same day measured precision alone moving this axis 30
+  points, so quantization format explains it at least as well as backend runtime does.
+  The mechanism behind the *Thor* 40-point finding stays unidentified: that comparison
+  held precision at fp16, so it is a different question and needs the Edge-LLM leg.
 - **Bielik on Thor — still NOT smoke-tested.** Unchanged since it was first flagged.
 - **Co-residency on either board** (Phase 9) — the single most valuable unmeasured
   quantity in the project, per both `paper.md` and `embedded-ai-chain`'s own TODO.
