@@ -71,3 +71,9 @@ EXCLUSIVE BOX (numbers of record)
 
 ═════ COMMITTING ═════
        2026-09-09 16:43:04
+       commit: d18db58 Autonomous precision sweep: FP8-without-KV-quant and INT8 at full calibration
+To github.com:michalszczepanski91/jetson-llm.git
+   c2effb2..d18db58  thor-edge-llm -> thor-edge-llm
+
+═════ SWEEP COMPLETE ═════
+       2026-09-09 16:43:07

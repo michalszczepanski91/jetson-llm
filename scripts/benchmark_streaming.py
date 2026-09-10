@@ -106,8 +106,15 @@ def main():
 
         print(f"Running {args.runs} streaming reps...")
         results = []
+        # coordinator.model, NOT variant["model"]: for a local-checkpoint-path
+        # Edge-LLM row (self-quantized checkpoints), the launch path and the
+        # name the server actually registers requests under can differ - see
+        # EdgeLlmCoordinator's served_model_name. Using the raw config path
+        # here 404'd every streaming request for such a row (2026-09-09) -
+        # silent everywhere else because vLLM/llama-cpp rows use an HF repo id
+        # as both, so the two values happen to be identical there.
         for i in range(args.runs):
-            result = _stream_one(coordinator.base_url, variant["model"], args.prompt, args.max_tokens)
+            result = _stream_one(coordinator.base_url, coordinator.model, args.prompt, args.max_tokens)
             results.append(result)
             if result["ttft_seconds"]:
                 print(f"  [{i + 1}/{args.runs}] ttft={result['ttft_seconds']:.3f}s "

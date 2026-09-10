@@ -46,10 +46,14 @@ _SIZES_EDGELLM = [
 # `quant_algo` format Edge-LLM's parser requires) - see configs/models.yaml.
 _PRECISIONS_7B = [
     ("FP16", "7b-fp16-edgellm-thor"),
-    ("FP8 (self-quant)", "7b-fp8-selfquant-edgellm-thor"),
-    ("INT8-SQ (self-quant)", "7b-int8sq-selfquant-edgellm-thor"),
+    ("FP8 no-kv (fixed)", "7b-fp8-nokv-selfquant-edgellm-thor"),
+    ("INT8-SQ 512cal", "7b-int8sq-512-selfquant-edgellm-thor"),
     ("INT4 GPTQ", "7b-gptq-edgellm-thor"),
 ]
+# Superseded, damaged first attempts - kept only for the historical record in
+# docs/thor-framework-comparison.md, NOT for the live comparison table above:
+#   7b-fp8-selfquant-edgellm-thor        (kv-cache quant broke tool-calling: 0% simple)
+#   7b-int8sq-selfquant-edgellm-thor     (128-sample calibration: MMLU 44.5%)
 
 
 def _load(name: str):

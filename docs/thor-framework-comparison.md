@@ -19,6 +19,14 @@ pipeline's turn budget - both are legitimate, and both already beat every non-Ed
 option by a wide margin (see the framework comparison below: llama.cpp and vLLM top
 out at 62%/54% `irrelevance` on the same FP16 weights).
 
+**Update, 2026-09-09/10 - the full 4-way precision sweep (FP16/INT4-GPTQ/FP8/INT8-SQ)
+confirms GPTQ-Int4 as the best all-round quantized choice**, not merely the only one
+tested: it wins every timing and energy column outright against the two other working
+precisions too (see "The full precision sweep at 7B" below for the complete table and
+what each column means). FP8 is essentially lossless on accuracy but only ~1.4x FP16's
+throughput; INT8-SQ still carries an unexplained 12.5-point MMLU gap. Neither beats
+GPTQ-Int4 on any axis that matters for this deployment.
+
 The backend-vs-framework finding below is unaffected by this update - it explains WHY
 Edge-LLM is the right backend regardless of which precision runs on it:
 
@@ -320,6 +328,108 @@ per-format) and whether the same one-line pattern is what was blocking int4 for 
 model families in this repo (Apertus, Bielik) - worth a look before assuming it's
 Qwen2-specific.
 
+### The full precision sweep at 7B, and what each column actually measures
+
+Four precisions of the identical `Qwen2.5-7B-Instruct` weights, same backend
+(Edge-LLM), same 100 BFCL cases, same 200 MMLU questions, same 32-token turn shape.
+FP8 and INT8-SQ are **self-quantized** (see "Quantization actually works now" above
+and "Self-quantized precisions needed real debugging" below) - no published checkpoint
+in either format exists for this model.
+
+| precision | BFCL overall | BFCL **irrelevance** | MMLU | **TTFT** | **tok/s** | **32-tok turn** | board power | **marginal J/token** |
+|---|---|---|---|---|---|---|---|---|
+| **FP16** (baseline) | 93% | 94% | 67.5% | 74 ms | 16.6 | 1945 ms | 19.3 W | 0.839 J |
+| **INT4-GPTQ** | 92% | 90% | 66.0% | **65 ms** | **40.7** | **769 ms** | 16.6 W | **0.274 J** |
+| **FP8** (self-quant) | 91% | 90% | 66.5% | 61 ms | 23.5 | 1052 ms | 19.6 W | 0.603 J |
+| **INT8-SQ** (self-quant) | 91% | 92% | **54.0%** | 64 ms | 22.8 | 1074 ms | 19.3 W | 0.610 J |
+
+**What each timing column actually means** (asked directly - worth being precise
+about, since these numbers get compared casually otherwise):
+
+- **TTFT (time to first token)**: wall-clock from sending the request to the first
+  token arriving. Dominated by *prefill* - processing the input prompt - plus
+  scheduling overhead. This is what a user perceives as "how long before it starts
+  talking." It is **not** a per-token number.
+- **tok/s (tokens per second)**: *decode* throughput - once generation has started,
+  how many tokens per second stream out. Its reciprocal, `1/tok/s`, is the average
+  wall-clock time to produce **one** token during generation (e.g. INT4-GPTQ's 40.7
+  tok/s = ~24.6 ms per token; FP16's 16.6 tok/s = ~60.2 ms per token).
+- **32-tok turn**: the number this lab actually cares about for the orchestrator.
+  End-to-end wall-clock time for one **complete, non-streaming** response of 32
+  generated tokens - roughly TTFT plus 31 more decode steps, measured as a single
+  blocking round trip rather than split into TTFT+tok/s. 32 tokens approximates a
+  real orchestrator turn (a short spoken reply or a tool call), not one token and not
+  the 128-token essay the raw `tok/s`/TTFT figures above use for their own separate
+  streaming measurement - **the two are measured by different scripts and are not
+  arithmetically identical**, which is why `769ms` for INT4 is not exactly `65ms +
+  31×24.6ms` (≈826ms): TTFT/tok/s come from a *streaming* 128-token call while the
+  32-tok turn comes from a separate *non-streaming* call, and non-streaming skips
+  some per-chunk overhead streaming pays.
+- **Energy per token (marginal J/token)**: `(board power during generation − idle
+  board power) ÷ tokens per second`. "Marginal" means it isolates the energy
+  *generation itself* costs, subtracting what the board burns just being powered on
+  and idle (measured at **5.42 W** with the box fully quiet, no containers, GPU
+  idle - see "Energy per token" above). Board power here is the **whole board's** 5V
+  input rail (`vin_sys_5v0`), not GPU-only, sampled via `tegrastats` throughout each
+  run. This is a *rate* (joules per token generated), not a total energy budget for a
+  turn - multiply by a turn's token count for that (e.g. INT4-GPTQ's 32-token turn
+  costs roughly `32 × 0.274J ≈ 8.8J` in generation energy, on top of whatever the
+  board burns just being on for those ~770ms).
+
+**Reading the sweep**: INT4-GPTQ wins every timing and energy column outright while
+giving up only 4 points of `irrelevance` from FP16 - it remains the best all-round
+quantized choice. FP8 is essentially lossless on accuracy (66.5% MMLU, 90%
+irrelevance) but only mid-pack on speed - roughly 1.4x FP16's throughput, nowhere
+near INT4's 2.5x. **INT8-SQ is the one number here still worth distrusting**: 54.0%
+MMLU is a real, uninvestigated 12.5-point gap even after doubling calibration
+samples from 128→512 fixed most of the damage (44.5%→54.0%) - see the debugging
+section below for what was tried and what remains open.
+
+### Self-quantized precisions needed real debugging - a cautionary result on its own
+
+The first self-quantized attempt at both FP8 and INT8 came back **damaged**, not
+merely suboptimal, and it is worth walking through because "we quantized it
+ourselves" is not automatically "it works":
+
+| | MMLU | BFCL simple | what that means |
+|---|---|---|---|
+| FP8, first attempt (with `--kv_cache_quantization fp8`) | 46.5% | **0%** | never emitted a single tool call in 50 attempts - its "100% irrelevance" was an artifact of calling nothing ever, not good judgment |
+| INT8-SQ, first attempt (128 calibration samples) | **44.5%** | 90% | tool-calling intact, but 23 points of MMLU lost - a materially dumber model |
+
+Two fixes, one variable changed each, both re-quantized from scratch:
+
+1. **FP8**: the quantizer's own calibration log had warned *"Large KV activations
+   detected. Quantized KV cache may lead to higher accuracy drop"* - a warning the
+   first run ignored. Re-quantizing with `--kv_cache_quantization` simply omitted
+   fixed it completely: 0%→91% BFCL simple, 46.5%→66.5% MMLU, matching FP16 almost
+   exactly. **Confirmed cause, not a guess** - the fix targeted precisely the
+   mechanism the tool's own warning named.
+2. **INT8-SQ**: raised `--num_samples` from 128 to the tool's own default of 512.
+   This helped substantially (44.5%→54.0% MMLU) but **did not fully close the gap**
+   to FP16's 67.5%. SmoothQuant's per-channel activation scales are
+   calibration-sensitive, so more samples was a reasonable first guess, and it was
+   partially right - but 54.0% is still a real, unexplained 12.5-point loss. Not yet
+   tried: a different calibration dataset (`wikitext` instead of `cnn_dailymail`),
+   more than 512 samples, or comparing against `modelopt`'s own INT8 recipe defaults
+   for known trouble spots (attention output projections, embedding layers) that
+   SmoothQuant is documented to be sensitive to.
+
+**The lesson generalizes beyond this one repo**: a self-quantization tool completing
+without error is not evidence the result is usable - the FP8 checkpoint built, served,
+and answered plain questions coherently while being unable to call a single tool. Only
+running the *same* accuracy suite every other candidate in this campaign went through
+caught it.
+
+Also found and fixed along the way, unrelated to quantization quality: **a real
+routing bug in `scripts/benchmark_streaming.py`**, discovered when the streaming
+benchmark 404'd for a self-quantized row while BFCL/MMLU/latency all succeeded
+against the same server. That script read the raw config path (`variant["model"]`)
+instead of `coordinator.model` (which correctly resolves through
+`served_model_name` for a locally-served checkpoint directory) - silent for every
+other row in this file because vLLM/llama.cpp rows use an HF repo id as both values,
+so they happen to be identical there. Fixed to use `coordinator.model` like the other
+three eval scripts already did.
+
 ### 14B buys nothing
 
 7B and 14B agree on **98 of 100** BFCL cases. They differ on exactly two
@@ -448,3 +558,19 @@ see above):
       measured price tag: the other user's idle-but-resident container raised board
       idle from 5.4 W to ~17.5 W, so co-residency costs ~12 W continuously before any
       inference happens.
+- [x] Self-quantize FP8/INT8-SQ for Qwen2.5-7B (no published checkpoint exists in
+      either format - confirmed against NVIDIA's own 0.10.1 supported-models page).
+      Done 2026-09-09/10 via `tensorrt-edgellm-quantize`; both needed real debugging
+      (see "Self-quantized precisions needed real debugging" above) before producing
+      usable checkpoints.
+- [ ] **INT8-SQ still has an unexplained 12.5-point MMLU gap** (54.0% vs FP16's
+      67.5%) after fixing the calibration-sample-count issue. Try `--text_dataset
+      wikitext`, more than 512 samples, or compare against modelopt's documented
+      SmoothQuant trouble spots (attention output / embedding layers) before treating
+      this precision as usable.
+- [ ] `int4_awq`/`int4_awq_modelopt` against the same bias-recipe patch that fixed
+      GPTQ-Int4 - should work (identical return statement) but not re-verified
+      per-format.
+- [ ] Whether the same bias-recipe bug was silently blocking int4 for Apertus/Bielik
+      elsewhere in this repo's Orin rows - worth checking before assuming it is
+      Qwen2-specific.
