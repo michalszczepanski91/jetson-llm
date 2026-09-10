@@ -102,6 +102,29 @@ for any of them.
       publishes no Thor (r38) tag at all — jetson-containers' r38-era images live on
       GHCR under `nvidia-ai-iot/` instead, a real gotcha documented in the Thor doc.
 
+- [x] **JetPack 7.2 *has* shipped for Jetson AGX Orin — confirmed 2026-09-10, and it
+      does not make the Orin reflash cheaper.** This was an open "nobody has checked"
+      question gating the Edge-LLM-on-Orin option. It shipped ~June 2026 (7.2.1 followed
+      in August), bringing the Orin family onto JetPack 7 for the first time. The catch
+      is what it is built on: **Jetson Linux r39.2, Ubuntu 24.04, kernel 6.8, CUDA 13** —
+      against this board's r36.4.7 / Ubuntu 22.04 / CUDA 12.6. So it is not a point
+      upgrade, it is a different platform generation:
+      - every sibling repo's compiled TensorRT engines are invalidated (they are built
+        per TensorRT/CUDA version), `jetson-yolov8-trt` and `jetson-whisper-trt` included;
+      - `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-orin` and
+        `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` are both r36-era images with no
+        r39 equivalent confirmed to exist;
+      - `embedded-ai-chain`'s Python stack pins the Jetson AI Lab **jp6/cu126** wheel
+        index (`onnxruntime-gpu` with the TensorRT/CUDA execution providers, the whole
+        reason that index exists) — a jp7/cu13 equivalent has not been checked for the
+        components this fleet actually needs;
+      - and every existing Orin measurement in this repo becomes non-comparable, which
+        is the entire dataset behind the promotion decision.
+      **Still not scheduled, and the reason is unchanged**: the Thor-side Edge-LLM leg of
+      the chat-template test may make it unnecessary. The 2026-09-10 Orin leg made that
+      less likely rather than more (the backend gap survived removing the template
+      there), so this needs the Thor answer before anyone commits to a reflash.
+
 **GATE 0** — met, 2026-09-04. vLLM + llama.cpp in scope; TensorRT deferred with reasons
 recorded, not silently dropped.
 
