@@ -14,23 +14,53 @@ record" link on any phase that has one. Rewritten to this shape 2026-09-07; the 
 
 ## Status at a glance
 
-| Phase | Status | Gate | Key result |
+**Phases 7 and 8 were answered on Thor, not Orin** — it is the only board that can run
+all three backends, so the quantization and backend studies happened there first and
+the phase numbering (written when Orin was the only platform) understates them. One
+status column can't carry two boards, so the table splits them.
+
+| Phase | Orin | Thor | Key result |
 |---|---|---|---|
-| 0 — Framework survey | ✅ done | met | vLLM + llama.cpp in scope; TensorRT explicitly excluded (JetPack mismatch) |
-| 1 — Foundations | ✅ met for active candidates | met (see caveats) | Qwen2.5-1.5B works both backends; Bielik works llama.cpp only; Apertus blocked entirely |
-| 2 — Measurement-integrity retrofit | ✅ done | met | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found & fixed |
-| 3 — Experiment configuration | ✅ done | met | Config-driven campaigns; co-residency guard hardened after 2 more incidents |
-| 4 — Canonical Orin campaign | 🚧 partial | partial | 20 real cells, 2 findings (J/token amortization, backend context-scaling gap) |
-| 5 — Full scorecard matrix | 🚧 in progress | not met | Exclusions decided; 3B/7B smoke-tested (4/4 pass); scorecard itself not started |
-| 6 — Thor cross-platform arm | ⏳ not started | not met | Pre-emptive manifest fix landed; co-residency guard gap on Thor still open |
-| 7 — Quantization study | ⏳ not started | not met | — |
-| 8 — Backend study | ⏳ not started | not met | — |
-| 9 — Co-resident/concurrency | ⏳ not started | not met | Highest external value — feeds both papers |
-| 10 — Analysis pipeline | ⏳ not started | not met | — |
-| 11 — Declare a winner | ⏳ not started | not met | — |
+| 0 — Framework survey | ✅ | ✅ | vLLM + llama.cpp in scope; TensorRT excluded on Orin (JetPack 6.2.x), **superseded on Thor** |
+| 1 — Foundations | ✅ | ✅ | Qwen2.5 works on every backend; Bielik llama.cpp-only; Apertus blocked entirely |
+| 2 — Measurement integrity | ✅ | ⚠️ | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. **Thor's results never went through this pipeline** — see Phase 6 |
+| 3 — Experiment configuration | ✅ | ⚠️ | Config-driven campaigns; guard hardened after 2 more incidents. Thor ran from shell scripts, not `configs/benchmarks/` |
+| 4 — Canonical campaign | 🚧 partial | ⏳ | Orin: J/token amortization + a backend context-scaling gap. **Thor never re-ran the two sweeps** — so P5 is only half-answered, see Phase 6 |
+| 5 — Full scorecard matrix | ✅ | ✅ | 7 Orin rows fully scored; `irrelevance` is the only accuracy axis that still discriminates |
+| 6 — Cross-platform arm | n/a | ✅ | Thor bring-up, three backends, exclusive-box campaign |
+| 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend, MMLU-controlled |
+| 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled |
+| 9 — Co-resident / concurrency | ⏳ | ⏳ | Highest remaining value — feeds both papers |
+| 10 — Analysis pipeline | ⏳ | ⏳ | — |
+| 11 — Declare a winner | ✅ deferred | 🚧 | Orin: "no clean winner" + tie-breaker recorded (`docs/promotion-decision.md`). Thor: a recommendation, which is not the same as a promotion |
 
 Full reconciliation of this plan with `docs/note.md`'s original benchmark-suite
 proposal: `docs/HISTORY.md`, "Scope change, 2026-09-04".
+
+## Not tested yet — and whether there's a reason
+
+Kept here rather than scattered across phases, because "what's missing" is the
+question this file gets asked most and it should not take eleven sections to answer.
+
+- **Only Qwen2.5 has been tested on Thor.** Not a blocker — a deliberate scope choice
+  that then never got revisited. The framework comparison held the model fixed
+  *because* that is what made it controlled; varying family is a different experiment,
+  and it simply hasn't been run. Everything below is execution time, not new design.
+- **Bielik-11B on Thor**: a row exists (`bielik-11b-awq-vllm-thor`) and has **never
+  been smoke-tested**. It was written to answer a real open question — Bielik's
+  tool-calling is confirmed broken on vLLM/Orin across two parsers but works on
+  llama.cpp, and nobody knows whether that is backend-wide or Orin-specific. Note the
+  existing row is the *vLLM* one, i.e. the variant already known to fail on Orin; the
+  *working* Bielik path (llama.cpp) has no Thor row at all, and neither does Edge-LLM.
+- **Qwen3 on any board**: no row anywhere, gated on "a real serving test" since
+  2026-09-04 that was never run. On Thor this is now the single highest-value
+  experiment left — see Phase 7 for the three checked reasons why.
+- **Apertus-8B**: genuinely blocked, not neglected — llama.cpp doesn't recognize its
+  GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
+  cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking
+  *every* int4 checkpoint, so it may have been masking an Apertus/Bielik path too.
+- **Co-residency on either board** (Phase 9) — the single most valuable unmeasured
+  quantity in the project, per both `paper.md` and `embedded-ai-chain`'s own TODO.
 
 ---
 
@@ -236,64 +266,37 @@ the family forward. **Rows are not deleted** from `configs/models.yaml` — both
 excluded in their own `notes`, per this repo's append-only convention. Active matrix:
 7 rows (down from 9) — see decision log.
 
-- [x] **Step 0 — smoke-test Qwen2.5-3B/7B first** (never tested on any backend; Phase 1's
-      gate was met on 1.5B + Bielik alone). **Done 2026-09-07, `scripts/smoke_test.py`,
-      board confirmed quiet before each run — 4/4 PASS:**
+- [x] **Step 0 — smoke-test Qwen2.5-3B/7B first** (never tested on any backend;
+      Phase 1's gate was met on 1.5B + Bielik alone). Done 2026-09-07, **4/4 PASS**,
+      board confirmed quiet each time; no `gpu_memory_utilization` re-tuning needed on
+      either vLLM row. Uncached cold starts 158-327s.
+- [x] **Step 1 — the scorecard itself**, all 7 active rows, done 2026-09-08/09. One
+      table, since the promotion decision needs speed and accuracy side by side:
 
-  | Row | Cold start (uncached) | Result |
-  |---|---|---|
-  | `3b-awq-vllm-orin` | 188.3s | ✅ PASS, `gpu_memory_utilization=0.25` needs no re-tuning |
-  | `3b-q4-llamacpp-orin` | 158.3s | ✅ PASS |
-  | `7b-awq-vllm-orin` | 212.3s | ✅ PASS, `gpu_memory_utilization=0.5` needs no re-tuning — note: a benign `NvMapMemAllocInternalTagged` allocator warning appeared during startup, worth watching given this row's own "high-risk" flag |
-  | `7b-q4-llamacpp-orin` | 326.6s | ✅ PASS (7.6GB two-part GGUF download included) |
+  | Row | TTFT p50 | tok/s | J/out-tok | simple | **irrelevance** | MMLU |
+  |---|---:|---:|---:|---:|---:|---:|
+  | `1.5b-awq-vllm-orin` **(shipping default)** | **31.1ms** | **108.2** | **0.297** | 80.0% | **36.7%** | 40.0% |
+  | `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 | 96.7% | **70.0%** | 54.0% |
+  | `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 | 96.7% | **40.0%** | 66.0% |
+  | `1.5b-q4-llamacpp-orin` | 309.5ms | 38.7 | 0.647 | 100.0% | **70.0%** | 41.5% |
+  | `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 | 100.0% | **46.7%** | 53.0% |
+  | `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 | 100.0% | **56.7%** | 64.0% |
+  | `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 | 100.0% | **10.0%** | 40.0% |
 
-- [x] **Step 1 — the scorecard itself**, all 7 active rows. **Done 2026-09-08** —
-      full BFCL + MMLU for every row; performance/energy for the 5 rows Phase 4 never
-      touched, replicate 2, all confirmed `jetson_clocks_locked: true` after the
-      hardware fix below (replicate 1's numbers are kept, not deleted, but were taken
-      at `false` and are superseded for comparison purposes).
+  Performance at `jetson_clocks_locked: true`, MAXN, standalone; BFCL under the
+  corrected scorer (2026-09-09). n=60 BFCL, n=200 MMLU. Superseded replicate-1 and
+  pre-fix-scorer results are kept on disk, distinguished by `protocol.scorer` — never
+  mix them.
 
-  | Row | TTFT p50 | decode tok/s | J/out-tok |
-  |---|---:|---:|---:|
-  | `1.5b-awq-vllm-orin` *(Phase 4 data)* | 31.1ms | 108.2 | 0.297 |
-  | `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 |
-  | `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 |
-  | `1.5b-q4-llamacpp-orin` *(Phase 4 data)* | 309.5ms | 38.7 | 0.647 |
-  | `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 |
-  | `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 |
-  | `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 |
+  **One case is 3.3 points at n=30**, so `irrelevance` gaps under ~7pp are sampling
+  noise. Findings:
 
-  **A real finding from the correction, not just a methodology fix**: llama.cpp's
-  TTFT roughly halved once `jetson_clocks` was genuinely locked (Bielik
-  3181ms→1787ms, 7B 1984ms→1018ms, 3B 1284ms→563ms) — replicate 1's numbers were
-  partly measuring GPU clock ramp-up (DVFS) latency between idle gaps, not pure
-  inference. vLLM barely moved (it keeps the GPU continuously saturated, so there's
-  no idle gap to ramp from). One transient failure during this replicate
-  (`3b-awq-vllm-orin`: `NvMapMemAllocInternalTagged error 12` during CUDA-graph
-  capture, right after ~1.5h of back-to-back container churn from the BFCL/MMLU
-  campaign) did not reproduce on a clean retry — recorded as a one-off allocator
-  fragmentation event, not a persistent fault.
-
-  **Scores below are the 2026-09-09 re-run under the corrected scorer**
-  (`simplified-ast-v2-bfcl-standardize`); the 2026-09-08 originals are kept and
-  remain on disk, but must not be mixed with these — the `protocol.scorer` field
-  distinguishes them. See "BFCL scorer fix" below.
-
-  | Row | BFCL simple | BFCL irrelevance | BFCL overall | MMLU |
-  |---|---:|---:|---:|---:|
-  | `1.5b-awq-vllm-orin` | 80.0% | 36.7% | 58.3% | 40.0% |
-  | `3b-awq-vllm-orin` | 96.7% | 70.0% | 83.3% | 54.0% |
-  | `7b-awq-vllm-orin` | 96.7% | 40.0% | 68.3% | 66.0% |
-  | `1.5b-q4-llamacpp-orin` | 100.0% | 70.0% | 85.0% | 41.5% |
-  | `3b-q4-llamacpp-orin` | 100.0% | 46.7% | 73.3% | 53.0% |
-  | `7b-q4-llamacpp-orin` | 100.0% | 56.7% | 78.3% | 64.0% |
-  | `bielik-11b-q4-llamacpp-orin` | 100.0% | 10.0% | 55.0% | 40.0% |
-
-  n=60 per row for BFCL (30 simple + 30 irrelevance), n=200 for MMLU. **One case is
-  3.3 points at this sample size**, so `irrelevance` differences under ~7pp are within
-  sampling noise (temperature 0.1) — two rows moved by exactly one case between the
-  09-08 and 09-09 runs on identical settings. Findings:
-
+  - **Locking `jetson_clocks` roughly halved llama.cpp's TTFT** (Bielik 3181→1787ms,
+    7B 1984→1018ms, 3B 1284→563ms) — replicate 1 was partly measuring GPU clock
+    ramp-up between idle gaps, not inference. vLLM barely moved, since it keeps the
+    GPU saturated and never gives DVFS an idle gap to ramp from. A real finding that
+    came out of a methodology correction, and the reason platform state is recorded
+    on every result rather than assumed.
   - **`simple` is saturated and no longer discriminates.** Five of seven rows score
     exactly 100%, the other two 96.7%. **`irrelevance` is the only accuracy axis here
     that still separates candidates** — and it is the one that maps to the production
@@ -311,32 +314,15 @@ excluded in their own `notes`, per this repo's append-only convention. Active ma
     the promotion decision below stands unchanged.
 
 - [x] **BFCL scorer fix, 2026-09-09.** Argument strings were compared with a plain
-      `.strip().lower()`, where official bfcl-eval first strips ` ,./-_*^` and spaces
-      (`standardize_string`). So `"3*x**2 + 2*x - 1"` — the same maths as BFCL's
-      accepted `"3x**2 + 2x - 1"`, and the only spelling that is valid Python — scored
-      as WRONG. Ported that function directly (Apache-2.0, attributed in
-      `scripts/validate_tool_calling.py`); the package itself cannot be imported here
-      because `bfcl_eval.eval_checker` pulls in every model handler it ships and thus
-      `anthropic`/`torch`/`transformers`, and a generic PyPI torch in a Jetson venv is
-      the wheel-shadowing hazard `embedded-ai-chain/docs/environment.md` warns about.
-
-      Effect, measured by re-scoring **identical** captured model outputs under both
-      rules (so sampling noise cannot confound it): **21 cases flipped across the 7
-      rows**, all within `simple_13/14/15/16` — the same four maths cases Thor
-      independently hit. Per row: +3.3pp on `1.5b-awq-vllm-orin`, **+10 to +13.3pp on
-      every other row**. The weak row gained least because the artifact was a small
-      share of its many genuine failures; capable rows had little else left to fail on.
-
-      Two supporting changes: `outcomes.jsonl` now records `actual_arguments` and
-      `acceptable_arguments` per case (the 09-08 files stored only a boolean, so
-      diagnosing *why* a call was rejected meant re-deriving it from the dataset), and
-      `protocol.scorer` is versioned so old and new scores can never be silently mixed.
-
-      Still deviating from official bfcl-eval, deliberately and now documented in the
-      module docstring: extra/hallucinated parameters are not penalized, Python only,
-      and only the `simple`/`irrelevance` categories are run. Checked and *not* a gap:
-      a model sending `"1"` where the schema declares an integer fails here, and
-      official's `type_checker` (strict `type(value) == expected`) fails it too.
+      `.strip().lower()` where official bfcl-eval first strips ` ,./-_*^` and spaces,
+      so `"3*x**2 + 2*x - 1"` — the same maths as BFCL's accepted spelling, and the
+      only form that is valid Python — scored WRONG. Ported official's
+      `standardize_string` (Apache-2.0, attributed in the script). Re-scoring
+      **identical captured outputs** under both rules: **21 cases flipped across the 7
+      rows**, all in `simple_13/14/15/16` — the same four maths cases Thor
+      independently hit. **Rankings did not change**, so no conclusion turned on it.
+      `protocol.scorer` is now versioned so old and new scores can never be mixed.
+      Full record incl. the remaining deliberate deviations: **`docs/HISTORY.md`**.
 - [x] ~~Full-corpus BFCL, not `--limit 20`~~ **superseded 2026-09-07** — decided
       against. Full corpus (640 cases) costed out per row from measured decode
       speeds: 6.9min (1.5B vLLM) up to ~95min (Bielik llama.cpp), and a uniform limit
@@ -351,54 +337,91 @@ excluded in their own `notes`, per this repo's append-only convention. Active ma
       per-case detail in each result's sibling `outcomes.jsonl`.
 - [x] Write the comparison up (README "Current State", this section).
 
-**Hardware incident, 2026-09-08**: the campaign kept dying with zero internal error
-trace, initially misdiagnosed as a backgrounding-technique problem (`nohup`, `setsid`,
-tmux all failed identically at the same ~7-10min elapsed mark). Root cause confirmed
-via the Tegra PMC's `reset_reason=SYS_RESET_N` register (external reset line
-asserted — rules out panic, watchdog, and thermal, none of which produce that code):
-**the board was undervolting and hard-resetting under sustained MAXN load on its
-65W power adapter**. The AGX Orin devkit is specified for a 90W (19V/4.74A) supply;
-measured peak draw during the Step 1 campaign hit 58.4W on GPU+SOC+VIN_5V0 rails
-alone (not the whole board) — comfortably enough to brown out a 65W unit, especially
-once the adapter itself heats up and its output sags (matches the crash landing at a
-fairly consistent elapsed time regardless of which model was loaded). Resolved by
-swapping to a genuine 90W supply; campaign then ran 7+ consecutive rows and 1h17m
-uptime with zero resets. See decision log.
+**Hardware incident, 2026-09-08**: the campaign kept dying with no error trace — root
+cause was **the board browning out under sustained MAXN load on an undersized 65W
+adapter** (the AGX Orin devkit is specified for 90W), confirmed via the Tegra PMC's
+`reset_reason=SYS_RESET_N`. Fixed by swapping the supply; the campaign then ran 7+
+consecutive rows with zero resets. It also cost hours to a wrong first diagnosis
+(a backgrounding-technique bug). Full record: **`docs/HISTORY.md`**.
 
 **GATE 5** — met. Every active row has BFCL, MMLU, and performance/energy at a
 confirmed, consistent platform state (`jetson_clocks_locked: true`, MAXN, standalone).
 
-**Promotion decision, 2026-09-08**: `docs/promotion-decision.md` applies
-`docs/promotion-contract.md` to this data. **No clean winner** — every candidate with
-better tool-calling accuracy than the shipping default is also slower, and the shipping
-default already misses `embedded-ai-chain`'s own ≤1000ms latency target at steady state
-(that repo's `docs/TODO.md` §3h), so an accuracy-motivated swap would make an
-already-open latency miss worse. `3b-awq-vllm-orin` is flagged as the strongest
-candidate *if* that project accepts a revised tool-calling latency budget — not
-promoted now. Pointer row added to `embedded-ai-chain/docs/TODO.md`'s decision log.
+This data drove the promotion decision — **"no clean winner"**, recorded in
+`docs/promotion-decision.md`. See Phase 11 for the outcome and its tie-breaker.
 
 ## Phase 6 — Thor access and the cross-platform arm
 
 **Objective**: reproduce Phase 4's methodology on a second platform to answer P5 —
 does the preferred allocation change with the hardware?
 
-**Done — full writeup in `docs/thor-framework-comparison.md`, not duplicated here.**
-Summary: Thor reachability, environment setup (uv/datasets/`gpu_memory_utilization`
-re-tuning for its 122GiB pool), a third backend (TensorRT Edge-LLM, built from
-source), a controlled framework comparison (Edge-LLM beats vLLM/llama.cpp by 40
-points on BFCL `irrelevance`), a real bug found and patched in Edge-LLM's own source
-(unblocking INT4-GPTQ quantization), and a self-quantization campaign for FP8/INT8.
-Current recommendation: **TensorRT Edge-LLM + Qwen2.5-7B, GPTQ-Int4 quantized**
-(FP16 if the turn budget allows). `EdgeLlmCoordinator` and `LlamaCppCoordinator`'s
-`server_argv0` are the resulting `src/llm_coordinator.py` additions; 65 unit tests
-pass. This work lives on `origin/thor-edge-llm`, not yet merged to `main` (see that
-branch's README for why).
+**Done.** Full engineering story in `docs/thor-framework-comparison.md`; the numbers
+that drive decisions are below rather than only behind that link. Environment:
+JetPack 7.1, CUDA 13.0, TensorRT 10.13.3.9, **122 GiB** unified memory (vs Orin's
+~30 GB — `gpu_memory_utilization` values do not transfer between the boards).
 
-Remaining, tracked in the comparison doc's own "Still open" rather than here:
-`jetson_clocks`-locked timing run, the official `bfcl-eval` checker, a co-residency
-run with the VLM tier, INT8-SQ's unexplained MMLU gap, and identifying the exact
-mechanism behind the framework gap (chat-template rendering is the leading
-candidate).
+**Three backends, `Qwen2.5-7B-Instruct` FP16, same 100 BFCL cases, exclusive box:**
+
+| | Edge-LLM | llama.cpp | vLLM |
+|---|---:|---:|---:|
+| **BFCL `irrelevance`** | **94%** | 62% | 54% |
+| Turn latency (32 tok) | 1945 ms | **1899 ms** | 2539 ms |
+| Energy (marginal J/token) | 0.85 J | **0.73 J** | 0.96 J |
+
+Latency and energy are near-ties; the backends differ by **40 points on escalation
+judgment**, and that single axis decides it. If tool-call judgment didn't matter,
+llama.cpp would win outright (fastest, most efficient, one `docker pull` instead of a
+source build). It loses because grammar-constrained generation structurally cannot
+abstain. vLLM — `embedded-ai-chain`'s current production backend — is worst on every
+axis measured here, at either precision.
+
+**Size**: 1.5B→7B moves `irrelevance` 78%→94% on Edge-LLM, but only 60%→62% on
+llama.cpp and *backwards* (68%→54%) on vLLM — the backend decides whether parameters
+buy judgment at all. **14B buys nothing**: 98/100 identical verdicts to 7B at 2× the
+latency and 2.1× the energy. Thor's 122 GiB makes 7B purchasable where Orin's ~30 GB
+never could; that is the real cross-platform finding.
+
+**Recommendation: Edge-LLM + `Qwen2.5-7B-Instruct`, GPTQ-Int4 if the turn budget is
+tight, FP16 otherwise.** Precision table in Phase 7 below.
+
+**Two structural gaps this campaign left open** — both real, neither cosmetic:
+
+- [x] **Evidence preserved, 2026-09-10** — the immediate half of the problem below.
+      All 68 result JSON files are now committed under `results/thor-precampaign/`
+      with a README stating exactly what they are and are not. Previously they sat
+      only in `output/`, which `.gitignore` excludes, so **zero Thor results were
+      tracked in git** against 82 tracked Orin ones — every published Thor number was
+      backed by data that existed on one box's local disk and nowhere else.
+- [ ] **Thor's results still have not gone through the measurement-integrity
+      pipeline.** The archive above is evidence, not conformance. The campaign ran
+      from `scripts/thor_exclusive_window.sh` rather than `run_experiment.py`, so
+      those documents carry no `experiment_id`, no manifest, no git SHA, no
+      `execution_condition` field, and no per-repetition raw rows — they fail both
+      result schemas, and `scripts/analyze.py` (Phase 10) cannot read them. **Thor
+      therefore does not yet meet Gates 2 and 3, which Orin met before any campaign
+      ran.** Re-emit through `run_experiment.py` (which handles `edge-llm` rows since
+      the branch merge) before any Thor number is published as pipeline output.
+- [ ] **`assert_condition_matches_reality()` never ran on any Thor result.** Every
+      Thor `standalone` claim in these docs is *asserted from the operator's own
+      observation* (`docker ps` + a `/proc` scan run by hand in
+      `thor_exclusive_window.sh`), not enforced by the guard that has already caught
+      three false `standalone` labels on Orin. The shell script's own hard GPU-idle
+      gate is a real check and it did abort rather than measure — but it is a
+      different, weaker mechanism, and the result documents record no
+      `execution_condition` at all. This is the same class of gap as the
+      `--target remote` one below, and it applies to data already published.
+- [ ] **Phase 4's two sweeps were never reproduced on Thor**, which was this phase's
+      original stated goal. What ran instead — a framework comparison and a precision
+      sweep — is more decision-relevant, but it means **P5 ("does the ranking change
+      with hardware?") is only half-answered**: we know which backend wins on Thor, not
+      whether the output-length energy curve or the context-scaling gap look different
+      there. `configs/benchmarks/{output_sweep,context_sweep}.yaml` already exist and
+      now run against `edge-llm` rows; this is execution time, not new design.
+
+Also open, tracked in the comparison doc's own "Still open": the `jetson_clocks`-locked
+timing run, the official `bfcl-eval` checker, a co-residency run with the VLM tier,
+INT8-SQ's unexplained MMLU gap, and identifying the exact mechanism behind the
+framework gap (chat-template rendering is the leading candidate).
 
 **Measurement integrity note, since this Thor is a shared box**: wall latency, TTFT,
 tokens/sec, cold start, and any `tegrastats` power/thermal reading need the box
@@ -429,28 +452,107 @@ co-residency gap above is separate and still open.
 
 **Objective**: same model/backend/hardware, precision as the only variable.
 
-- [ ] `7b-awq-vllm-orin` vs a 7B fp16 row (if it fits in ~30GB alongside nothing else;
-      record the OOM as the result if not).
-- [ ] Label quantization methods precisely, never "INT4" generically —
-      `bielik-11b-awq-vllm-orin`'s row already does this right (`compressed-tensors
-      int4, group_size=128` despite being named `-awq`).
-- [ ] Per candidate: smoke → MMLU regression → performance → memory → power, against
-      the same-model higher-precision baseline.
-- [ ] Qwen3 row — the expected vLLM-version blocker doesn't exist (pinned image reports
-      `vllm 0.19.0`, confirmed live); still add behind a real serving test like every
-      other row.
+**Done on Thor, 2026-09-09/10** — `Qwen2.5-7B-Instruct` on Edge-LLM, precision as the
+only variable, MMLU carried throughout as the regression control this phase asks for:
 
-**GATE 7** — not met.
+| precision | BFCL `irrelevance` | MMLU | 32-token turn | marginal J/token | cold start ¹ |
+|---|---:|---:|---:|---:|---:|
+| **INT4-GPTQ** | 90% | 66.5% | **769 ms** | **0.274 J** | **0.03 s** |
+| **FP16** (baseline) | **94%** | **67.5%** | 1945 ms | 0.839 J | 12.1 s |
+| FP8 (self-quantized) | 90% | 66.5% | 1052 ms | 0.603 J | — |
+| INT8-SQ (self-quantized) | 92% | 54.0% ² | 1074 ms | 0.610 J | — |
+
+¹ Cache **hit** for both; a miss takes minutes either way. ² **INT8-SQ keeps an
+unexplained 12.5-point MMLU gap** even after raising calibration 128→512 samples
+(44.5%→54.0%) — not trusted for production; see the comparison doc's "Still open".
+
+**INT4-GPTQ wins every timing and energy column outright** — 2.5× the throughput and
+3× the energy efficiency of FP16 — for 4 points of `irrelevance`. FP8 is essentially
+lossless on accuracy but only ~1.4× FP16's throughput. Both are legitimate; which to
+ship is a genuine product call about the turn budget, and both are recorded rather
+than one being declared correct.
+
+- [x] Label quantization methods precisely, never "INT4" generically. Every Thor row
+      names its actual method (`gptq int4`, `fp8 static`, `int8 smoothquant W8A8`),
+      and the self-quantized ones record calibration dataset and sample count — which
+      is what made the INT8 gap diagnosable at all.
+- [x] Per candidate: smoke → MMLU regression → performance → memory → power against
+      the same-model higher-precision baseline. Ran in exactly that order; the FP8
+      first attempt was caught by it (100% `irrelevance` that turned out to be **zero
+      tool calls in 50 tries** — a broken checkpoint, not a good score).
+- [x] **Both recommended precisions are official Qwen checkpoints, downloaded — not
+      quantized by us.** Worth stating plainly, because the debugging story below
+      makes self-quantization look load-bearing and it isn't: `Qwen2.5-7B-Instruct`
+      and `Qwen2.5-7B-Instruct-GPTQ-Int4` are ordinary `hf download`s. Reproducing the
+      recommendation needs **no quantization pipeline** — only the one-line Edge-LLM
+      patch (`patches/edgellm-int4-bias-recipe.patch`), without which *every* int4
+      checkpoint fails to build, Qwen's own official ones included. That patch is the
+      real enabler here, not the quantizer.
+- [x] **Self-quantization capability built** for the two formats where **no published
+      checkpoint exists for this model at all** (FP8, INT8-SQ) — neither of which is
+      recommended. Recipes now reproducible via `scripts/quantize_edgellm.sh`, which
+      records the exact flags plus the two failure modes that made the first attempt
+      at each unusable. They were previously ad-hoc shell commands recorded only in
+      prose, which made the four checkpoints in `/home/michal/dev/quantize-work`
+      irreproducible the moment that directory went away.
+- [ ] **Orin arm not started**: `7b-awq-vllm-orin` vs a 7B FP16 row (record the OOM as
+      the result if it doesn't fit in ~30 GB). This is the interesting comparison
+      precisely *because* Thor's answer may not transfer — 122 GiB makes FP16 free
+      there and impossible here.
+- [ ] **Qwen3 has never been tested on either board**, and on Thor it is now the
+      highest-value single experiment left. Three reasons, all checked, not assumed:
+      Edge-LLM's supported-models list includes **official `Qwen3-8B-AWQ` and
+      `Qwen3-14B-AWQ`** published by Qwen; Qwen3 **dropped the attention QKV biases**
+      that caused the int4 bias-recipe bug, so it likely avoids that path entirely;
+      and it would be this lab's first *published* int4 checkpoint on Edge-LLM rather
+      than a self-quantized one. The old "vLLM has no JetPack 6.2 wheels" blocker was
+      measured false in 2026-09-04 (`vllm 0.19.0` confirmed live) — nothing is
+      actually stopping this but execution time.
+
+**GATE 7** — met on Thor (one model, one backend, four precisions, MMLU-controlled).
+Not met on Orin, and not met for any second model family.
 
 ## Phase 8 — Backend study
 
 **Objective**: same model/precision-class/hardware, backend as the only variable.
 
-- [ ] vLLM vs llama.cpp: turn the qualitative finding (vLLM's tool-call parser is
-      temperature-robust, llama.cpp's isn't) into a measured curve.
-- [ ] State the AWQ-vs-GGUF confound honestly — this isn't a clean precision match.
+**Done on Thor, 2026-09-08/10 — and done more strictly than this phase was written to
+ask for.** Table in Phase 6 above. Three backends rather than two, and where this
+phase only asked to *state* the AWQ-vs-GGUF confound honestly, the Thor campaign
+**eliminated** it: all three backends served the identical FP16 weights, so precision
+is not a confound at all.
 
-**GATE 8** — not met.
+- [x] Backend as the only variable — same model, same weights, same 100 BFCL cases.
+- [x] ~~State the AWQ-vs-GGUF confound~~ **superseded**: removed rather than stated,
+      by holding FP16 across all three backends.
+- [x] **Parser ruled out as the explanation.** Edge-LLM re-run with `hermes` (the
+      parser vLLM used) scored identically to `auto` — 100/100 identical per-case
+      verdicts, at both model sizes.
+- [x] **Decoding ruled out as the explanation**, and this one exposed a real
+      methodology flaw worth keeping: the campaign had pinned only `temperature`, but
+      the three backends apply three *different* truncation defaults (Edge-LLM
+      top_k=50/top_p=0.9; vLLM top_k=-1/top_p=1.0; llama.cpp
+      top_k=40/top_p=0.95/min_p=0.05). **Pinning temperature alone is not controlled
+      sampling.** Re-running all three at `top_k=1` (deterministic argmax, making the
+      rest inert) reproduced every score exactly.
+- [x] **Mechanism identified qualitatively**: it is abstention, not detection. All
+      three score 90–92% on `simple`; the entire spread is `irrelevance`. llama.cpp
+      constrains generation to a tool-call grammar, so a structurally-forced call
+      leaves no room to abstain; vLLM and Edge-LLM detect tool tags in free
+      generation instead.
+- [ ] **Which structural difference exactly, still unidentified.** With weights,
+      parser, and decoding all controlled, the gap is structural — leading candidate is
+      chat-template rendering, since each backend builds the tools prompt itself.
+      Cheap decisive test, designed but not run: send one identical pre-rendered prompt
+      to all three via `/v1/completions` (no `tools` parameter, no template) and
+      compare raw output.
+- [ ] **Orin arm not started**: vLLM vs llama.cpp temperature-robustness as a measured
+      curve. Still worth running — it is the one backend question Thor's FP16
+      comparison cannot answer, since Orin's rows are AWQ vs GGUF and that confound is
+      real there.
+
+**GATE 8** — met on Thor, with confounds eliminated rather than merely disclosed. Not
+met on Orin; the causal mechanism is narrowed but not pinned.
 
 ## Phase 9 — Co-resident / concurrency (highest external value)
 
@@ -480,14 +582,42 @@ single most important unmeasured quantity in the whole project.
 
 ## Phase 11 — Declare (or defer) a winner
 
-- [ ] Declare per `docs/promotion-contract.md` §4, or explicitly record "no clean
-      winner, deferred + tie-breaker condition".
-- [ ] Pointer/decision-log row in `embedded-ai-chain/docs/TODO.md`.
-- [ ] If the winner changes the shipping model/backend, update
-      `embedded-ai-chain/src/orchestrator_models.py` — that repo's own change, made
-      with a real number behind it.
+**Orin: done, 2026-09-08 — `docs/promotion-decision.md`.** The contract's §4 allows
+two outcomes, and this campaign produced the second one legitimately rather than
+failing to reach the first.
 
-**GATE 11** — not met.
+- [x] **Declared: "no clean winner", with the tie-breaker condition recorded.** Every
+      candidate with better tool-calling accuracy than the shipping default is also
+      slower, and the shipping default *already* misses `embedded-ai-chain`'s ≤1000ms
+      budget (that repo measured 1.06s p50 end-to-end), so an accuracy-motivated swap
+      would deepen an already-open latency miss. Tie-breaker: **if that project accepts
+      a revised tool-calling latency budget, `3b-awq-vllm-orin` is the strongest
+      candidate measured** — 70.0% `irrelevance` vs the default's 36.7%, a 33-point gap
+      well outside the ~7pp noise band, with no MMLU red flag.
+- [x] Pointer/decision-log row added to `embedded-ai-chain/docs/TODO.md`, per §4.3.
+- [x] **A quantified risk delivered even without a promotion**: the shipping default
+      wrongly calls a tool on **63.3%** of cases where none applies. The `ask_vlm`
+      over-escalation bug was previously known only anecdotally; this is its first
+      real frequency, and it is worth acting on independently of any model swap.
+- [ ] Update `embedded-ai-chain/src/orchestrator_models.py` — **correctly not done**:
+      nothing was promoted, so there is nothing to change. This stays unchecked as the
+      honest state, not as an oversight.
+
+**Thor: a recommendation exists, but it is deliberately not a promotion.** Phase 6
+recommends Edge-LLM + `Qwen2.5-7B` (GPTQ-Int4 or FP16). That is the right answer to
+*"what should serve an orchestrator on Thor"* — but `embedded-ai-chain` runs on the
+**Orin**, which cannot run Edge-LLM at all (JetPack 6.2.x). So the Thor result cannot
+promote anything into that project today; it is a platform finding and a strong
+argument for what future hardware buys, not a shipping decision.
+
+- [ ] Re-run the promotion contract against Thor properly *if* the parent project ever
+      targets Thor — which would need the co-resident measurement §3 requires
+      (everything measured so far is `standalone`) and the `results/raw/` gap in
+      Phase 6 closed first, since a promotion cannot rest on evidence that isn't in
+      the repo.
+
+**GATE 11** — met for Orin (a decision was reached, justified, and recorded). Open for
+Thor by design, not by omission.
 
 ---
 

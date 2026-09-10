@@ -1,0 +1,28 @@
+[
+  {
+    "label": "orchestrator_llm_7b-gptq-edgellm-thor_streaming",
+    "model_config": "7b-gptq-edgellm-thor",
+    "model": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4",
+    "backend": "edge-llm",
+    "n_runs": 20,
+    "ttft_seconds": {
+      "min": 0.06328125999425538,
+      "p50": 0.06514774900279008,
+      "p95": 0.07055638698511757,
+      "p99": 0.07055638698511757,
+      "max": 0.07055638698511757,
+      "n": 20
+    },
+    "tokens_per_sec": {
+      "min": 37.2843961599276,
+      "p50": 40.67924783493535,
+      "p95": 41.96805284499088,
+      "p99": 41.96805284499088,
+      "max": 41.96805284499088,
+      "n": 20
+    },
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 128,
+    "target": "local"
+  }
+]

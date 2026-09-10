@@ -1,0 +1,56 @@
+[
+  {
+    "label": "orchestrator_llm_7b-gptq-edgellm-thor",
+    "model": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4",
+    "precision": "GPTQ int4, group_size=128, symmetric, exllama v1 (Qwen's own official quant)",
+    "timestamp": "2026-09-09T14:57:11.050149+02:00",
+    "n_runs": 30,
+    "n_warmup": 6,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 32.810978998895735,
+    "latency_ms": {
+      "min": 746.1513679882046,
+      "p50": 768.5225829773117,
+      "p95": 902.8853729832917,
+      "p99": 905.674881010782,
+      "max": 905.674881010782,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.75,
+      "peak": 23.75,
+      "steady": 23.75
+    },
+    "system_ram_mb": {
+      "peak": 30302.0,
+      "steady": 29652.541666666668
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 16561.36170212766,
+        "min": 15510.0,
+        "max": 17283.0,
+        "n": 47
+      }
+    },
+    "thermal_c": {
+      "start": 60.437,
+      "end": 61.656,
+      "max": 61.75
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "7b-gptq-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 32,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

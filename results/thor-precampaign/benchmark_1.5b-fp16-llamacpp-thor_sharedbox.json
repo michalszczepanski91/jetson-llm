@@ -1,0 +1,110 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-llamacpp-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "precision": "GGUF fp16 (NOT a k-quant - deliberately unquantized to match the other two Thor legs)",
+    "timestamp": "2026-09-08T14:36:48.031158+02:00",
+    "n_runs": 30,
+    "n_warmup": 10,
+    "warmup_reached_steady_state": false,
+    "cold_start_ms": 4034.498460998293,
+    "latency_ms": {
+      "min": 597.5759049906628,
+      "p50": 987.4111740064109,
+      "p95": 1971.273058996303,
+      "p99": 2215.5814889993053,
+      "max": 2215.5814889993053,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.75,
+      "peak": 23.75,
+      "steady": 23.75
+    },
+    "system_ram_mb": {
+      "peak": 96640.0,
+      "steady": 96598.7
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 14760.066666666668,
+        "min": 14380.0,
+        "max": 15123.0,
+        "n": 60
+      }
+    },
+    "thermal_c": {
+      "start": 52.156,
+      "end": 54.218,
+      "max": 54.218
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-llamacpp-thor",
+      "backend": "llama-cpp",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 128,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  },
+  {
+    "label": "orchestrator_llm_1.5b-fp16-llamacpp-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "precision": "GGUF fp16 (NOT a k-quant - deliberately unquantized to match the other two Thor legs)",
+    "timestamp": "2026-09-08T14:39:28.917595+02:00",
+    "n_runs": 30,
+    "n_warmup": 19,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 4034.3794530053856,
+    "latency_ms": {
+      "min": 689.5008949941257,
+      "p50": 911.9048730062786,
+      "p95": 1383.4216840041336,
+      "p99": 1557.935026998166,
+      "max": 1557.935026998166,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.75,
+      "peak": 23.75,
+      "steady": 23.75
+    },
+    "system_ram_mb": {
+      "peak": 96653.0,
+      "steady": 96639.4827586207
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 14952.534482758621,
+        "min": 14586.0,
+        "max": 15226.0,
+        "n": 58
+      }
+    },
+    "thermal_c": {
+      "start": 53.968,
+      "end": 55.906,
+      "max": 55.937
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-llamacpp-thor",
+      "backend": "llama-cpp",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 128,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

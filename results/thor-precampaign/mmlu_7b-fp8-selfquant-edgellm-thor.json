@@ -1,0 +1,14 @@
+[
+  {
+    "model_config": "7b-fp8-selfquant-edgellm-thor",
+    "model": "/home/michal/dev/quantize-work/qwen2.5-7b-fp8",
+    "backend": "edge-llm",
+    "platform": "thor",
+    "target": "local",
+    "dataset": "cais/mmlu (all/test)",
+    "n_questions": 200,
+    "accuracy": 0.465,
+    "unparsed_responses": 4,
+    "note": "quantization-regression sanity check, not a model-ranking benchmark - compare same-size backend/precision pairs against each other, not across sizes (a bigger model scoring higher here is not news). Generative letter-parsing scoring, not logprob-based - see module docstring"
+  }
+]

@@ -1,0 +1,28 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-vllm-thor_streaming",
+    "model_config": "1.5b-fp16-vllm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "backend": "vllm",
+    "n_runs": 20,
+    "ttft_seconds": {
+      "min": 0.04524937199312262,
+      "p50": 0.04738384399388451,
+      "p95": 0.8921744550025323,
+      "p99": 0.8921744550025323,
+      "max": 0.8921744550025323,
+      "n": 20
+    },
+    "tokens_per_sec": {
+      "min": 41.63056159080676,
+      "p50": 42.84636881870187,
+      "p95": 43.38264671659551,
+      "p99": 43.38264671659551,
+      "max": 43.38264671659551,
+      "n": 20
+    },
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 128,
+    "target": "local"
+  }
+]

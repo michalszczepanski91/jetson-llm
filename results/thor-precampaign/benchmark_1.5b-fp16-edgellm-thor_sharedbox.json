@@ -1,0 +1,56 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "precision": "fp16 (no quantization - see the AWQ block above for why this row is not int4)",
+    "timestamp": "2026-09-08T14:38:10.887491+02:00",
+    "n_runs": 30,
+    "n_warmup": 10,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 4066.1739130009664,
+    "latency_ms": {
+      "min": 981.5307610115269,
+      "p50": 995.5371960095363,
+      "p95": 999.5124130073236,
+      "p99": 1001.6853609995451,
+      "max": 1001.6853609995451,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.75,
+      "peak": 23.75,
+      "steady": 23.75
+    },
+    "system_ram_mb": {
+      "peak": 96656.0,
+      "steady": 96646.7
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 17068.406779661018,
+        "min": 16846.0,
+        "max": 17359.0,
+        "n": 59
+      }
+    },
+    "thermal_c": {
+      "start": 53.062,
+      "end": 54.875,
+      "max": 54.875
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 128,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

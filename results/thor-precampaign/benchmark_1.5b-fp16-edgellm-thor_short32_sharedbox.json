@@ -1,0 +1,110 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "precision": "fp16 (no quantization - see the AWQ block above for why this row is not int4)",
+    "timestamp": "2026-09-08T14:59:33.683943+02:00",
+    "n_runs": 30,
+    "n_warmup": 25,
+    "warmup_reached_steady_state": false,
+    "cold_start_ms": 6068.241429995396,
+    "latency_ms": {
+      "min": 493.19377800566144,
+      "p50": 499.21715901291464,
+      "p95": 503.5234179958934,
+      "p99": 504.95528799365275,
+      "max": 504.95528799365275,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.5,
+      "peak": 23.5,
+      "steady": 23.5
+    },
+    "system_ram_mb": {
+      "peak": 93358.0,
+      "steady": 93182.8
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 17316.55172413793,
+        "min": 17154.0,
+        "max": 17462.0,
+        "n": 29
+      }
+    },
+    "thermal_c": {
+      "start": 57.25,
+      "end": 58.312,
+      "max": 58.312
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 32,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  },
+  {
+    "label": "orchestrator_llm_1.5b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "precision": "fp16 (no quantization - see the AWQ block above for why this row is not int4)",
+    "timestamp": "2026-09-08T15:01:59.753254+02:00",
+    "n_runs": 30,
+    "n_warmup": 21,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 4064.9297929921886,
+    "latency_ms": {
+      "min": 499.918750996585,
+      "p50": 509.2038339935243,
+      "p95": 512.1342689963058,
+      "p99": 512.2327749995748,
+      "max": 512.2327749995748,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.5,
+      "peak": 23.5,
+      "steady": 23.5
+    },
+    "system_ram_mb": {
+      "peak": 90791.0,
+      "steady": 90788.53333333334
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 17170.866666666665,
+        "min": 17051.0,
+        "max": 17256.0,
+        "n": 30
+      }
+    },
+    "thermal_c": {
+      "start": 59.312,
+      "end": 59.906,
+      "max": 59.968
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 32,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

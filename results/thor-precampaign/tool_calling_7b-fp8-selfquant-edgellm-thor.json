@@ -1,0 +1,620 @@
+[
+  {
+    "model_config": "7b-fp8-selfquant-edgellm-thor",
+    "model": "/home/michal/dev/quantize-work/qwen2.5-7b-fp8",
+    "backend": "edge-llm",
+    "platform": "thor",
+    "target": "local",
+    "dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "n_cases": 100,
+    "temperature": 0.1,
+    "top_p": null,
+    "top_k": null,
+    "simple_accuracy": 0.0,
+    "irrelevance_accuracy": 1.0,
+    "overall_accuracy": 0.5,
+    "note": "simplified AST match, not the official bfcl-eval checker; tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice workaround, since the point is measuring unforced judgment - see module docstring. temperature pinned low (see --temperature's own help text for why - a measured fix for a real llama.cpp reliability gap, not an arbitrary default) so scores reflect tool-call judgment, not sampling noise",
+    "outcomes": [
+      {
+        "id": "simple_0",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_1",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_2",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_3",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_4",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_5",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_6",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_7",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_8",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_9",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_10",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_11",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_12",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_13",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_14",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_15",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_16",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_17",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_18",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_19",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_20",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_21",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_22",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_23",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_24",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_25",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_26",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_27",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_28",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_29",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_30",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_31",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_32",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_33",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_34",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_35",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_36",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_37",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_38",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_39",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_40",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_41",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_42",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_43",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_44",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_45",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_46",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_47",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_48",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "simple_49",
+        "category": "simple",
+        "actual_tool": null,
+        "correct": false
+      },
+      {
+        "id": "irrelevance_0",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_1",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_2",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_3",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_4",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_5",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_6",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_7",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_8",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_9",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_10",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_11",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_12",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_13",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_14",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_15",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_16",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_17",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_18",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_19",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_20",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_21",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_22",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_23",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_24",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_25",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_26",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_27",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_28",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_29",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_30",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_31",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_32",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_33",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_34",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_35",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_36",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_37",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_38",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_39",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_40",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_41",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_42",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_43",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_44",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_45",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_46",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_47",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_48",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_49",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      }
+    ]
+  }
+]

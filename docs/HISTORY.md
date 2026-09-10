@@ -329,3 +329,49 @@ containers/GPU-holding processes, not Thor's. The co-residency safety net Phase 
 does not extend to Thor at all yet — a `standalone` claim against Thor is currently
 trusted, not verified. Needs either SSH-based remote checks or a manual on-Thor
 companion check — a real design decision, deferred to when Phase 6 actually starts.
+
+## Phase 5 — BFCL scorer fix, 2026-09-09
+
+Argument strings were compared with a plain
+`.strip().lower()`, where official bfcl-eval first strips ` ,./-_*^` and spaces
+(`standardize_string`). So `"3*x**2 + 2*x - 1"` — the same maths as BFCL's
+accepted `"3x**2 + 2x - 1"`, and the only spelling that is valid Python — scored
+as WRONG. Ported that function directly (Apache-2.0, attributed in
+`scripts/validate_tool_calling.py`); the package itself cannot be imported here
+because `bfcl_eval.eval_checker` pulls in every model handler it ships and thus
+`anthropic`/`torch`/`transformers`, and a generic PyPI torch in a Jetson venv is
+the wheel-shadowing hazard `embedded-ai-chain/docs/environment.md` warns about.
+
+Effect, measured by re-scoring **identical** captured model outputs under both
+rules (so sampling noise cannot confound it): **21 cases flipped across the 7
+rows**, all within `simple_13/14/15/16` — the same four maths cases Thor
+independently hit. Per row: +3.3pp on `1.5b-awq-vllm-orin`, **+10 to +13.3pp on
+every other row**. The weak row gained least because the artifact was a small
+share of its many genuine failures; capable rows had little else left to fail on.
+
+Two supporting changes: `outcomes.jsonl` now records `actual_arguments` and
+`acceptable_arguments` per case (the 09-08 files stored only a boolean, so
+diagnosing *why* a call was rejected meant re-deriving it from the dataset), and
+`protocol.scorer` is versioned so old and new scores can never be silently mixed.
+
+Still deviating from official bfcl-eval, deliberately and now documented in the
+module docstring: extra/hallucinated parameters are not penalized, Python only,
+and only the `simple`/`irrelevance` categories are run. Checked and *not* a gap:
+a model sending `"1"` where the schema declares an integer fails here, and
+official's `type_checker` (strict `type(value) == expected`) fails it too.
+
+## Phase 5 — hardware incident, 2026-09-08: the board was browning out
+
+the campaign kept dying with zero internal error
+trace, initially misdiagnosed as a backgrounding-technique problem (`nohup`, `setsid`,
+tmux all failed identically at the same ~7-10min elapsed mark). Root cause confirmed
+via the Tegra PMC's `reset_reason=SYS_RESET_N` register (external reset line
+asserted — rules out panic, watchdog, and thermal, none of which produce that code):
+**the board was undervolting and hard-resetting under sustained MAXN load on its
+65W power adapter**. The AGX Orin devkit is specified for a 90W (19V/4.74A) supply;
+measured peak draw during the Step 1 campaign hit 58.4W on GPU+SOC+VIN_5V0 rails
+alone (not the whole board) — comfortably enough to brown out a 65W unit, especially
+once the adapter itself heats up and its output sags (matches the crash landing at a
+fairly consistent elapsed time regardless of which model was loaded). Resolved by
+swapping to a genuine 90W supply; campaign then ran 7+ consecutive rows and 1h17m
+uptime with zero resets. See decision log.

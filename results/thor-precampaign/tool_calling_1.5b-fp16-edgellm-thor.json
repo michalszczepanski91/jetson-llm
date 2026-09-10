@@ -1,0 +1,620 @@
+[
+  {
+    "model_config": "1.5b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "backend": "edge-llm",
+    "platform": "thor",
+    "target": "remote",
+    "dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+    "n_cases": 100,
+    "temperature": 0.1,
+    "simple_accuracy": 0.88,
+    "irrelevance_accuracy": 0.78,
+    "overall_accuracy": 0.83,
+    "note": "simplified AST match, not the official bfcl-eval checker; tool_choice='auto' throughout - does NOT use orchestrator.py's forced tool_choice workaround, since the point is measuring unforced judgment - see module docstring. temperature pinned low (see --temperature's own help text for why - a measured fix for a real llama.cpp reliability gap, not an arbitrary default) so scores reflect tool-call judgment, not sampling noise",
+    "outcomes": [
+      {
+        "id": "simple_0",
+        "category": "simple",
+        "actual_tool": "calculate_triangle_area",
+        "correct": true
+      },
+      {
+        "id": "simple_1",
+        "category": "simple",
+        "actual_tool": "math.factorial",
+        "correct": true
+      },
+      {
+        "id": "simple_2",
+        "category": "simple",
+        "actual_tool": "math.hypot",
+        "correct": true
+      },
+      {
+        "id": "simple_3",
+        "category": "simple",
+        "actual_tool": "algebra.quadratic_roots",
+        "correct": true
+      },
+      {
+        "id": "simple_4",
+        "category": "simple",
+        "actual_tool": "solve_quadratic_equation",
+        "correct": true
+      },
+      {
+        "id": "simple_5",
+        "category": "simple",
+        "actual_tool": "solve_quadratic",
+        "correct": true
+      },
+      {
+        "id": "simple_6",
+        "category": "simple",
+        "actual_tool": "solve_quadratic",
+        "correct": true
+      },
+      {
+        "id": "simple_7",
+        "category": "simple",
+        "actual_tool": "calculate_circumference",
+        "correct": true
+      },
+      {
+        "id": "simple_8",
+        "category": "simple",
+        "actual_tool": "geometry.area_circle",
+        "correct": true
+      },
+      {
+        "id": "simple_9",
+        "category": "simple",
+        "actual_tool": "geometry.calculate_area_circle",
+        "correct": true
+      },
+      {
+        "id": "simple_10",
+        "category": "simple",
+        "actual_tool": "calculate_area",
+        "correct": true
+      },
+      {
+        "id": "simple_11",
+        "category": "simple",
+        "actual_tool": "calculate_triangle_area",
+        "correct": true
+      },
+      {
+        "id": "simple_12",
+        "category": "simple",
+        "actual_tool": "geometry.circumference",
+        "correct": true
+      },
+      {
+        "id": "simple_13",
+        "category": "simple",
+        "actual_tool": "calculate_area_under_curve",
+        "correct": true
+      },
+      {
+        "id": "simple_14",
+        "category": "simple",
+        "actual_tool": "calculate_derivative",
+        "correct": false
+      },
+      {
+        "id": "simple_15",
+        "category": "simple",
+        "actual_tool": "integrate",
+        "correct": false
+      },
+      {
+        "id": "simple_16",
+        "category": "simple",
+        "actual_tool": "calculus.derivative",
+        "correct": false
+      },
+      {
+        "id": "simple_17",
+        "category": "simple",
+        "actual_tool": "get_prime_factors",
+        "correct": true
+      },
+      {
+        "id": "simple_18",
+        "category": "simple",
+        "actual_tool": "number_analysis.prime_factors",
+        "correct": true
+      },
+      {
+        "id": "simple_19",
+        "category": "simple",
+        "actual_tool": "math.gcd",
+        "correct": true
+      },
+      {
+        "id": "simple_20",
+        "category": "simple",
+        "actual_tool": "math.hcf",
+        "correct": true
+      },
+      {
+        "id": "simple_21",
+        "category": "simple",
+        "actual_tool": "number_theory.gcd",
+        "correct": true
+      },
+      {
+        "id": "simple_22",
+        "category": "simple",
+        "actual_tool": "math.gcd",
+        "correct": true
+      },
+      {
+        "id": "simple_23",
+        "category": "simple",
+        "actual_tool": "prime_factorize",
+        "correct": false
+      },
+      {
+        "id": "simple_24",
+        "category": "simple",
+        "actual_tool": "math.gcd",
+        "correct": true
+      },
+      {
+        "id": "simple_25",
+        "category": "simple",
+        "actual_tool": "calculate_final_velocity",
+        "correct": true
+      },
+      {
+        "id": "simple_26",
+        "category": "simple",
+        "actual_tool": "calculate_velocity",
+        "correct": true
+      },
+      {
+        "id": "simple_27",
+        "category": "simple",
+        "actual_tool": "final_velocity",
+        "correct": true
+      },
+      {
+        "id": "simple_28",
+        "category": "simple",
+        "actual_tool": "calculate_displacement",
+        "correct": true
+      },
+      {
+        "id": "simple_29",
+        "category": "simple",
+        "actual_tool": "calculate_final_speed",
+        "correct": true
+      },
+      {
+        "id": "simple_30",
+        "category": "simple",
+        "actual_tool": "kinematics.final_velocity_from_distance",
+        "correct": true
+      },
+      {
+        "id": "simple_31",
+        "category": "simple",
+        "actual_tool": "calculate_final_velocity",
+        "correct": true
+      },
+      {
+        "id": "simple_32",
+        "category": "simple",
+        "actual_tool": "calculate_final_speed",
+        "correct": true
+      },
+      {
+        "id": "simple_33",
+        "category": "simple",
+        "actual_tool": "get_directions",
+        "correct": true
+      },
+      {
+        "id": "simple_34",
+        "category": "simple",
+        "actual_tool": "travel_itinerary_generator",
+        "correct": true
+      },
+      {
+        "id": "simple_35",
+        "category": "simple",
+        "actual_tool": "vegan_restaurant.find_nearby",
+        "correct": false
+      },
+      {
+        "id": "simple_36",
+        "category": "simple",
+        "actual_tool": "get_shortest_driving_distance",
+        "correct": true
+      },
+      {
+        "id": "simple_37",
+        "category": "simple",
+        "actual_tool": "route.estimate_time",
+        "correct": true
+      },
+      {
+        "id": "simple_38",
+        "category": "simple",
+        "actual_tool": "calculate_electrostatic_potential",
+        "correct": true
+      },
+      {
+        "id": "simple_39",
+        "category": "simple",
+        "actual_tool": "calculate_electric_field",
+        "correct": true
+      },
+      {
+        "id": "simple_40",
+        "category": "simple",
+        "actual_tool": "calculate_magnetic_field",
+        "correct": true
+      },
+      {
+        "id": "simple_41",
+        "category": "simple",
+        "actual_tool": "electromagnetic_force",
+        "correct": true
+      },
+      {
+        "id": "simple_42",
+        "category": "simple",
+        "actual_tool": "calculate_resonant_frequency",
+        "correct": false
+      },
+      {
+        "id": "simple_43",
+        "category": "simple",
+        "actual_tool": "calculate_magnetic_field_strength",
+        "correct": true
+      },
+      {
+        "id": "simple_44",
+        "category": "simple",
+        "actual_tool": "calculate_electric_field_strength",
+        "correct": true
+      },
+      {
+        "id": "simple_45",
+        "category": "simple",
+        "actual_tool": "thermo.calculate_energy",
+        "correct": true
+      },
+      {
+        "id": "simple_46",
+        "category": "simple",
+        "actual_tool": "calculate_final_temperature",
+        "correct": true
+      },
+      {
+        "id": "simple_47",
+        "category": "simple",
+        "actual_tool": "get_boiling_melting_points",
+        "correct": true
+      },
+      {
+        "id": "simple_48",
+        "category": "simple",
+        "actual_tool": "calculate_density",
+        "correct": true
+      },
+      {
+        "id": "simple_49",
+        "category": "simple",
+        "actual_tool": "calc_absolute_pressure",
+        "correct": true
+      },
+      {
+        "id": "irrelevance_0",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_1",
+        "category": "irrelevance",
+        "actual_tool": "math.sum",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_2",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_3",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_4",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_5",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_6",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_7",
+        "category": "irrelevance",
+        "actual_tool": "math.integral_calculator",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_8",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_9",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_10",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_11",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_12",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_13",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_14",
+        "category": "irrelevance",
+        "actual_tool": "calculate_maximum_height",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_15",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_16",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_17",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_18",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_19",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_20",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_21",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_22",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_23",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_24",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_25",
+        "category": "irrelevance",
+        "actual_tool": "thermodynamics.calculate_boiling_point",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_26",
+        "category": "irrelevance",
+        "actual_tool": "thermodynamics.calc_gas_pressure",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_27",
+        "category": "irrelevance",
+        "actual_tool": "calculate_heat",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_28",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_29",
+        "category": "irrelevance",
+        "actual_tool": "get_cell_function",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_30",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_31",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_32",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_33",
+        "category": "irrelevance",
+        "actual_tool": "identify_species",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_34",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_35",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_36",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_37",
+        "category": "irrelevance",
+        "actual_tool": "local_fauna",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_38",
+        "category": "irrelevance",
+        "actual_tool": "retrieve_scientific_paper",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_39",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_40",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_41",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_42",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_43",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_44",
+        "category": "irrelevance",
+        "actual_tool": "gene_sequencer",
+        "correct": false
+      },
+      {
+        "id": "irrelevance_45",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_46",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_47",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_48",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      },
+      {
+        "id": "irrelevance_49",
+        "category": "irrelevance",
+        "actual_tool": null,
+        "correct": true
+      }
+    ],
+    "remote_host": "127.0.0.1",
+    "remote_port": 8002
+  }
+]

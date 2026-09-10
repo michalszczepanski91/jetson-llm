@@ -1,0 +1,56 @@
+[
+  {
+    "label": "orchestrator_llm_7b-int8sq-selfquant-edgellm-thor",
+    "model": "/home/michal/dev/quantize-work/qwen2.5-7b-int8_sq",
+    "precision": "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/128",
+    "timestamp": "2026-09-09T16:05:42.025168+02:00",
+    "n_runs": 30,
+    "n_warmup": 14,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 4053.71136701433,
+    "latency_ms": {
+      "min": 1056.148289993871,
+      "p50": 1060.8826440002304,
+      "p95": 1078.933387005236,
+      "p99": 1080.084943008842,
+      "max": 1080.084943008842,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 24.0,
+      "peak": 24.0,
+      "steady": 24.0
+    },
+    "system_ram_mb": {
+      "peak": 36916.0,
+      "steady": 36914.90625
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 19119.03125,
+        "min": 18724.0,
+        "max": 19371.0,
+        "n": 64
+      }
+    },
+    "thermal_c": {
+      "start": 67.375,
+      "end": 69.281,
+      "max": 69.343
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "7b-int8sq-selfquant-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 32,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

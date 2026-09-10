@@ -1,0 +1,56 @@
+[
+  {
+    "label": "orchestrator_llm_7b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "precision": "fp16 (no quantization)",
+    "timestamp": "2026-09-08T14:57:33.196885+02:00",
+    "n_runs": 30,
+    "n_warmup": 8,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 12068.584362001275,
+    "latency_ms": {
+      "min": 2637.0144649990834,
+      "p50": 2651.93377599644,
+      "p95": 2807.8739080083324,
+      "p99": 2816.018750992953,
+      "max": 2816.018750992953,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.5,
+      "peak": 23.5,
+      "steady": 23.5
+    },
+    "system_ram_mb": {
+      "peak": 103375.0,
+      "steady": 102448.5125
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 19401.0,
+        "min": 18959.0,
+        "max": 19680.0,
+        "n": 159
+      }
+    },
+    "thermal_c": {
+      "start": 64.531,
+      "end": 67.25,
+      "max": 67.25
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "7b-fp16-edgellm-thor",
+      "backend": "edge-llm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 128,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-vllm-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "precision": "fp16 (no quantization - matches 1.5b-fp16-edgellm-thor exactly, for the framework comparison)",
+    "timestamp": "2026-09-08T17:25:32.815878+02:00",
+    "n_runs": 30,
+    "n_warmup": 7,
+    "warmup_reached_steady_state": true,
+    "cold_start_ms": 98068.71448199672,
+    "latency_ms": {
+      "min": 1094.6986290073255,
+      "p50": 1337.8536249947501,
+      "p95": 1701.9583039946156,
+      "p99": 1834.5010970078874,
+      "max": 1834.5010970078874,
+      "n": 30
+    },
+    "rss_mb": {
+      "before": 23.875,
+      "peak": 23.875,
+      "steady": 23.875
+    },
+    "system_ram_mb": {
+      "peak": 76327.0,
+      "steady": 76300.09756097561
+    },
+    "power_mw": {
+      "vdd_gpu_soc_mw": null,
+      "vdd_cpu_cv_mw": null,
+      "vin_sys_5v0_mw": {
+        "avg": 14943.378048780487,
+        "min": 14814.0,
+        "max": 15123.0,
+        "n": 82
+      }
+    },
+    "thermal_c": {
+      "start": 46.5,
+      "end": 48.562,
+      "max": 48.593
+    },
+    "nvpmodel_mode": "120W",
+    "jetson_clocks_locked": null,
+    "l4t_version": "R38.4.0",
+    "extra_metadata": {
+      "model_config": "1.5b-fp16-vllm-thor",
+      "backend": "vllm",
+      "platform": "thor",
+      "prompt": "What do you see in front of you right now?",
+      "max_tokens": 128,
+      "target": "local",
+      "rss_mb_caveat": "not meaningful - the model runs inside the server's own container, this process is just an HTTP client."
+    }
+  }
+]

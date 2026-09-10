@@ -1,0 +1,28 @@
+[
+  {
+    "label": "orchestrator_llm_14b-fp16-edgellm-thor_streaming",
+    "model_config": "14b-fp16-edgellm-thor",
+    "model": "Qwen/Qwen2.5-14B-Instruct",
+    "backend": "edge-llm",
+    "n_runs": 20,
+    "ttft_seconds": {
+      "min": 0.13224840100156143,
+      "p50": 0.13318244100082666,
+      "p95": 0.19461512900306843,
+      "p99": 0.19461512900306843,
+      "max": 0.19461512900306843,
+      "n": 20
+    },
+    "tokens_per_sec": {
+      "min": 8.16686759856398,
+      "p50": 8.364002149717235,
+      "p95": 8.400260432274596,
+      "p99": 8.400260432274596,
+      "max": 8.400260432274596,
+      "n": 20
+    },
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 128,
+    "target": "local"
+  }
+]

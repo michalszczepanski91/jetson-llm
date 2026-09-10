@@ -1,0 +1,14 @@
+[
+  {
+    "model_config": "7b-fp16-llamacpp-thor",
+    "model": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+    "backend": "llama-cpp",
+    "platform": "thor",
+    "target": "local",
+    "dataset": "cais/mmlu (all/test)",
+    "n_questions": 200,
+    "accuracy": 0.665,
+    "unparsed_responses": 0,
+    "note": "quantization-regression sanity check, not a model-ranking benchmark - compare same-size backend/precision pairs against each other, not across sizes (a bigger model scoring higher here is not news). Generative letter-parsing scoring, not logprob-based - see module docstring"
+  }
+]

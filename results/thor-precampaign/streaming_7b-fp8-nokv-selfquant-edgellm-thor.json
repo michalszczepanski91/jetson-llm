@@ -1,0 +1,28 @@
+[
+  {
+    "label": "orchestrator_llm_7b-fp8-nokv-selfquant-edgellm-thor_streaming",
+    "model_config": "7b-fp8-nokv-selfquant-edgellm-thor",
+    "model": "/home/michal/dev/quantize-work/qwen2.5-7b-fp8-nokv",
+    "backend": "edge-llm",
+    "n_runs": 20,
+    "ttft_seconds": {
+      "min": 0.057014220976270735,
+      "p50": 0.060536916978890076,
+      "p95": 0.07499460899271071,
+      "p99": 0.07499460899271071,
+      "max": 0.07499460899271071,
+      "n": 20
+    },
+    "tokens_per_sec": {
+      "min": 22.975750781669834,
+      "p50": 23.533565514564003,
+      "p95": 24.278135999374907,
+      "p99": 24.278135999374907,
+      "max": 24.278135999374907,
+      "n": 20
+    },
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 128,
+    "target": "local"
+  }
+]

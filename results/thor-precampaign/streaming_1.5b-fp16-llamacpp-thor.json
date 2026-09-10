@@ -1,0 +1,28 @@
+[
+  {
+    "label": "orchestrator_llm_1.5b-fp16-llamacpp-thor_streaming",
+    "model_config": "1.5b-fp16-llamacpp-thor",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "backend": "llama-cpp",
+    "n_runs": 20,
+    "ttft_seconds": {
+      "min": 0.02472486099577509,
+      "p50": 0.0312730459991144,
+      "p95": 0.14394714799709618,
+      "p99": 0.14394714799709618,
+      "max": 0.14394714799709618,
+      "n": 20
+    },
+    "tokens_per_sec": {
+      "min": 48.3275750086781,
+      "p50": 54.38010303416587,
+      "p95": 55.42650309438072,
+      "p99": 55.42650309438072,
+      "max": 55.42650309438072,
+      "n": 20
+    },
+    "prompt": "What do you see in front of you right now?",
+    "max_tokens": 128,
+    "target": "local"
+  }
+]

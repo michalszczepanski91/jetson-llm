@@ -16,22 +16,30 @@ mixed into the numbers.
 **TensorRT Edge-LLM serving `Qwen2.5-7B-Instruct`, quantized GPTQ-Int4 if the turn
 budget is tight, FP16 otherwise.**
 
-| precision | BFCL `irrelevance` | 32-token turn | marginal J/token | cold start |
-|---|---|---|---|---|
-| **INT4-GPTQ** | 90% | **769 ms** | **0.274 J** | **0.03 s** ¹ |
-| **FP16** | **94%** | 1945 ms | 0.839 J | 12.1 s ¹ |
-| FP8 (self-quant) | 90% | 1052 ms | 0.603 J | — |
-| INT8-SQ (self-quant) | 92% ² | 1074 ms | 0.610 J | — |
+| precision | where the checkpoint came from | BFCL `irrelevance` | 32-token turn | marginal J/token | cold start ¹ |
+|---|---|---|---|---|---|
+| **INT4-GPTQ** | **downloaded — Qwen's own** | 90% | **769 ms** | **0.274 J** | **0.03 s** |
+| **FP16** | **downloaded — Qwen's own** | **94%** | 1945 ms | 0.839 J | 12.1 s |
+| FP8 | self-quantized here | 90% | 1052 ms | 0.603 J | — |
+| INT8-SQ | self-quantized here | 92% ² | 1074 ms | 0.610 J | — |
 
-¹ Cold start is a cache **hit** for both — a miss (first run, or an empty cache)
-takes minutes for either precision. Only llama.cpp's cold start is unconditionally
-fast; see the framework table below. ² INT8-SQ still has an unexplained 12.5-point
-MMLU gap (54.0% vs FP16's 67.5%) — not yet trusted for production; see "Still open."
+¹ Cache **hit**; a miss compiles the engine and takes minutes. Only llama.cpp's cold
+start is unconditionally fast. ² INT8-SQ still has an unexplained 12.5-point MMLU gap
+(54.0% vs FP16's 67.5%) — not trusted for production; see "Still open."
 
-INT4-GPTQ wins every timing and energy column outright against all three other
-precisions, for 4 points of `irrelevance`. FP8 is essentially lossless on accuracy but
-only ~1.4× FP16's throughput, nowhere near INT4's 2.5×. Both are legitimate; which to
-ship is a genuine product call about the pipeline's turn budget.
+INT4-GPTQ wins every timing and energy column outright, for 4 points of `irrelevance`.
+FP8 is essentially lossless on accuracy but only ~1.4× FP16's throughput, nowhere near
+INT4's 2.5×. Which to ship is a genuine product call about the turn budget.
+
+**Both recommended precisions are official Qwen checkpoints, downloaded — not
+quantized by us.** That matters for reproducing this: `Qwen2.5-7B-Instruct` and
+`Qwen2.5-7B-Instruct-GPTQ-Int4` are both `hf download`s, so the recommendation needs
+**no quantization pipeline at all** — just the one-line Edge-LLM patch in `patches/`,
+without which *every* int4 checkpoint fails to build, Qwen's official ones included.
+Self-quantization was necessary only for FP8 and INT8-SQ, because **no published
+checkpoint exists for this model in either format** — and neither of those is
+recommended. Recipes for them, with the two failure modes that made the first attempt
+at each unusable, are in `scripts/quantize_edgellm.sh`.
 
 **Why Edge-LLM and not vLLM or llama.cpp** — same model, same weights, same 100 BFCL
 cases, FP16:
