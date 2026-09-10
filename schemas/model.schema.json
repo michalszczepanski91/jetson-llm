@@ -75,12 +75,22 @@
     },
     "backend": {
       "type": "string",
-      "enum": ["vllm", "llama-cpp"],
-      "description": "Serving backend. This enum is deliberately closed and short: docs/note.md §25 says a backend is added only once it actually runs on the target hardware with a reproducible, version-recorded configuration. TensorRT-LLM / TensorRT Edge-LLM are excluded for the reasons in docs/TODO.md Phase 0, not for lack of an enum entry."
+      "enum": ["vllm", "llama-cpp", "edge-llm"],
+      "description": "Serving backend. This enum is deliberately closed and short: docs/note.md §25 says a backend is added only once it actually runs on the target hardware with a reproducible, version-recorded configuration. `edge-llm` (TensorRT Edge-LLM) was added 2026-09-08/09 once docs/TODO.md Phase 0's original exclusion was confirmed superseded for Thor (JetPack 7.x) - it is Thor-only, this Orin stays on vllm/llama-cpp. See docs/thor-framework-comparison.md for the controlled comparison across all three."
     },
     "backend_image": {
       "type": "string",
-      "description": "Phase 3 target. The container image this row is served by, when it differs from the coordinator's default. Record a digest where possible: `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` is a tag, not a llama.cpp version, and this lab has already had to tell builds 4579 / 5058 / 5283 apart by behaviour alone."
+      "description": "Phase 3 target. The container image this row is served by, when it differs from the coordinator's default. Record a digest where possible: `dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04` is a tag, not a llama.cpp version, and this lab has already had to tell builds 4579 / 5058 / 5283 apart by behaviour alone. Superseded in practice by the plain `image` field below, which is what coordinators actually read - kept for schema back-compat, not duplicated in new rows."
+    },
+    "image": {
+      "type": "string",
+      "description": "The serving image, when it differs from the coordinator's own default - the field build_coordinator() actually forwards. Real, not hypothetical: vLLM's Thor rows need the `-jetson-thor` tag (the Orin default is `-jetson-orin`), and llama.cpp's Thor rows need a different image FAMILY entirely - neither the Orin source (`dustynv/llama_cpp`, no r38 tag exists) nor upstream's generic CUDA build (enumerates the GPU, then dies in cuBLAS on first inference) work there; only `nvidia-ai-iot/llama_cpp`'s dated `b*` tags do.",
+      "examples": ["ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor", "ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04"]
+    },
+    "port": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "Override the coordinator's default port. Necessary whenever that default collides with something else already resident - Thor's own production `vllm-vlm-thor` container already binds vLLM's default port 8000, confirmed live via `docker ps`/`ss -tln`, not assumed."
     },
     "platform": {
       "type": "string",
@@ -117,6 +127,25 @@
       "type": "array",
       "items": {"type": "string"},
       "description": "Extra CLI args appended to the server command. docs/note.md §40: backend-specific tuning is allowed, but every tuning decision must be documented and reproducible - so anything here needs a sentence in `notes` saying why."
+    },
+    "extra_volumes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "vLLM only, so far. Extra `-v host:container[:ro]` docker mounts, inserted before the image name in the container command. Exists for one specific, reproducible reason: vLLM's startup memory-profiling asserts free memory never INCREASES mid-profile and kills the engine when it does, which this unified-memory board can trigger even fully idle. The Thor vllm rows mount embedded-ai-chain's own patched `gpu_worker.py` (already deployed there since 2026-08-04) to work around it - affects startup profiling only, never the inference path.",
+      "examples": [["/opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro"]]
+    },
+    "served_model_name": {
+      "type": "string",
+      "description": "Edge-LLM only, so far. The name the SERVER actually registers requests under, when it differs from `model` - a local checkpoint DIRECTORY (a self-quantized artifact, not an HF repo id) gets served under its basename, not the full path it was launched with. Without this, every request against such a row 404s; silent on vLLM/llama-cpp rows because those always use an HF repo id as both values, so the two happen to be identical there."
+    },
+    "max_input_len": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "Edge-LLM only, so far. Its analogue of vLLM's `max_model_len` / llama.cpp's `ctx_size` - the prompt length its builder compiles the TensorRT engine for. Keep matched across backends in a cross-backend comparison or context budget confounds the result."
+    },
+    "server_argv0": {
+      "type": ["string", "null"],
+      "description": "llama.cpp only. The two image families this lab uses disagree about ENTRYPOINT: `dustynv/llama_cpp` (Orin) sets none, so the binary name must be passed as the container command (this field's default, `\"llama-server\"`); `nvidia-ai-iot/llama_cpp`'s and `ggml-org`'s images already set `ENTRYPOINT [.../llama-server]`, where repeating the name would arrive as a stray positional argument to llama-server itself - such a row sets this to `null`."
     },
     "sampling": {
       "type": "object",
@@ -180,9 +209,27 @@
       "then": {
         "not": {"anyOf": [
           {"required": ["gpu_memory_utilization"]},
-          {"required": ["max_model_len"]}
+          {"required": ["max_model_len"]},
+          {"required": ["extra_volumes"]},
+          {"required": ["served_model_name"]},
+          {"required": ["max_input_len"]}
         ]},
-        "$comment": "Same in reverse: vLLM-only args on a llama.cpp row are inert and misleading."
+        "$comment": "Same in reverse: vLLM-only or Edge-LLM-only args on a llama.cpp row are inert and misleading."
+      }
+    },
+    {
+      "if": {"properties": {"backend": {"const": "edge-llm"}}, "required": ["backend"]},
+      "then": {
+        "not": {"anyOf": [
+          {"required": ["gpu_memory_utilization"]},
+          {"required": ["max_model_len"]},
+          {"required": ["extra_volumes"]},
+          {"required": ["quant"]},
+          {"required": ["n_gpu_layers"]},
+          {"required": ["ctx_size"]},
+          {"required": ["server_argv0"]}
+        ]},
+        "$comment": "EdgeLlmCoordinator's **_ignored swallows a stray vLLM/llama.cpp-only field silently, which is exactly the failure mode this repo's other two exclusivity rules already guard against - a field that looks authoritative in the registry while affecting nothing."
       }
     }
   ],

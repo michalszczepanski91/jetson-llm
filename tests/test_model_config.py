@@ -11,7 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from model_config import load_model_config  # noqa: E402
 
 _REQUIRED_FIELDS = {"model", "precision", "backend", "platform"}
-_KNOWN_BACKENDS = {"vllm", "llama-cpp"}
+# "edge-llm" (TensorRT Edge-LLM) joined the other two on 2026-09-08, Thor-only:
+# it needs JetPack 7.x, which this lab's Orin doesn't have. Kept in the same
+# allowlist rather than special-cased per platform - a row naming a backend no
+# coordinator can build is a registry error regardless of which platform it
+# claims.
+_KNOWN_BACKENDS = {"vllm", "llama-cpp", "edge-llm"}
 
 
 def test_known_key_loads():

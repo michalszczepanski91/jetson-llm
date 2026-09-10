@@ -41,12 +41,18 @@ for any of them.
 
 - [x] Confirmed Qwen2.5 GGUF availability: official, Apache-2.0, Qwen-published repos
       for 1.5B/3B/7B — no third-party quant needed.
-- [x] **TensorRT excluded from v1.** TensorRT-LLM's Jetson support is JetPack-6.1-only
-      (this Orin is 6.2.x); TensorRT Edge-LLM needs JetPack 7.x and has no
-      OpenAI-compatible server. Revisit only if/when Thor moves to JetPack 7.x.
+- [x] **TensorRT excluded from v1 on Orin, superseded for Thor.** TensorRT-LLM's
+      Jetson support is JetPack-6.1-only (this Orin is 6.2.x — still excluded here).
+      TensorRT Edge-LLM needs JetPack 7.x: assumed out of scope entirely on
+      2026-09-04, but **the user's Thor turned out to already be JetPack 7.1**
+      (checked live, 2026-09-08) — Edge-LLM 0.10.1 builds and serves there, with
+      tool-calling support the original survey found missing. Full story (root
+      cause, the bugs found along the way) in `docs/thor-framework-comparison.md`.
 - [x] Confirmed llama.cpp's Jetson path: `dusty-nv/jetson-containers` prebuilt images;
       `llama-server` speaks the same OpenAI-compatible wire format as vLLM, so no new
-      integration pattern was needed.
+      integration pattern was needed. Note for Thor specifically: that Docker Hub repo
+      publishes no Thor (r38) tag at all — jetson-containers' r38-era images live on
+      GHCR under `nvidia-ai-iot/` instead, a real gotcha documented in the Thor doc.
 
 **GATE 0** — met, 2026-09-04. vLLM + llama.cpp in scope; TensorRT deferred with reasons
 recorded, not silently dropped.
@@ -376,31 +382,48 @@ promoted now. Pointer row added to `embedded-ai-chain/docs/TODO.md`'s decision l
 **Objective**: reproduce Phase 4's methodology on a second platform to answer P5 —
 does the preferred allocation change with the hardware?
 
-Demoted from "next" to "after the Orin slice is real" — a hardware-availability
-dependency this repo doesn't control; nothing above is blocked on it.
+**Done — full writeup in `docs/thor-framework-comparison.md`, not duplicated here.**
+Summary: Thor reachability, environment setup (uv/datasets/`gpu_memory_utilization`
+re-tuning for its 122GiB pool), a third backend (TensorRT Edge-LLM, built from
+source), a controlled framework comparison (Edge-LLM beats vLLM/llama.cpp by 40
+points on BFCL `irrelevance`), a real bug found and patched in Edge-LLM's own source
+(unblocking INT4-GPTQ quantization), and a self-quantization campaign for FP8/INT8.
+Current recommendation: **TensorRT Edge-LLM + Qwen2.5-7B, GPTQ-Int4 quantized**
+(FP16 if the turn budget allows). `EdgeLlmCoordinator` and `LlamaCppCoordinator`'s
+`server_argv0` are the resulting `src/llm_coordinator.py` additions; 65 unit tests
+pass. This work lives on `origin/thor-edge-llm`, not yet merged to `main` (see that
+branch's README for why).
 
-- [ ] Confirm SSH/LAN reachability to the user's Thor (address unconfirmed).
-- [ ] Confirm what's already running on Thor (avoid port/GPU-memory collision).
-- [ ] Record Thor's real power modes and unified-memory size — never assume Orin's
-      transfer.
-- [ ] Add `-thor` rows to `configs/models.yaml` once real serving args are confirmed —
-      don't guess `gpu_memory_utilization`/`n_gpu_layers` ahead of a real run.
-- [ ] Re-run Phase 4's two sweeps on Thor, same methodology.
-- [x] **Pre-emptive manifest fix, 2026-09-07** (found auditing Thor-readiness before any
-      real Thor row exists): `hardware_manifest()`/`software_manifest()` would have
-      silently reported this Orin's own hardware/Docker info under a manifest labelled
-      `"platform": "thor"` for any `--target remote` run. Fixed — remote runs now report
-      honest `"unknown (remote target...)"` values instead. Full record:
-      `docs/HISTORY.md`. 5 new tests.
-- [ ] **Still open**: `assert_condition_matches_reality()` is skipped entirely for
-      `--target remote` — it can only see this client's own processes, not Thor's. The
-      co-residency guard Phase 3 built does **not** extend to Thor yet. Needs an
-      SSH-based remote check or a manual on-Thor companion check — a real design
-      decision, not a one-line fix.
+Remaining, tracked in the comparison doc's own "Still open" rather than here:
+`jetson_clocks`-locked timing run, the official `bfcl-eval` checker, a co-residency
+run with the VLM tier, INT8-SQ's unexplained MMLU gap, and identifying the exact
+mechanism behind the framework gap (chat-template rendering is the leading
+candidate).
 
-**GATE 6** — not met. One real run of each script against Thor, end-to-end, with the
-co-residency gap above resolved or explicitly accepted — not discovered after a
-campaign the way Phase 3's incidents were.
+**Measurement integrity note, since this Thor is a shared box**: wall latency, TTFT,
+tokens/sec, cold start, and any `tegrastats` power/thermal reading need the box
+exclusive — another resident GPU process contaminates all of them. Accuracy
+(`validate_tool_calling.py`, `validate_mmlu.py`) is unaffected by co-residency and is
+fine to run anytime. Record which regime a number came from; an unflagged
+shared-box latency figure is worse than no figure.
+
+- [x] **Pre-emptive manifest fix, 2026-09-07** (found auditing Thor-readiness before
+      any real Thor row existed): `hardware_manifest()`/`software_manifest()` would
+      have silently reported the Orin's own hardware/Docker info under a manifest
+      labelled `"platform": "thor"` for any `--target remote` run. Fixed — remote
+      runs now report honest `"unknown (remote target...)"` values instead. Full
+      record: `docs/HISTORY.md`. 5 new tests.
+- [ ] **Still open, and NOT resolved by the work above**: `assert_condition_matches_reality()`
+      is skipped entirely for `--target remote` — it can only see the client's own
+      processes, not Thor's. Everything in the comparison doc was measured with
+      `--target local` running directly on Thor, which never exercises this path, so
+      the co-residency guard still does not extend to a genuine `--target remote`
+      run against Thor. Needs an SSH-based remote check or a manual on-Thor
+      companion check — a real design decision, not a one-line fix.
+
+**GATE 6** — met for the local-on-Thor arm: one real run of each script succeeded
+end-to-end, with a full exclusive-box campaign on top. The `--target remote`
+co-residency gap above is separate and still open.
 
 ## Phase 7 — Quantization study
 
@@ -488,10 +511,10 @@ Rows are never deleted, even when superseded.
 
 | Date | Decision | Reason |
 |---|---|---|
-| 2026-09-04 | Repo becomes a benchmark suite that also selects the orchestrator LLM | `docs/note.md`; the selection scorecard is a strict subset of the benchmark data |
-| 2026-09-04 | Orin is the platform of record; Thor is the cross-platform arm | No Thor access confirmed; "does ranking change with hardware" needs both boards anyway (paper.md P5) |
-| 2026-09-04 | Existing harness warmup/steady-state policy kept over note.md's fixed `warmup: 5` | Temperature-driven steady state with an honest failure flag is strictly stronger than a guessed count |
-| 2026-09-04 | Measurement-integrity retrofit precedes all campaigns | Unrecoverable if skipped — a campaign run without it can't be re-analysed |
+| 2026-09-04 | Repo becomes a benchmark suite that also selects the orchestrator LLM, not one or the other | `docs/note.md`; the selection scorecard is a strict subset of the benchmark data |
+| 2026-09-04 | Orin is the platform of record; Thor is the cross-platform arm | No Thor access confirmed yet; and "does the ranking change across hardware" needs both boards anyway (paper.md P5) — **later overtaken by events**: the user cloned this repo directly onto Thor on 2026-09-08 and ran the cross-platform arm from there; see that date's rows below |
+| 2026-09-04 | Existing harness warmup/steady-state policy kept over note.md §4's fixed `warmup: 5` | Temperature-driven steady state with an honest `warmup_reached_steady_state` flag is strictly stronger than a guessed count |
+| 2026-09-04 | Measurement-integrity retrofit (raw rows, energy, manifest, IDs, co-residency flag) precedes all campaigns | These are unrecoverable if skipped — a campaign run without them cannot be re-analysed |
 | 2026-09-04 | ~~No third paper from this repo~~ **superseded same day** | Two papers already share one writing window |
 | 2026-09-04 | Paper count decided after results exist, not now | Direct user decision; nothing in Phases 2-10 changes based on the answer |
 | 2026-09-04 | Prompts vary per repetition by default | Identical prompts caused a 6.6x TTFT error via KV-cache reuse |
@@ -508,9 +531,16 @@ Rows are never deleted, even when superseded.
 | 2026-09-07 | Apertus and `bielik-11b-awq-vllm-orin` excluded from active experimentation; rows kept | No working path (Apertus) / broken tool-calling (Bielik-vLLM); append-only convention preserved |
 | 2026-09-07 | Qwen2.5-3B/7B smoke-tested before Phase 5's scorecard touches them | Never tested at all; same bar every row was held to before its first heavy benchmark |
 | 2026-09-07 | `docs/TODO.md` split: incident narratives moved to `docs/HISTORY.md` | File had grown to ~980 lines and was no longer scannable; nothing deleted, just relocated |
-| 2026-09-08 | Phase 5 campaign blocked on hardware: board browns out under sustained MAXN load | PMC `reset_reason=SYS_RESET_N`, `reset_level=L0` — external reset line asserted, i.e. undervoltage. Rules out panic (`SW_MAIN`), watchdog (`*WDT`), thermal (`SENSOR`) and OOM (no reboot at all). Root cause: a 65W supply on a devkit specified for 90W (19V/4.74A) |
-| 2026-09-08 | Benchmark runs must be hosted outside the Claude Code session (tmux) | Not sufficient on its own — the reboot kills tmux too — but it removes session teardown as a confound, which masked the real cause for hours |
-| 2026-09-08 | `jetson_clocks` state must be re-asserted and re-verified after every reboot | It does not persist; the governor returns to `schedutil`. A crash-and-resume campaign can silently change platform state mid-experiment, violating the rule that every number records its power mode and clock state |
-| 2026-09-08 | BFCL sample size for the Phase 5 scorecard: bounded ~30/category (n=60), all 7 rows, not full-corpus on any row | Full corpus (640 cases) costed 6.9-95min per row from measured decode speeds; a uniform limit safe for the slowest row would starve the fastest to ~8 cases/category. Direct user decision |
-| 2026-09-08 | Board's 65W power adapter replaced with the devkit's specified 90W unit | `SYS_RESET_N` hard resets under sustained MAXN load, measured peak draw 58.4W on 3 rails alone (not full-board). Confirmed root cause of the whole campaign's earlier "dies at ~7-10min" pattern, previously misdiagnosed as a backgrounding-technique bug |
-| 2026-09-08 | Step 1's 5 scorecard performance/energy rows re-measured as replicate 2 at `jetson_clocks_locked: true` | Replicate 1 was taken before the power-adapter fix at `false`; `jetson_clocks` doesn't persist across the reboot that preceded those runs. Old results kept (immutability), not deleted. Correction also surfaced a real finding: llama.cpp's TTFT roughly halves once clocks are genuinely locked, not just an accuracy fix |
+| 2026-09-08 (Orin) | Phase 5 campaign blocked on hardware: board browns out under sustained MAXN load | PMC `reset_reason=SYS_RESET_N`, `reset_level=L0` — external reset line asserted, i.e. undervoltage. Rules out panic (`SW_MAIN`), watchdog (`*WDT`), thermal (`SENSOR`) and OOM (no reboot at all). Root cause: a 65W supply on a devkit specified for 90W (19V/4.74A) |
+| 2026-09-08 (Orin) | Benchmark runs must be hosted outside the Claude Code session (tmux) | Not sufficient on its own — the reboot kills tmux too — but it removes session teardown as a confound, which masked the real cause for hours |
+| 2026-09-08 (Orin) | `jetson_clocks` state must be re-asserted and re-verified after every reboot | It does not persist; the governor returns to `schedutil`. A crash-and-resume campaign can silently change platform state mid-experiment, violating the rule that every number records its power mode and clock state |
+| 2026-09-08 (Orin) | BFCL sample size for the Phase 5 scorecard: bounded ~30/category (n=60), all 7 rows, not full-corpus on any row | Full corpus (640 cases) costed 6.9-95min per row from measured decode speeds; a uniform limit safe for the slowest row would starve the fastest to ~8 cases/category. Direct user decision |
+| 2026-09-08 (Orin) | Board's 65W power adapter replaced with the devkit's specified 90W unit | `SYS_RESET_N` hard resets under sustained MAXN load, measured peak draw 58.4W on 3 rails alone (not full-board). Confirmed root cause of the whole campaign's earlier "dies at ~7-10min" pattern, previously misdiagnosed as a backgrounding-technique bug |
+| 2026-09-08 (Orin) | Step 1's 5 scorecard performance/energy rows re-measured as replicate 2 at `jetson_clocks_locked: true` | Replicate 1 was taken before the power-adapter fix at `false`; `jetson_clocks` doesn't persist across the reboot that preceded those runs. Old results kept (immutability), not deleted. Correction also surfaced a real finding: llama.cpp's TTFT roughly halves once clocks are genuinely locked, not just an accuracy fix |
+| 2026-09-08 (Thor) | Thor's vllm rows get their own image tag and a non-8000 port, not copies of the orin rows' values | `vllm-vlm-thor` is already live in production on Thor at port 8000 using the `-jetson-thor` image tag, not `-jetson-orin` - confirmed via `docker ps`, not assumed |
+| 2026-09-08 (Thor) | ~~llama-cpp/thor stays row-less (blocked)~~ **superseded the same day** | See 2026-09-09 (Thor) row below — was checking Docker Hub only, not GHCR |
+| 2026-09-08 (Thor) | TensorRT Edge-LLM becomes a real backend leg, on Thor only | Direct user direction; and Phase 0's three blockers no longer hold on Thor - JetPack 7.1 is an Official row, Edge-LLM 0.10.1 ships an OpenAI-compatible server with tool-calling, and Qwen2.5-*-AWQ is in its supported models |
+| 2026-09-08 (Thor) | Thor timing/power/memory-fit runs require an exclusive box; accuracy runs do not | Thor is shared with another user running a production vLLM container - co-residency changes latency/thermal/fit numbers but not BFCL/MMLU correctness |
+| 2026-09-09 (Thor) | llama.cpp on Thor works after all, via a different image family than Orin's | `dustynv/llama_cpp` genuinely has no r38 tag on Docker Hub, but jetson-containers publishes r38-era images to GHCR under `nvidia-ai-iot/` instead - checking one registry was not checking the project |
+| 2026-09-09 (Thor) | GPTQ-Int4 quantization added to the recommendation, not just FP16 | A one-line bug found in Edge-LLM's own source (`patches/edgellm-int4-bias-recipe.patch`) unblocked it; 2.5x lower latency and 3x lower energy than FP16 for 4 points of `irrelevance` |
+| 2026-09-09/10 (Thor) | Self-quantized FP8/INT8-SQ added via `tensorrt-edgellm-quantize`, not left untested | No published checkpoint exists in either format for this model (confirmed against NVIDIA's own supported-models page) — self-quantizing was the only path, and both needed real debugging before the checkpoints were trustworthy |

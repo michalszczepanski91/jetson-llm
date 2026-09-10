@@ -4,4 +4,7 @@ __pycache__/
 .pytest_cache/
 output/*.json
 !output/.gitkeep
+output/window_logs/
+output/*.log
+output/*.txt
 .run/

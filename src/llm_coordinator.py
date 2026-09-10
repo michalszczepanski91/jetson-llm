@@ -1,7 +1,9 @@
-"""Lifecycle owners for the two serving backends this lab compares
-(vLLM, llama.cpp), plus a target for an already-running remote server (e.g.
-Thor) - the orchestrator-LLM counterpart to jetson-vlm-lab's
-src/vlm_coordinator.py. Every class here shares one duck-typed interface
+"""Lifecycle owners for the serving backends this lab compares - vLLM and
+llama.cpp on both platforms, plus TensorRT Edge-LLM on Thor only (it needs
+JetPack 7.x; see docs/TODO.md Phase 0's superseded entry) - plus a target for
+an already-running remote server. The orchestrator-LLM counterpart to
+jetson-vlm-lab's src/vlm_coordinator.py. Every class here shares one
+duck-typed interface
 (`base_url`, `model`, `start()`, `wait_ready(timeout)`, `stop(timeout)`) so
 every scripts/*.py caller works unchanged regardless of which backend or
 target a configs/models.yaml row points at - see docs/promotion-contract.md
@@ -22,6 +24,8 @@ that TWO local coordinators exist now (one per backend) instead of one.
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 import threading
 import time
@@ -49,6 +53,28 @@ _DEFAULT_HF_CACHE = "/opt/hf-cache"
 # Phase 1 for the full record; scripts/validate_tool_calling.py's real BFCL
 # run is what actually quantifies this, not further one-off probing.
 _DEFAULT_LLAMACPP_IMAGE = "dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04"
+# TensorRT Edge-LLM ships neither a prebuilt image (unlike both backends
+# above) nor a PyPI wheel - checked live 2026-09-08: no release assets on any
+# of its last five GitHub releases, nothing on PyPI - so it is built from
+# source on-device and run from the venv in that source tree. This default
+# points at where docs/TODO.md Phase 6a's build actually put it on the Thor;
+# override via an `serve_bin` field on the configs/models.yaml row if a
+# machine puts it elsewhere. Thor-only by construction: Edge-LLM's own
+# support matrix needs JetPack 7.x, and this lab's Orin is 6.2.x.
+# Both are absolute paths into ONE developer's home by necessity - there is no
+# system-wide install location for a from-source build - so both are
+# env-overridable, which is what keeps this repo "clone and run standalone" on
+# a machine that put its build elsewhere. A configs/models.yaml row can also
+# override them per-row via `serve_bin`/`cache_dir`.
+_DEFAULT_EDGELLM_BIN = os.environ.get(
+    "EDGELLM_SERVE_BIN",
+    "/home/michal/dev/TensorRT-Edge-LLM/.venv/bin/tensorrt-edgellm-serve",
+)
+_DEFAULT_EDGELLM_CACHE = os.environ.get("EDGELLM_CACHE_DIR", "/opt/edgellm-cache")
+# The cache holds BOTH downloaded checkpoints and compiled engine bundles
+# (50GiB LRU by default). Not the HF cache and not llama.cpp's - a third,
+# differently-shaped store.
+
 _DEFAULT_LLAMA_CACHE = "/opt/llama-cache"  # separate from _DEFAULT_HF_CACHE -
 # llama.cpp's `-hf` downloader (LLAMA_CACHE env var) uses its own on-disk
 # layout, not the transformers/vLLM HF_HOME cache format - sharing one dir
@@ -194,6 +220,18 @@ class VllmCoordinator(_ColdStartMixin):
         ready_timeout: float = 600.0,
         stop_timeout: float = 15.0,
         extra_args: list[str] | None = None,
+        extra_volumes: list[str] | None = None,  # extra `-v` mounts, host:container[:ro].
+        # Exists for one real, reproducible reason (2026-09-08): vLLM's memory
+        # profiling asserts `init_free_memory >= current_free_memory` and dies
+        # if free memory *increases* mid-profile - which it does on this
+        # unified-memory board, on a completely IDLE box, at 7B (observed:
+        # "Initial free memory 52.65 GiB, current free memory 52.83 GiB").
+        # More free memory than expected is harmless, but the assert cannot
+        # tell that from a real problem. embedded-ai-chain hit this in August
+        # and ships a patched gpu_worker.py that clamps to the smaller reading
+        # and warns instead; the Thor rows mount it through this field. It
+        # changes STARTUP profiling only - no inference path is touched, so it
+        # cannot flatter a latency or throughput measurement.
         **_ignored,  # e.g. quant/n_gpu_layers/ctx_size from a llama-cpp row
                      # read generically by a caller that doesn't branch per backend
     ):
@@ -208,6 +246,7 @@ class VllmCoordinator(_ColdStartMixin):
         self._ready_timeout = ready_timeout
         self._stop_timeout = stop_timeout
         self._extra_args = list(extra_args) if extra_args else []
+        self._extra_volumes = list(extra_volumes) if extra_volumes else []
 
         self._cache_dir_for_weights = hf_cache_dir  # _ColdStartMixin.weights_cached()
 
@@ -240,6 +279,10 @@ class VllmCoordinator(_ColdStartMixin):
             "docker", "run", "--name", self._container_name, "--rm",
             "--runtime", "nvidia", "--network", "host", "--ipc", "host",
             "-v", f"{self._hf_cache_dir}:/root/.cache/huggingface",
+        ]
+        for volume in self._extra_volumes:
+            cmd += ["-v", volume]
+        cmd += [
             "-e", "HF_HOME=/root/.cache/huggingface",
             # HF_HOME alone is NOT enough with this image: it bakes in
             # HUGGINGFACE_HUB_CACHE=/data/models/huggingface (and
@@ -371,6 +414,15 @@ class LlamaCppCoordinator(_ColdStartMixin):
         n_gpu_layers: int = -1,  # -1 = offload every layer to GPU
         ctx_size: int = 4096,
         image: str = _DEFAULT_LLAMACPP_IMAGE,
+        server_argv0: str | None = "llama-server",  # the two llama.cpp image
+        # families this lab uses differ here, so a row must be able to say
+        # which it is. dustynv/llama_cpp (Orin) ships NO entrypoint, so the
+        # binary name has to be passed as the container command - that's this
+        # default. ghcr.io/ggml-org/llama.cpp:server-cuda (the only image
+        # found that runs on Thor, confirmed 2026-09-08) already sets
+        # ENTRYPOINT [/app/llama-server], so passing the name again would
+        # arrive as a stray positional argument to llama-server itself; such
+        # a row sets `server_argv0: null` in configs/models.yaml.
         llama_cache_dir: str = _DEFAULT_LLAMA_CACHE,
         container_name: str = "llamacpp-llm-lab",
         ready_timeout: float = 600.0,
@@ -385,6 +437,7 @@ class LlamaCppCoordinator(_ColdStartMixin):
         self._n_gpu_layers = n_gpu_layers
         self._ctx_size = ctx_size
         self._image = image
+        self._server_argv0 = server_argv0
         self._llama_cache_dir = llama_cache_dir
         self._container_name = container_name
         self._ready_timeout = ready_timeout
@@ -421,7 +474,10 @@ class LlamaCppCoordinator(_ColdStartMixin):
             "-v", f"{self._llama_cache_dir}:/root/.cache/llama.cpp",
             "-e", "LLAMA_CACHE=/root/.cache/llama.cpp",
             self._image,
-            "llama-server",
+        ]
+        if self._server_argv0:
+            cmd.append(self._server_argv0)
+        cmd += [
             "-hf", f"{self._model}:{self._quant}",
             "--host", "0.0.0.0", "--port", str(self._port),
             "-ngl", str(self._n_gpu_layers),
@@ -476,6 +532,185 @@ class LlamaCppCoordinator(_ColdStartMixin):
                         if resp.status == 200:
                             self._t_ready = time.monotonic()
                             self._note_container_running()  # health implies running
+                            self._ready_event.set()
+                            return
+                except (urllib.error.URLError, ConnectionError, TimeoutError):
+                    pass
+                time.sleep(2.0)
+        except BaseException as exc:  # noqa: BLE001
+            self.error = exc
+            self._ready_event.set()
+
+
+class EdgeLlmCoordinator:
+    """Local `tensorrt-edgellm-serve` process running NVIDIA TensorRT
+    Edge-LLM's experimental OpenAI-compatible server. Thor-only: Edge-LLM
+    needs JetPack 7.x, and this lab's Orin is 6.2.x (see docs/TODO.md Phase
+    0's superseded entry).
+
+    Unlike the two coordinators above, this one owns a PROCESS, not a Docker
+    container - Edge-LLM ships no prebuilt image or wheel, so it is built
+    from source on-device and launched from the venv inside that source tree
+    (`_DEFAULT_EDGELLM_BIN`). Everything else about the interface is
+    identical, because the server speaks the same OpenAI-compatible
+    `/v1/chat/completions` + `GET /health` (confirmed live, 200) the other
+    two do.
+
+    `--enable-auto-tool-choice`/`--tool-call-parser` are passed for exactly
+    the same reason VllmCoordinator passes them: scripts/validate_tool_calling.py
+    needs structured `message.tool_calls` back, not tool-call-shaped prose.
+    The parser default is `auto` (Edge-LLM's own model-native detection)
+    rather than vLLM's `hermes` - both names exist in its choice list
+    {auto,generic,hermes,qwen3_xml,nemotron,openai}, so a future run can pin
+    the same parser name across two backends if that comparison is wanted.
+
+    Cold start here means something different from the container backends and
+    is worth reading before comparing the number: on an engine-cache MISS the
+    first launch compiles TensorRT engines for the checkpoint (minutes), and
+    on a HIT it only loads them (seconds). Both are real, but they are not
+    the same measurement - `cache_dir` state is part of the result. The
+    Docker backends have a loosely analogous first-run model download, which
+    this lab already reports as part of cold start (see
+    bielik-11b-q4-llamacpp-orin's 338s note).
+    """
+
+    def __init__(
+        self,
+        model: str,
+        port: int = 8002,  # keeps clear of BOTH 8000 (this lab's vLLM default,
+        # and the Thor's own production vllm-vlm-thor container) and 8090
+        # (LlamaCppCoordinator above)
+        cache_dir: str = _DEFAULT_EDGELLM_CACHE,
+        max_input_len: int = 2048,
+        tool_call_parser: str = "auto",
+        served_model_name: str | None = None,  # what the SERVER registers the
+        # model as, which is not always what you launched it with. Passing a
+        # local checkpoint directory (as the self-quantized rows do) makes
+        # Edge-LLM register it under the directory's BASENAME, so a client
+        # sending the full path as `model` gets HTTP 404 - a real failure that
+        # cost a whole benchmark suite on 2026-09-09. When set, this is passed
+        # through as --served-model-name AND returned by `.model`, so the
+        # launch argument and the wire-format name stay independent.
+        serve_bin: str = _DEFAULT_EDGELLM_BIN,
+        work_dir: str | None = None,  # defaults to the Edge-LLM source tree
+        # derived from serve_bin. THIS IS LOAD-BEARING, not tidiness: Edge-LLM
+        # registers its TensorRT plugin library by the RELATIVE path
+        # "build/libNvInfer_edgellm_plugin.so", so a server started from any
+        # other directory loads no plugin and then dies deserializing its own
+        # cached engine with "Cannot find plugin: AttentionPlugin, version: 1"
+        # -> "failed to create execution context". Confirmed the hard way,
+        # 2026-09-08: hand-run servers worked (they were launched from that
+        # tree) while the first coordinator-driven run did not.
+        ready_timeout: float = 1800.0,  # deliberately longer than the container
+        # backends' 600s: a cache-miss launch builds engines before it serves
+        stop_timeout: float = 15.0,
+        extra_args: list[str] | None = None,
+        **_ignored,  # e.g. gpu_memory_utilization/quant from another backend's
+                     # row, read generically by a caller that doesn't branch
+    ):
+        self._model = model
+        self._port = port
+        self._cache_dir = cache_dir
+        self._max_input_len = max_input_len
+        self._tool_call_parser = tool_call_parser
+        self._served_model_name = served_model_name
+        self._serve_bin = serve_bin
+        # <tree>/.venv/bin/tensorrt-edgellm-serve -> <tree>
+        self._work_dir = work_dir or os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(serve_bin)))
+        )
+        self._ready_timeout = ready_timeout
+        self._stop_timeout = stop_timeout
+        self._extra_args = list(extra_args) if extra_args else []
+
+        self._proc: subprocess.Popen | None = None
+        self._ready_event = threading.Event()
+        self._stop_event = threading.Event()
+        self._poll_thread: threading.Thread | None = None
+        self.error: BaseException | None = None
+
+    @property
+    def base_url(self) -> str:
+        return f"http://127.0.0.1:{self._port}"
+
+    @property
+    def model(self) -> str:
+        # The name the SERVER answers to, which differs from the launch
+        # argument when a local checkpoint directory is served - see
+        # served_model_name's own comment.
+        return self._served_model_name or self._model
+
+    def start(self) -> None:
+        if self._proc is not None:
+            raise RuntimeError(f"{type(self).__name__} already started")
+        self._stop_event.clear()
+        cmd = [
+            self._serve_bin, self._model,
+            "--host", "0.0.0.0", "--port", str(self._port),
+            "--cache-dir", self._cache_dir,
+            "--max-input-len", str(self._max_input_len),
+            "--enable-auto-tool-choice",
+            "--tool-call-parser", self._tool_call_parser,
+        ]
+        if self._served_model_name:
+            cmd += ["--served-model-name", self._served_model_name]
+        cmd += [
+            "--log-level", "info",
+        ]
+        cmd.extend(self._extra_args)
+        env = dict(os.environ)
+        # nvcc/CUDA runtime bits are not on a login shell's PATH on this Thor
+        # (confirmed 2026-09-08) - the engine builder needs them, so prepend
+        # rather than relying on the caller's environment.
+        env["PATH"] = f"/usr/local/cuda/bin:{env.get('PATH', '')}"
+        env.setdefault("HF_HOME", _DEFAULT_HF_CACHE)
+        self._proc = subprocess.Popen(cmd, env=env, cwd=self._work_dir, start_new_session=True)
+        self._poll_thread = threading.Thread(target=self._poll_health, daemon=True, name="edgellm-health")
+        self._poll_thread.start()
+
+    def wait_ready(self, timeout: float | None = None) -> bool:
+        ready = self._ready_event.wait(timeout=timeout if timeout is not None else self._ready_timeout)
+        if self.error is not None:
+            raise self.error
+        return ready
+
+    def stop(self, timeout: float | None = None) -> None:
+        self._stop_event.set()
+        if self._proc is not None:
+            # start_new_session=True above put the server in its own process
+            # group; signal the GROUP, not just the parent, or uvicorn's
+            # workers and the C++ runtime thread outlive the terminate() and
+            # keep the port (and the GPU allocation) held.
+            try:
+                os.killpg(self._proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                self._proc.terminate()
+            try:
+                self._proc.wait(timeout=timeout if timeout is not None else self._stop_timeout)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(self._proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    self._proc.kill()
+                try:
+                    self._proc.wait(timeout=5.0)
+                except subprocess.TimeoutExpired:
+                    pass
+        self._proc = None
+        self._ready_event.clear()
+
+    def _poll_health(self) -> None:
+        try:
+            deadline = time.monotonic() + self._ready_timeout
+            while not self._stop_event.is_set() and time.monotonic() < deadline:
+                if self._proc is not None and self._proc.poll() is not None:
+                    raise RuntimeError(
+                        f"tensorrt-edgellm-serve exited unexpectedly "
+                        f"(code {self._proc.returncode}) before becoming ready"
+                    )
+                try:
+                    with urllib.request.urlopen(f"{self.base_url}/health", timeout=2) as resp:
+                        if resp.status == 200:
                             self._ready_event.set()
                             return
                 except (urllib.error.URLError, ConnectionError, TimeoutError):
@@ -617,4 +852,9 @@ def build_coordinator(args, variant: dict, ready_timeout: float, **local_kwargs)
         return VllmCoordinator(model=variant["model"], ready_timeout=ready_timeout, **local_kwargs)
     if backend == "llama-cpp":
         return LlamaCppCoordinator(model=variant["model"], ready_timeout=ready_timeout, **local_kwargs)
-    raise SystemExit(f"unknown backend {backend!r} in configs/models.yaml - expected 'vllm' or 'llama-cpp'")
+    if backend == "edge-llm":
+        return EdgeLlmCoordinator(model=variant["model"], ready_timeout=ready_timeout, **local_kwargs)
+    raise SystemExit(
+        f"unknown backend {backend!r} in configs/models.yaml - expected "
+        "'vllm', 'llama-cpp' or 'edge-llm'"
+    )

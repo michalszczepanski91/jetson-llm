@@ -1,0 +1,491 @@
+<title>Thor Precision Sweep</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --bg:        #F4F6F8;
+    --surface:   #FFFFFF;
+    --surface-2: #ECEFF2;
+    --ink:       #121820;
+    --ink-2:     #545E68;
+    --ink-3:     #85909A;
+    --line:      #DAE0E6;
+    --accent:    #4A3AA7;
+    --accent-wash: #4A3AA71A;
+    --good:      #0C7A0C;
+    --warn:      #9A6400;
+    --warn-bg:   #FCEFD3;
+    --cat-1: #2A78D6; /* FP16 */
+    --cat-2: #D9581F; /* INT4-GPTQ */
+    --cat-3: #128F63; /* FP8 */
+    --cat-4: #C07E00; /* INT8-SQ */
+    --shadow: 0 1px 2px rgba(18,24,32,.06), 0 8px 24px -12px rgba(18,24,32,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:        #0D1218;
+      --surface:   #161D26;
+      --surface-2: #1D2530;
+      --ink:       #ECF1F5;
+      --ink-2:     #A6B1BC;
+      --ink-3:     #74808C;
+      --line:      #2A333D;
+      --accent:    #9C90EE;
+      --accent-wash: #9C90EE22;
+      --good:      #4ECB4E;
+      --warn:      #F0B93D;
+      --warn-bg:   #3A2E12;
+      --cat-1: #4F93E8;
+      --cat-2: #E8794A;
+      --cat-3: #35B98A;
+      --cat-4: #E0A730;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:        #0D1218;
+    --surface:   #161D26;
+    --surface-2: #1D2530;
+    --ink:       #ECF1F5;
+    --ink-2:     #A6B1BC;
+    --ink-3:     #74808C;
+    --line:      #2A333D;
+    --accent:    #9C90EE;
+    --accent-wash: #9C90EE22;
+    --good:      #4ECB4E;
+    --warn:      #F0B93D;
+    --warn-bg:   #3A2E12;
+    --cat-1: #4F93E8;
+    --cat-2: #E8794A;
+    --cat-3: #35B98A;
+    --cat-4: #E0A730;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.55);
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1,h2,h3{ text-wrap: balance; font-weight: 600; }
+  .mono{ font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+  .tnum{ font-variant-numeric: tabular-nums; }
+  a{ color: var(--accent); }
+
+  /* ---------- masthead ---------- */
+  .masthead{ padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow{
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1{ font-size: clamp(28px, 4.2vw, 40px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.01em; }
+  .dek{ font-size: 16px; color: var(--ink-2); max-width: 62ch; margin: 0 0 20px; }
+  .rig{
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-3);
+  }
+  .rig span b{ color: var(--ink-2); font-weight: 500; }
+
+  section{ margin-top: 52px; }
+  .section-head{ margin-bottom: 20px; }
+  h2{ font-size: 22px; margin: 0 0 6px; }
+  .section-dek{ color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0; }
+
+  /* ---------- figures ---------- */
+  figure{ margin: 0; }
+  .diagram-card{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px 18px; box-shadow: var(--shadow);
+  }
+  .diagram-card svg{ width: 100%; height: auto; display: block; }
+  figcaption{ font-size: 13px; color: var(--ink-3); margin-top: 12px; max-width: 70ch; }
+  figcaption b{ color: var(--ink-2); font-weight: 500; }
+
+  .term-row{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin-top: 16px; }
+  .term{ border-left: 2px solid var(--line); padding-left: 12px; }
+  .term dt{ font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .term dd{ margin: 3px 0 0; font-size: 13px; color: var(--ink-2); }
+
+  .formula{
+    margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace; font-size: 13.5px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 16px; color: var(--ink-2);
+  }
+  .formula .hi{ color: var(--ink); font-weight: 600; }
+  .formula .op{ color: var(--ink-3); }
+
+  /* ---------- legend ---------- */
+  .legend{
+    display: flex; flex-wrap: wrap; gap: 18px; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    margin-bottom: 18px; font-size: 13.5px;
+  }
+  .legend .item{ display: flex; align-items: center; gap: 7px; }
+  .swatch{ width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+  /* ---------- charts ---------- */
+  .chart-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .chart-card{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px 14px; box-shadow: var(--shadow);
+  }
+  .chart-title{ display:flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .chart-title h3{ font-size: 14.5px; margin: 0; }
+  .chart-title .dir{ font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+  .chart-unit{ font-size: 12px; color: var(--ink-3); margin-bottom: 14px; }
+
+  .bar-row{ display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; gap: 10px; height: 30px; }
+  .bar-row + .bar-row{ margin-top: 6px; }
+  .bar-name{ font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-name b{ color: var(--ink); font-weight: 500; }
+  .bar-track{ position: relative; height: 22px; background: var(--surface-2); border-radius: 4px; }
+  .bar-fill{
+    position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px 4px 4px 4px;
+    min-width: 4px; cursor: pointer; outline-offset: 2px;
+  }
+  .bar-val{ font-family: "IBM Plex Mono", monospace; font-size: 12.5px; text-align: right; color: var(--ink); white-space: nowrap; }
+  .win{ display:inline-flex; align-items:center; gap:4px; margin-left:6px; color: var(--good); font-size: 11px; font-weight: 600; }
+  .win svg{ width: 11px; height: 11px; }
+  .flag{
+    display:inline-flex; align-items:center; gap: 5px; margin-top: 10px; padding: 5px 9px;
+    background: var(--warn-bg); border-radius: 6px; font-size: 11.5px; color: var(--warn); font-weight: 500;
+  }
+  .flag svg{ width: 12px; height: 12px; flex: none; }
+
+  /* ---------- tooltip ---------- */
+  #tip{
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--ink); color: var(--bg);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; transform: translate(-50%, -130%); transition: opacity .1s;
+  }
+  #tip.show{ opacity: 1; }
+
+  /* ---------- verdict ---------- */
+  .verdict{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px; box-shadow: var(--shadow);
+  }
+  .verdict-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 18px; margin-top: 16px; }
+  .vcard{ border-left: 3px solid var(--line); padding-left: 14px; }
+  .vcard.pick{ border-left-color: var(--good); }
+  .vcard h4{ margin: 0 0 4px; font-size: 14px; }
+  .vcard p{ margin: 0; font-size: 13px; color: var(--ink-2); }
+
+  /* ---------- table view ---------- */
+  details.data-table{ margin-top: 18px; }
+  summary{
+    cursor: pointer; font-size: 13.5px; color: var(--accent); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; list-style: none;
+  }
+  summary::-webkit-details-marker{ display: none; }
+  summary::before{ content: "▸"; font-size: 10px; transition: transform .15s; }
+  details[open] summary::before{ transform: rotate(90deg); }
+  .table-wrap{ overflow-x: auto; margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; }
+  table{ border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13px; }
+  th,td{ padding: 9px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child{ text-align: left; }
+  thead th{ font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); font-weight: 600; }
+  tbody td{ font-family: "IBM Plex Mono", monospace; color: var(--ink); }
+  tbody td:first-child{ font-family: "IBM Plex Sans"; color: var(--ink-2); }
+  tbody tr:last-child td{ border-bottom: none; }
+
+  footer{ margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); max-width: 72ch; }
+
+  :focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce){ *{ transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Jetson Thor · orchestrator LLM</p>
+    <h1>Reading the precision sweep</h1>
+    <p class="dek">Four quantizations of the same <span class="mono">Qwen2.5-7B-Instruct</span> weights, served by TensorRT&nbsp;Edge-LLM on the same board — and what each measured column actually means before you compare the numbers.</p>
+    <div class="rig">
+      <span><b>Board</b> NVIDIA Jetson Thor</span>
+      <span><b>Backend</b> TensorRT Edge-LLM 0.10.1</span>
+      <span><b>Cases</b> 100 BFCL · 200 MMLU</span>
+      <span><b>Idle baseline</b> 5.42&nbsp;W, box quiet</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="h-timeline">
+    <div class="section-head">
+      <h2 id="h-timeline">Reading one request</h2>
+      <p class="section-dek">TTFT, tokens/sec and the "32-token turn" are three different measurements of the same round trip — not three unrelated numbers.</p>
+    </div>
+    <figure class="diagram-card">
+      <svg viewBox="0 0 860 210" role="img" aria-label="Timeline of one chat completion: the prompt is sent, a prefill phase ends at the first token (TTFT), then tokens stream out at the decode rate until the response ends, which is the length a 32-token turn measures.">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <!-- baseline -->
+        <line x1="40" y1="160" x2="820" y2="160" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)" opacity=".55"/>
+        <text x="826" y="164" font-size="11" fill="currentColor" opacity=".55">time</text>
+
+        <!-- prefill block -->
+        <rect x="40" y="146" width="120" height="14" rx="3" fill="currentColor" opacity=".12"/>
+        <text x="100" y="132" font-size="12" text-anchor="middle" fill="currentColor" opacity=".7">prefill</text>
+        <text x="100" y="188" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">prompt processed</text>
+
+        <!-- TTFT marker -->
+        <line x1="160" y1="100" x2="160" y2="160" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <circle cx="160" cy="160" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+        <text x="160" y="90" font-size="13" font-weight="600" text-anchor="middle" fill="var(--accent)">TTFT</text>
+        <text x="160" y="105" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">first token arrives</text>
+
+        <!-- decode ticks -->
+        <g fill="var(--accent)">
+          <circle cx="200" cy="160" r="3"/><circle cx="240" cy="160" r="3"/><circle cx="280" cy="160" r="3"/>
+          <circle cx="320" cy="160" r="3"/><circle cx="360" cy="160" r="3"/><circle cx="400" cy="160" r="3"/>
+          <circle cx="440" cy="160" r="3"/><circle cx="480" cy="160" r="3"/><circle cx="520" cy="160" r="3"/>
+          <circle cx="560" cy="160" r="3"/><circle cx="600" cy="160" r="3"/><circle cx="640" cy="160" r="3"/>
+          <circle cx="680" cy="160" r="3"/>
+        </g>
+        <text x="440" y="132" font-size="12" text-anchor="middle" fill="var(--accent)">decode — one dot per streamed token</text>
+        <text x="440" y="147" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">rate = tokens / sec</text>
+
+        <!-- end marker -->
+        <line x1="700" y1="100" x2="700" y2="160" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" opacity=".6"/>
+        <circle cx="700" cy="160" r="5" fill="currentColor" opacity=".85" stroke="var(--surface)" stroke-width="2"/>
+        <text x="700" y="90" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor" opacity=".85">token 32</text>
+        <text x="700" y="105" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">response ends</text>
+
+        <!-- turn bracket -->
+        <path d="M40,182 L40,190 L820,190 L820,182" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+        <text x="430" y="206" font-size="12" text-anchor="middle" fill="currentColor" opacity=".7">"32-token turn" — one full reply or tool call, start to end</text>
+      </svg>
+      <figcaption><b>Not to scale for any one precision</b> — this shows the mechanism, not a specific run. In this repo TTFT and tokens/sec come from a separate <i>streaming</i> call; the 32-token turn is measured as one <i>non-streaming</i> round trip. Same physics, two different harness calls — so the turn time isn't exactly <span class="mono">TTFT + 31 × (1/tok⁄s)</span>.</figcaption>
+    </figure>
+
+    <dl class="term-row">
+      <div class="term"><dt>TTFT</dt><dd>Time to first token. Mostly prompt processing — what a user feels as "how long before it starts answering."</dd></div>
+      <div class="term"><dt>tok/s</dt><dd>Decode throughput once generation is underway. <span class="mono">1 ÷ tok/s</span> is the average time per token.</dd></div>
+      <div class="term"><dt>32-token turn</dt><dd>Full wall-clock time for one realistic reply or tool call — the number this lab actually optimizes for.</dd></div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="h-energy">
+    <div class="section-head">
+      <h2 id="h-energy">What "per token" costs</h2>
+      <p class="section-dek">Energy per token isn't total board draw — it's what generation costs <em>above</em> what the board burns just sitting there.</p>
+    </div>
+    <figure class="diagram-card">
+      <svg viewBox="0 0 860 210" role="img" aria-label="Power over time: the board idles at 5.42 watts, then rises during generation; the shaded gap between idle power and generation power, divided by tokens per second, is the marginal energy per token.">
+        <!-- axes -->
+        <line x1="60" y1="30" x2="60" y2="170" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
+        <text x="30" y="34" font-size="11" fill="currentColor" opacity=".55">W</text>
+        <line x1="60" y1="170" x2="820" y2="170" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
+
+        <!-- idle baseline dashed across full width -->
+        <line x1="60" y1="150" x2="820" y2="150" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" opacity=".45"/>
+        <text x="68" y="144" font-size="12" fill="currentColor" opacity=".65">idle · 5.42 W</text>
+
+        <!-- generation power block -->
+        <path d="M 330 150 L 330 70 L 820 70 L 820 150 Z" fill="var(--accent)" opacity=".14"/>
+        <line x1="330" y1="70" x2="820" y2="70" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="330" y1="150" x2="330" y2="70" stroke="var(--accent)" stroke-width="2"/>
+        <text x="575" y="58" font-size="12" text-anchor="middle" fill="var(--accent)" font-weight="600">generating · 16.6 W (INT4-GPTQ)</text>
+
+        <!-- marginal bracket -->
+        <path d="M 300 70 L 288 70 L 288 150 L 300 150" fill="none" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="260" y="114" font-size="11" text-anchor="middle" fill="var(--accent)" transform="rotate(-90 260 114)">marginal</text>
+
+        <!-- idle flat segment left -->
+        <line x1="60" y1="150" x2="330" y2="150" stroke="currentColor" stroke-width="2" opacity=".55"/>
+        <text x="180" y="188" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">before request</text>
+        <text x="575" y="188" font-size="11" text-anchor="middle" fill="currentColor" opacity=".55">decode window</text>
+      </svg>
+      <figcaption>Real example, INT4-GPTQ: board draws <b>16.6&nbsp;W</b> while generating against a <b>5.42&nbsp;W</b> idle floor — <b>11.18&nbsp;W</b> marginal. Divide by that precision's own <b>40.7 tok/s</b> and one token costs <b>0.274&nbsp;J</b>.</figcaption>
+    </figure>
+    <div class="formula">
+      <span>(board power while generating</span><span class="op">−</span><span class="hi">idle power</span><span class="op">)</span><span class="op">÷</span><span>tokens / sec</span><span class="op">=</span><span class="hi">joules per token</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-compare">
+    <div class="section-head">
+      <h2 id="h-compare">Four precisions, one model</h2>
+      <p class="section-dek">Identical <span class="mono">Qwen2.5-7B-Instruct</span> weights, same 100 BFCL cases, same 200 MMLU questions, same board. Only the number format changes.</p>
+    </div>
+
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--cat-1)"></span>FP16 <span class="mono" style="color:var(--ink-3)">(baseline)</span></span>
+      <span class="item"><span class="swatch" style="background:var(--cat-2)"></span>INT4-GPTQ</span>
+      <span class="item"><span class="swatch" style="background:var(--cat-3)"></span>FP8 <span class="mono" style="color:var(--ink-3)">(self-quantized)</span></span>
+      <span class="item"><span class="swatch" style="background:var(--cat-4)"></span>INT8-SQ <span class="mono" style="color:var(--ink-3)">(self-quantized)</span></span>
+    </div>
+
+    <div class="chart-grid" id="charts"></div>
+
+    <details class="data-table">
+      <summary>View full data table</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Precision</th><th>BFCL overall</th><th>BFCL irrelevance</th><th>MMLU</th><th>TTFT</th><th>tok/s</th><th>32-tok turn</th><th>board power</th><th>marginal J/token</th></tr></thead>
+          <tbody>
+            <tr><td>FP16</td><td class="tnum">93%</td><td class="tnum">94%</td><td class="tnum">67.5%</td><td class="tnum">74 ms</td><td class="tnum">16.6</td><td class="tnum">1945 ms</td><td class="tnum">19.3 W</td><td class="tnum">0.839 J</td></tr>
+            <tr><td>INT4-GPTQ</td><td class="tnum">92%</td><td class="tnum">90%</td><td class="tnum">66.0%</td><td class="tnum">65 ms</td><td class="tnum">40.7</td><td class="tnum">769 ms</td><td class="tnum">16.6 W</td><td class="tnum">0.274 J</td></tr>
+            <tr><td>FP8</td><td class="tnum">91%</td><td class="tnum">90%</td><td class="tnum">66.5%</td><td class="tnum">61 ms</td><td class="tnum">23.5</td><td class="tnum">1052 ms</td><td class="tnum">19.6 W</td><td class="tnum">0.603 J</td></tr>
+            <tr><td>INT8-SQ</td><td class="tnum">91%</td><td class="tnum">92%</td><td class="tnum">54.0%</td><td class="tnum">64 ms</td><td class="tnum">22.8</td><td class="tnum">1074 ms</td><td class="tnum">19.3 W</td><td class="tnum">0.610 J</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-verdict">
+    <div class="section-head">
+      <h2 id="h-verdict">Reading the sweep</h2>
+    </div>
+    <div class="verdict">
+      <p style="margin:0;font-size:14.5px;color:var(--ink-2)">No precision wins everything — but for a turn-latency-bound orchestrator, one is the clear pick.</p>
+      <div class="verdict-grid">
+        <div class="vcard pick">
+          <h4>INT4-GPTQ — recommended</h4>
+          <p>2.5× the throughput, 2.5× shorter turns and a third of the energy of FP16, for only 4 points of escalation judgment. Wins tok/s, turn time and energy outright.</p>
+        </div>
+        <div class="vcard">
+          <h4>FP8 — near-lossless</h4>
+          <p>Matches FP16 on accuracy almost exactly and edges out even INT4-GPTQ on time-to-first-token — but mid-pack on throughput, ~1.4× FP16 against INT4's 2.5×.</p>
+        </div>
+        <div class="vcard">
+          <h4>INT8-SQ — still open</h4>
+          <p>Tool-calling intact, but MMLU sits 13.5 points below FP16 even after fixing an under-calibration bug. Not yet trusted for production.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Measured on an exclusive Thor with no other GPU workload; every latency figure reached thermal steady state. Board power is the whole board's 5&thinsp;V input rail, not GPU-only. FP8 and INT8-SQ have no published checkpoint for this model and were quantized in-house with TensorRT Edge-LLM's own calibration tool — full methodology in <span class="mono">docs/thor-framework-comparison.md</span>.
+  </footer>
+
+</div>
+
+<div id="tip" role="status"></div>
+
+<script>
+(function(){
+  var CHARTS = [
+    { title: "Escalation judgment", unit: "BFCL “irrelevance” — % correctly calling no tool · higher is better", dir: "↑ higher better", domain: 100, decimals: 0, suffix: "%",
+      data: [
+        { name: "FP16", cat: 1, value: 94 },
+        { name: "INT4-GPTQ", cat: 2, value: 90 },
+        { name: "FP8", cat: 3, value: 90 },
+        { name: "INT8-SQ", cat: 4, value: 92 }
+      ] },
+    { title: "General knowledge", unit: "MMLU accuracy, n=200 · higher is better", dir: "↑ higher better", domain: 100, decimals: 1, suffix: "%",
+      flag: "INT8-SQ sits 13.5 pts below FP16 — unresolved",
+      data: [
+        { name: "FP16", cat: 1, value: 67.5 },
+        { name: "INT4-GPTQ", cat: 2, value: 66.0 },
+        { name: "FP8", cat: 3, value: 66.5 },
+        { name: "INT8-SQ", cat: 4, value: 54.0 }
+      ] },
+    { title: "Time to first token", unit: "wall-clock to the first streamed token · lower is better", dir: "↓ lower better", domain: 80, decimals: 0, suffix: " ms", invert: true,
+      data: [
+        { name: "FP16", cat: 1, value: 74 },
+        { name: "INT4-GPTQ", cat: 2, value: 65 },
+        { name: "FP8", cat: 3, value: 61 },
+        { name: "INT8-SQ", cat: 4, value: 64 }
+      ] },
+    { title: "Decode throughput", unit: "tokens / second once generation starts · higher is better", dir: "↑ higher better", domain: 45, decimals: 1, suffix: "",
+      data: [
+        { name: "FP16", cat: 1, value: 16.6 },
+        { name: "INT4-GPTQ", cat: 2, value: 40.7 },
+        { name: "FP8", cat: 3, value: 23.5 },
+        { name: "INT8-SQ", cat: 4, value: 22.8 }
+      ] },
+    { title: "One orchestrator turn", unit: "32 generated tokens, one blocking call · lower is better", dir: "↓ lower better", domain: 2000, decimals: 0, suffix: " ms", invert: true,
+      data: [
+        { name: "FP16", cat: 1, value: 1945 },
+        { name: "INT4-GPTQ", cat: 2, value: 769 },
+        { name: "FP8", cat: 3, value: 1052 },
+        { name: "INT8-SQ", cat: 4, value: 1074 }
+      ] },
+    { title: "Energy per token", unit: "marginal joules, board power minus 5.42 W idle · lower is better", dir: "↓ lower better", domain: 0.9, decimals: 3, suffix: " J", invert: true,
+      data: [
+        { name: "FP16", cat: 1, value: 0.839 },
+        { name: "INT4-GPTQ", cat: 2, value: 0.274 },
+        { name: "FP8", cat: 3, value: 0.603 },
+        { name: "INT8-SQ", cat: 4, value: 0.610 }
+      ] }
+  ];
+
+  var winIcon = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6.5L5 9.5L10 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var flagIcon = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5V6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="8.6" r=".7" fill="currentColor"/></svg>';
+
+  var host = document.getElementById("charts");
+  var tip = document.getElementById("tip");
+
+  CHARTS.forEach(function(chart){
+    var card = document.createElement("div");
+    card.className = "chart-card";
+
+    var best = chart.data.reduce(function(a,b){
+      if (chart.invert) return b.value < a.value ? b : a;
+      return b.value > a.value ? b : a;
+    });
+
+    var rowsHtml = chart.data.map(function(d){
+      var pct = Math.max((d.value / chart.domain) * 100, 1.5);
+      var isBest = d === best;
+      var valStr = d.value.toFixed(chart.decimals) + chart.suffix;
+      return (
+        '<div class="bar-row">' +
+          '<div class="bar-name"><b>' + d.name + '</b></div>' +
+          '<div class="bar-track">' +
+            '<div class="bar-fill" tabindex="0" style="width:' + pct + '%;background:var(--cat-' + d.cat + ')" ' +
+              'data-label="' + d.name + '" data-value="' + valStr + '"></div>' +
+          '</div>' +
+          '<div class="bar-val">' + valStr + (isBest ? ' <span class="win" title="Best on this metric">' + winIcon + '</span>' : '') + '</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    card.innerHTML =
+      '<div class="chart-title"><h3>' + chart.title + '</h3><span class="dir mono">' + chart.dir + '</span></div>' +
+      '<div class="chart-unit">' + chart.unit + '</div>' +
+      rowsHtml +
+      (chart.flag ? '<div class="flag">' + flagIcon + '<span>' + chart.flag + '</span></div>' : '');
+
+    host.appendChild(card);
+  });
+
+  function showTip(el, x, y){
+    tip.textContent = el.dataset.label + " — " + el.dataset.value;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+    tip.classList.add("show");
+  }
+  function hideTip(){ tip.classList.remove("show"); }
+
+  host.addEventListener("pointermove", function(e){
+    var el = e.target.closest(".bar-fill");
+    if (el) showTip(el, e.clientX, e.clientY);
+  });
+  host.addEventListener("pointerleave", function(e){
+    if (e.target.classList && e.target.classList.contains("bar-fill")) hideTip();
+  }, true);
+  host.addEventListener("focusin", function(e){
+    var el = e.target.closest(".bar-fill");
+    if (el) { var r = el.getBoundingClientRect(); showTip(el, r.left + r.width/2, r.top); }
+  });
+  host.addEventListener("focusout", function(e){
+    if (e.target.classList && e.target.classList.contains("bar-fill")) hideTip();
+  });
+})();
+</script>

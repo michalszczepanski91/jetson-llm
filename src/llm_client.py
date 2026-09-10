@@ -38,6 +38,8 @@ def call_llm(
     tools: list[dict[str, Any]] | None = None,
     tool_choice: Any = "auto",
     temperature: float | None = None,
+    top_p: float | None = None,
+    top_k: int | None = None,
     timeout: float = 120.0,
 ) -> dict[str, Any]:
     """One blocking chat-completion round trip against coordinator's
@@ -52,7 +54,18 @@ def call_llm(
     server's own default (that's what a real deployment would see) while
     scripts/validate_tool_calling.py deliberately pins a low value on every
     call (see that script for why: a real, measured finding, not a
-    guess - see docs/TODO.md Phase 1's temperature diagnostic)."""
+    guess - see docs/TODO.md Phase 1's temperature diagnostic).
+
+    `top_p`/`top_k` are the same story one level deeper, and were added
+    2026-09-09 after they turned out to be a real cross-backend confound:
+    pinning only `temperature` still leaves each server applying its OWN
+    truncation defaults, and they differ sharply - Edge-LLM's server defaults
+    to top_p=0.9/top_k=50 (see its api/protocol.py) while vLLM defaults to
+    top_p=1.0/top_k=-1, i.e. no truncation at all. On a tool-call ABSTENTION
+    decision that is not cosmetic: if the model puts a few percent on starting
+    a tool call for a question that needs none, a 0.9 nucleus can drop it
+    where an untruncated sampler will occasionally emit it. Any comparison
+    across backends that means to isolate the runtime must pin these too."""
     payload: dict[str, Any] = {
         "model": coordinator.model,
         "messages": messages,
@@ -60,6 +73,10 @@ def call_llm(
     }
     if temperature is not None:
         payload["temperature"] = temperature
+    if top_p is not None:
+        payload["top_p"] = top_p
+    if top_k is not None:
+        payload["top_k"] = top_k
     if tools is not None:
         payload["tools"] = tools
         payload["tool_choice"] = tool_choice

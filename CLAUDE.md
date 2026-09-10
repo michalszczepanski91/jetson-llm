@@ -5,20 +5,35 @@ this repository.
 
 ## Project Overview
 
-**Before doing anything else: `git fetch origin && git log origin/thor-edge-llm`.**
-That branch has a completed Thor bring-up this file does not yet describe - a third
-backend (TensorRT Edge-LLM), a full framework comparison, a quantization campaign,
-and a real one-line bug fixed in Edge-LLM's own source. Kept off `main` deliberately
-(it would collide with `origin/phase2-measurement-integrity`'s own in-flight work on
-the same files), not because it's unfinished - see that branch's
-`docs/thor-framework-comparison.md` for the current recommendation. If you are
-picking this repo back up and `main` is all you've looked at, you are missing the
-most recent and most decisive results in it.
+Orchestrator-LLM selection lab for NVIDIA Jetson boards - **Orin and Thor are both
+live platforms as of 2026-09-08** - testing candidate models across **three serving
+backends: vLLM, llama.cpp, and TensorRT Edge-LLM**, not one fixed
+model/framework/family. Edge-LLM is **Thor-only** (it needs JetPack 7.x; this Orin is
+6.2.x): `docs/TODO.md` Phase 0 excluded TensorRT for v1 and that exclusion was
+explicitly **superseded for Thor** once Edge-LLM 0.10.1 turned out to ship an
+OpenAI-compatible server with tool-calling. Read both halves of that Phase 0 entry
+before assuming TensorRT is out of scope.
 
-Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, eventually Thor) -
-tests candidate models across two serving backends (vLLM, llama.cpp; see
-`docs/TODO.md` Phase 0 for why TensorRT is explicitly excluded), not one fixed
-model/framework/family. Currently Qwen2.5-Instruct (1.5B/3B/7B), Apertus-8B-Instruct-2509
+**The controlled framework comparison is done** (`docs/thor-framework-comparison.md`),
+including an exclusive-box timing campaign, a decoding control, and a working
+quantization. Result: at 7B the three backends are within ~2% on turn latency and
+~16% on marginal energy per token, and differ by **40 points on BFCL `irrelevance`**
+(Edge-LLM 94%, llama.cpp 62%, vLLM 54%) - that one axis decides the recommendation:
+**Edge-LLM + Qwen2.5-7B, GPTQ-Int4 quantized if the turn budget is tight (769ms/turn,
+0.274 J/token), FP16 otherwise (94% vs INT4's 90% `irrelevance`)**. Quantization
+needed a real one-line bug found and patched in Edge-LLM's own source
+(`patches/edgellm-int4-bias-recipe.patch`) - every int4 checkpoint was blocked on it
+before that. Things this repo now knows and should not re-litigate: the framework gap
+is **not** a decoding artifact (`top_k=1` greedy reproduced every score exactly - and
+note that pinning only `temperature` is NOT controlled sampling, since the three
+backends apply three different `top_p`/`top_k`/`min_p` defaults); it is **not** a
+parser artifact (Edge-LLM scores identically with `auto` and `hermes`, 100/100
+identical per-case verdicts); and **14B is pointless** (98/100 identical verdicts to
+7B at 2x the latency and 2.1x the energy). What remains unidentified is *which*
+structural difference causes the framework gap - chat-template rendering is the
+leading candidate.
+
+Currently Qwen2.5-Instruct (1.5B/3B/7B/14B), Apertus-8B-Instruct-2509
 (data-sovereignty framing - Swiss-public-funded and fully open including training
 data, vs Qwen's Alibaba origin - but **BLOCKED**: llama.cpp doesn't recognize its
 GGUF architecture at all, confirmed on two build versions, no working serving path
@@ -59,11 +74,19 @@ make test                                           # Unit tests, no Docker/GPU 
 only the pieces with zero dependency on `embedded-ai-chain`'s own modules.
 
 - `src/llm_coordinator.py` - `VllmCoordinator` (Docker lifecycle for the vLLM
-  container), `LlamaCppCoordinator` (Docker lifecycle for llama.cpp's `llama-server`,
-  new to this lab), `RemoteCoordinator` (talks to an already-running server elsewhere,
-  e.g. Thor - backend-agnostic, since both real backends speak the same
-  OpenAI-compatible wire format). All three share one duck-typed interface
-  (`base_url`, `model`, `start()`, `wait_ready()`, `stop()`).
+  container), `LlamaCppCoordinator` (Docker lifecycle for llama.cpp's `llama-server`;
+  its `server_argv0` field exists because the Orin and Thor image families disagree
+  about whether they set an `ENTRYPOINT`), `EdgeLlmCoordinator` (a local **process**,
+  not a container - Edge-LLM ships neither image nor wheel, so it is built from source
+  on-device and launched from the venv in that tree), `RemoteCoordinator` (talks to an
+  already-running server elsewhere - backend-agnostic, since all three real backends
+  speak the same OpenAI-compatible wire format). All four share one duck-typed
+  interface (`base_url`, `model`, `start()`, `wait_ready()`, `stop()`).
+  Two `EdgeLlmCoordinator` details are load-bearing and were each found the hard way:
+  it must run with `cwd` set to the Edge-LLM source tree (the TensorRT plugin is
+  registered by a *relative* path, and without it the server dies deserializing its
+  own cached engine), and `stop()` must signal the process *group* (uvicorn's workers
+  otherwise keep the port and the GPU allocation held).
 - `src/llm_client.py` - `call_llm(coordinator, messages, tools=None, tool_choice=...)`,
   the blocking chat-completions round trip. Returns the full assistant message (not
   just text), because `scripts/validate_tool_calling.py` needs `message["tool_calls"]`.

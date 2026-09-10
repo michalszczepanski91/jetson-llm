@@ -254,27 +254,36 @@ def _questions_to_messages(case: dict[str, Any]) -> list[dict[str, str]]:
     return [message for turn in case["question"] for message in turn]
 
 
-def _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature):
+def _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature, top_p=None, top_k=None):
     """A per-case failure (HTTP 500, malformed schema, timeout) is a result,
     not a reason to abort a 600+ case run - the exact "a failure is a
     result" rule benchmarks/runner.py already follows. Returns
-    (message_dict, error_str_or_None)."""
+    (message_dict, error_str_or_None).
+
+    `top_p`/`top_k` pass straight through to call_llm() - see that function's
+    own docstring for why pinning temperature alone does not control sampling
+    (the backends' truncation defaults differ sharply, a real finding from
+    Thor's cross-backend campaign, docs/thor-framework-comparison.md)."""
     try:
         message = call_llm(
             coordinator, messages, max_tokens=max_tokens, tools=[tool], tool_choice="auto", temperature=temperature,
+            top_p=top_p, top_k=top_k,
         )
         return message, None
     except Exception as exc:  # noqa: BLE001 - captured as a per-case outcome, not a crash
         return {}, f"{type(exc).__name__}: {exc}"
 
 
-def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> list[dict[str, Any]]:
+def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature,
+                top_p=None, top_k=None) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         offered_name = tool["function"]["name"]
         messages = _questions_to_messages(case)
-        message, error = _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature)
+        message, error = _call_with_error_capture(
+            coordinator, messages, tool, max_tokens, temperature, top_p=top_p, top_k=top_k,
+        )
         actual_name, actual_args = (None, None) if error else _first_tool_call(message)
 
         ground_truth_row = answers_by_id.get(case["id"])
@@ -315,12 +324,15 @@ def _run_simple(coordinator, cases, answers_by_id, max_tokens, temperature) -> l
     return outcomes
 
 
-def _run_irrelevance(coordinator, cases, max_tokens, temperature) -> list[dict[str, Any]]:
+def _run_irrelevance(coordinator, cases, max_tokens, temperature,
+                     top_p=None, top_k=None) -> list[dict[str, Any]]:
     outcomes = []
     for case in cases:
         tool = _bfcl_function_to_openai_tool(case["function"][0])
         messages = _questions_to_messages(case)
-        message, error = _call_with_error_capture(coordinator, messages, tool, max_tokens, temperature)
+        message, error = _call_with_error_capture(
+            coordinator, messages, tool, max_tokens, temperature, top_p=top_p, top_k=top_k,
+        )
         actual_name, _ = (None, None) if error else _first_tool_call(message)
         tool_called = actual_name is not None
         outcomes.append({
@@ -398,6 +410,12 @@ def parse_args():
                         "latency number")
     p.add_argument("--co-resident", nargs="*", default=[],
                    help="which components ran alongside, e.g. --co-resident yolo stt tts")
+    p.add_argument("--top-p", type=float, default=None, help="nucleus truncation. Left unset by default so "
+                   "each backend keeps its own default, which is what a real deployment sees - but note those "
+                   "defaults DIFFER (Edge-LLM 0.9, vLLM 1.0), so any cross-backend comparison meaning to isolate "
+                   "the runtime must pin this. See docs/thor-framework-comparison.md.")
+    p.add_argument("--top-k", type=int, default=None, help="top-k truncation. Same reasoning as --top-p "
+                   "(Edge-LLM defaults to 50, vLLM to -1 i.e. disabled).")
     p.add_argument("--ready-timeout", type=float, default=600.0)
     p.add_argument("--results-root", default=None, help="default: <repo>/results")
     add_target_args(p)
@@ -439,9 +457,11 @@ def main():
             raise TimeoutError(f"{variant['backend']} server did not become ready")
 
         print(f"Running {len(simple_cases)} BFCL 'simple' cases...")
-        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens, args.temperature)
+        outcomes = _run_simple(coordinator, simple_cases, simple_answers, args.max_tokens, args.temperature,
+                               args.top_p, args.top_k)
         print(f"Running {len(irrelevance_cases)} BFCL 'irrelevance' cases...")
-        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature)
+        outcomes += _run_irrelevance(coordinator, irrelevance_cases, args.max_tokens, args.temperature,
+                                     args.top_p, args.top_k)
 
         def _accuracy(category):
             subset = [o for o in outcomes if o["category"] == category and not o.get("error")]
@@ -480,6 +500,13 @@ def main():
             "protocol": {
                 "scorer": "simplified-ast-v2-bfcl-standardize (this repo, not official bfcl-eval)",
                 "temperature": args.temperature, "tool_choice": "auto",
+                # top_p/top_k default to None (each backend's own truncation
+                # default) - explicit in the protocol record either way, since
+                # pinning temperature alone is NOT controlled sampling: the
+                # backends' truncation defaults differ sharply enough to move
+                # a tool-call-judgment score on their own. Real finding from
+                # Thor's cross-backend campaign, docs/thor-framework-comparison.md.
+                "top_p": args.top_p, "top_k": args.top_k,
                 "max_tokens": args.max_tokens, "repetitions": 1,
             },
             "scores": {

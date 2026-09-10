@@ -118,6 +118,14 @@ def main():
         if cold_start["measured"]:
             print(f"cold start: {cold_start['total_s']}s (weights_cached={cold_start['weights_cached']})")
 
+        # Uses coordinator.model (via stream_llm(), called inside measure_cell()
+        # below), NOT variant["model"] - for a local-checkpoint-path Edge-LLM row
+        # (a self-quantized checkpoint), the launch path and the name the server
+        # actually registers requests under can differ, see EdgeLlmCoordinator's
+        # served_model_name. An earlier ad-hoc version of this script built its
+        # own request with variant["model"] and 404'd every streaming request for
+        # such a row (2026-09-09); stream_llm() in src/llm_client.py already gets
+        # this right, which is why measure_cell() needs no equivalent fix here.
         def progress(i, record):
             if record.get("ttft_ms"):
                 print(f"  [{i + 1}/{args.runs}] ttft={record['ttft_ms']:.1f}ms "

@@ -1,26 +1,39 @@
 # jetson-llm
 
-> **Thor work in progress, not yet on `main`.** A full Thor bring-up - a third
-> backend (TensorRT Edge-LLM), a framework comparison, a real quantization campaign,
-> and a bug fixed in Edge-LLM's own source - lives on **`origin/thor-edge-llm`**
-> (14+ commits, 2026-09-09/10), kept off `main` deliberately because `main` still
-> needs to reconcile with `origin/phase2-measurement-integrity`'s own in-flight
-> `results/raw/` restructuring, which touches the same files
-> (`configs/models.yaml`, `docs/TODO.md`, `src/llm_coordinator.py`). Anyone
-> continuing this work - including another agent session - should start with:
-> `git fetch origin && git log origin/thor-edge-llm` (or check it out directly)
-> rather than assume `main` has the current state. Interim recommendation from
-> that branch: **TensorRT Edge-LLM serving Qwen2.5-7B-Instruct, INT4-GPTQ
-> quantized** - see `docs/thor-framework-comparison.md` there for the full case.
-
-Orchestrator-LLM selection lab for NVIDIA Jetson boards (Orin, and eventually Thor -
-see `configs/models.yaml`'s `platform` field). Compares candidate models - currently
-Qwen2.5-Instruct at 1.5B/3B/7B, plus Apertus-8B-Instruct and Bielik-11B-v3.0-Instruct
-as additional model families (see "Model families" below) - across two serving
-backends, vLLM and llama.cpp, so `embedded-ai-chain`'s Phase 3 orchestrator LLM (currently a hardcoded
+Orchestrator-LLM selection lab for NVIDIA Jetson boards - **both Orin and Thor are
+live platforms now** (see `configs/models.yaml`'s `platform` field). Compares
+candidate models - currently Qwen2.5-Instruct at 1.5B/3B/7B/14B, plus
+Apertus-8B-Instruct and Bielik-11B-v3.0-Instruct as additional model families (see
+"Model families" below) - across **three serving backends: vLLM, llama.cpp, and
+TensorRT Edge-LLM** (Thor-only, since it needs JetPack 7.x), so
+`embedded-ai-chain`'s Phase 3 orchestrator LLM (currently a hardcoded
 Qwen2.5-1.5B-Instruct-AWQ on vLLM, chosen because it was "the only option actually
 verified working," not because it was benchmarked) can be picked with real numbers.
 See `docs/promotion-contract.md` for exactly how a candidate here becomes that.
+
+**First controlled comparison is done** - see `docs/thor-framework-comparison.md`.
+Two headline results, both on Thor with the model held fixed:
+
+- **Framework** (at 7B, the size that matters): the three backends are within ~2% on
+  turn latency and ~16% on energy per token, and differ by **40 points on escalation
+  judgement** - Edge-LLM 94% `irrelevance`, llama.cpp 62%, vLLM 54%. That single axis
+  decides it. If tool-call judgement did not matter, llama.cpp would win outright
+  (fastest, most energy-efficient, one `docker pull` instead of a source build).
+  **Not a decoding artifact**: forcing deterministic argmax (`top_k=1`) on all three
+  reproduced every score exactly.
+- **Size and framework interact - the backend decides whether size helps at all.**
+  1.5B -> 7B moves BFCL `irrelevance` (the "correctly call NO tool" category, i.e. the
+  documented `ask_vlm` over-escalation gap) from **78% to 94% on Edge-LLM**, but only
+  60% -> 62% on llama.cpp, and it makes vLLM *worse* (68% -> 54%). Thor's 122GB is
+  what makes a 7B orchestrator purchasable at all - the Orin's ~30GB never could - but
+  the parameters only pay off on a backend that lets the model abstain.
+- **Stop at 7B**: 14B agrees with 7B on 98/100 cases while costing 2x the latency and
+  2.1x the energy per token.
+
+Timing and energy numbers are from an exclusive-box campaign
+(`scripts/thor_exclusive_window.sh`); marginal energy subtracts a measured 5.42 W idle
+baseline. Worth knowing for co-residency planning: an idle-but-resident model container
+raised board idle from 5.4 W to ~17.5 W, i.e. ~12 W to hold weights doing nothing.
 
 (Originally scaffolded and named `jetson-llm-qwen` when Qwen2.5 was the only family in
 scope - renamed once a second family was added, mirroring `jetson-vlm-lab`'s own
@@ -29,8 +42,11 @@ broadened its scope the same way.)
 
 See `CLAUDE.md` for the full architecture rationale, in particular why this repo holds
 only the container-lifecycle/HTTP-client primitives, not the scene-state/dialogue-loop
-integration code, and `docs/TODO.md` for the phased plan (including why TensorRT is
-explicitly excluded from v1, not silently skipped).
+integration code, and `docs/TODO.md` for the phased plan. Note TensorRT was excluded
+from v1 on 2026-09-04 and that exclusion was **superseded for Thor only** on
+2026-09-08 - Edge-LLM 0.10.1 turned out to ship an OpenAI-compatible server with
+tool-calling, and Thor/JetPack 7.1 is an Official row in its support matrix. The
+reasoning for both the original decision and the reversal is in Phase 0.
 
 ## Model families
 
@@ -246,6 +262,53 @@ plots from `results/raw/`, and drafting these numbers into `paper.md` itself).
 
 Real Docker/GPU smoke tests done, 2026-09-04 - see `docs/TODO.md` Phase 1 for the
 full record:
+
+### Thor, 2026-09-08/10 — three backends, a framework comparison, and a working quantization
+
+Full write-up in `docs/thor-framework-comparison.md` (numbers of record - exclusive
+box, no other GPU workload); raw JSON in `output/`. Model fixed at
+`Qwen2.5-7B-Instruct` (**FP16 for the framework comparison, not the Orin rows' AWQ -
+Edge-LLM cannot build that checkpoint**, see below):
+
+| | BFCL `irrelevance` | 32-token turn | marginal J/token |
+|---|---|---|---|
+| **Edge-LLM** | **94%** | 1945 ms | 0.85 J |
+| llama.cpp | 62% | **1899 ms** | **0.73 J** |
+| vLLM | 54% | 2539 ms | 0.96 J |
+
+**Recommendation: Edge-LLM serving `Qwen2.5-7B-Instruct`, quantized GPTQ-Int4 if the
+turn budget is tight, FP16 otherwise** - a real bug in Edge-LLM's own source blocked
+every int4 checkpoint until it was found and patched (`patches/`):
+
+| precision | BFCL `irrelevance` | 32-token turn | marginal J/token | cold start |
+|---|---|---|---|---|
+| **INT4-GPTQ** | 90% | **769 ms** | **0.274 J** | **0.03 s** ¹ |
+| **FP16** | **94%** | 1945 ms | 0.839 J | 12.1 s ¹ |
+
+¹ Cold start is a cache **hit** for both - a miss (first run, or an empty cache)
+takes minutes. Only llama.cpp's cold start is unconditionally fast.
+
+Also found: **14B buys nothing** (98/100 identical BFCL verdicts to 7B at 2x the
+latency), the backend gap is **not a decoding or parser artifact** (a `top_k=1`
+greedy control reproduced every score exactly), and self-quantized FP8/INT8-SQ
+needed real debugging before they were trustworthy - see the comparison doc.
+
+Notes on the three Thor backends:
+
+- **Edge-LLM** has no wheel and no image - it is built from source on-device (~1h).
+  It **cannot build Qwen2.5's AWQ checkpoint at all** (`external FP16 bias has no
+  checkpoint recipe` - a one-line omission in its own source, since patched; see
+  "GPTQ-Int4" in the comparison doc), which is why every Thor row is FP16 or
+  self-quantized rather than AWQ.
+- **llama.cpp on Thor needs a different image family than Orin**: `dustynv/llama_cpp`
+  has no r38 tag on Docker Hub - jetson-containers publishes r38-era images to GHCR
+  under `nvidia-ai-iot/` instead, and only that repo's *dated* `b10373-*` tag actually
+  works (its own rolling tag and upstream's generic CUDA build both fail).
+- **vLLM on Thor** needs its own `-jetson-thor` image tag, not `-jetson-orin`.
+
+### Orin, 2026-09-04
+
+Real Docker/GPU smoke tests - see `docs/TODO.md` Phase 1 for the full record:
 
 - **Qwen2.5-1.5B on vLLM** (`1.5b-awq-vllm-orin`): cold start ~160s, plain completion
   and a tool-calling completion both succeeded. Two real bugs found and fixed in the

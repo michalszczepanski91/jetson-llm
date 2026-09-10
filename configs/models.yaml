@@ -127,6 +127,513 @@ bielik-11b-awq-vllm-orin:
     diminishing-returns territory, not attempted further without a specific
     reason to expect a particular one would match Bielik's training.
 
+# --- Thor platform rows (vllm backend only) ---
+# Added 2026-09-08: the user cloned this repo directly onto Thor and runs
+# Claude Code there too, so Phase 6 (docs/TODO.md) started for real instead
+# of staying blocked on hardware access. Two real, Thor-specific findings
+# from that session drive every field below that differs from these rows'
+# -orin twins:
+#   1. Thor already runs a production container, `vllm-vlm-thor` (confirmed
+#      via `docker ps`), serving Qwen2.5-VL-7B-Instruct-AWQ on port 8000
+#      using image `ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor` - a
+#      DIFFERENT image tag than this repo's own `_DEFAULT_VLLM_IMAGE`/
+#      `docker-compose.yml` (`-jetson-orin`), and using the same port
+#      `VllmCoordinator` defaults to. Every row below sets `port: 8001` and
+#      `image` explicitly - both fields pass straight through to
+#      VllmCoordinator via build_coordinator()'s **local_kwargs (see
+#      src/llm_coordinator.py), no code change needed.
+#   2. `free -h` on Thor: 122GiB total unified memory vs Orin's ~30GB (>4x) -
+#      gpu_memory_utilization fractions below are NOT copied from the -orin
+#      rows, they're independent conservative starting points sized to fit
+#      *alongside* vllm-vlm-thor's own already-resident 0.3 share of this
+#      same pool. Untested (no real run against Thor yet) - re-tune per
+#      Phase 1's own convention (guess conservative, tighten after a real
+#      run), same rule this file already applies to every orin row.
+# --- Thor's third backend: TensorRT Edge-LLM (Thor-only, no Orin counterpart) ---
+# Added 2026-09-08 after a real serve. Edge-LLM is not a container backend like
+# the other two: it is built from source on-device (~/dev/TensorRT-Edge-LLM,
+# release 0.10.1, its own venv) and launched with `tensorrt-edgellm-serve`,
+# which speaks the same OpenAI-compatible wire format vLLM and llama.cpp do -
+# so `RemoteCoordinator` against 127.0.0.1 already drives it with ZERO repo
+# code changes, which is how this row was first measured. `backend: edge-llm`
+# is therefore currently descriptive only: build_coordinator() branches on it
+# for --target local, and no local EdgeLlmCoordinator exists yet (see
+# docs/TODO.md Phase 6a - it would be a near-copy of VllmCoordinator, since
+# the serve CLI has the same --enable-auto-tool-choice/--tool-call-parser
+# flags). Until it does, run this row with:
+#   --target remote --remote-host 127.0.0.1 --remote-port 8002
+# and remember benchmark.py correctly refuses to report cold_start_ms for a
+# remote target - so this row cannot produce a cold-start number until that
+# coordinator exists. Port 8002 keeps clear of BOTH port 8000 (the box's
+# production vllm-vlm-thor) and 8001 (this file's own -thor vllm rows).
+#
+# WHY FP16 AND NOT AWQ, i.e. why this row cannot mirror 1.5b-awq-vllm-orin
+# exactly: Qwen2.5-1.5B-Instruct-AWQ FAILS to build here. Edge-LLM's server
+# always goes through its experimental direct (checkpoint->engine, no ONNX)
+# builder with externalized weights, and that path raises "external FP16 bias
+# has no checkpoint recipe" for int4_awq on a qwen2 graph - Qwen2-family
+# models have attention QKV biases (Qwen3 dropped them) and this corner has no
+# recipe. Confirmed 2026-09-08, upstream limitation, not a config error here.
+# So the Edge-LLM leg varies precision against the orin rows; it holds the
+# model constant instead. Say so in any cross-platform comparison that uses it.
+# The size sweep Orin cannot run. Every -orin row is memory-constrained on a
+# ~30GB pool; Thor's 122GB is the whole reason to ask whether a BIGGER model
+# closes the `irrelevance` gap (knowing when NOT to call a tool) that
+# 1.5b-fp16-edgellm-thor still shows at 78%. Framework is held constant at the
+# one that won the 1.5B comparison, so size is the only variable.
+# Qwen2.5-7B-Instruct is in Edge-LLM's supported-models list; FP16 for the
+# same reason every other Thor row is FP16 (its builder cannot do this
+# family's AWQ - see the block below).
+7b-fp16-vllm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.25  # ~30GB of Thor's 122GB: ~15.2GB weights + KV headroom
+  max_model_len: 2048
+  extra_volumes:  # see VllmCoordinator's own `extra_volumes` comment - without this,
+    # vLLM's startup memory profiling asserts and dies on this board whenever free
+    # memory ticks UP mid-profile, which it does even on a completely idle Thor at
+    # 7B. Mounts embedded-ai-chain's already-deployed patch (the box's own production
+    # container has used it since 2026-08-04). Startup profiling only; touches no
+    # inference path, so it cannot flatter a latency or throughput number.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
+  notes: >
+    Added 2026-09-08 for the 7B leg of the framework comparison - the open
+    question being whether Edge-LLM's tool-call lead at 1.5B survives at a size
+    where capacity alone fixes most of the irrelevance gap.
+
+7b-fp16-llamacpp-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GGUF
+  precision: "GGUF fp16 (unquantized, to match the other 7B legs)"
+  backend: llama-cpp
+  platform: thor
+  quant: fp16  # 4 split files (qwen2.5-7b-instruct-fp16-0000{1..4}-of-00004.gguf),
+               # confirmed present via HF API 2026-09-08; llama.cpp's -hf
+               # downloader handles split GGUFs itself.
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 2048
+  notes: >
+    Added 2026-09-08 for the 7B leg of the framework comparison.
+
+# The largest candidate this lab has ever tried, and one the Orin could not
+# host at all. ~28GB of FP16 weights: it does NOT fit alongside the box's
+# production container (~37GB of the 122GB pool), so this row is exclusively a
+# quiet-box run - see scripts/thor_exclusive_window.sh Phase 4.
+# --- Parser-parity controls, added 2026-09-09 ---
+# The framework comparison's headline (Edge-LLM judges tool calls best) carries
+# one confound: the backends did not use the same tool-call parser. Edge-LLM ran
+# `auto` (its own model-native detection) while vLLM ran `hermes`, this repo's
+# compiled-in default since the Orin rows. `hermes` exists in BOTH backends'
+# parser lists, so pinning it on Edge-LLM too is the experiment that separates
+# "Edge-LLM's runtime judges better" from "Edge-LLM's default parser is better
+# configured". These rows are identical to their -thor twins in every other
+# field - only tool_call_parser differs, which is the point.
+1.5b-fp16-edgellm-thor-hermes:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  tool_call_parser: hermes  # the ONLY difference from 1.5b-fp16-edgellm-thor
+  notes: >
+    Parser-parity control for 1.5b-fp16-edgellm-thor (which scored 83% overall
+    / 78% irrelevance with `auto`). Shares that row's engine cache bundle -
+    the parser is a serving-time flag, not a build parameter, so this costs no
+    rebuild.
+
+7b-fp16-edgellm-thor-hermes:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  tool_call_parser: hermes  # the ONLY difference from 7b-fp16-edgellm-thor
+  notes: >
+    Parser-parity control for 7b-fp16-edgellm-thor (93% overall / 94%
+    irrelevance with `auto`) - the row the recommendation actually rests on,
+    and the one vLLM's own hermes run (73% / 54%) is being compared against.
+
+# --- Quantization sweep on Edge-LLM, added 2026-09-09 ---
+# Every Edge-LLM row so far is FP16 because the ONLY quant path tried
+# (Qwen2.5-*-Instruct-AWQ, classic AutoAWQ format) hit a real build bug
+# (external FP16 bias has no checkpoint recipe). Edge-LLM's builder actually
+# supports six quant_types (fp16, fp8, fp8_block, mxfp8, nvfp4, int4_awq,
+# int4_awq_modelopt, int4_gptq, int8_sq per quantization.py's QUANT_TYPES) -
+# AWQ failing does not mean int4 itself is unsupported for this architecture.
+# This row tests Qwen's OWN official GPTQ-Int4 checkpoint (ungated, confirmed
+# live 2026-09-09) - a different int4 code path (int4_gptq, not int4_awq) on
+# the identical Qwen2ForCausalLM architecture whose QKV bias broke AWQ. If
+# this builds, it is the "best of both worlds" candidate this lab has been
+# missing: 7B's accuracy at closer to 1.5B's latency/energy. NOT yet
+# confirmed to build - this is exactly the kind of claim Phase 0's "device
+# enumeration is not a smoke test" lesson says to verify, not assume.
+# FP8 test: does Edge-LLM's fp8_linear path share int4_linear's bias bug?
+# fp8_linear/mxfp8_linear call _add_bias() WITHOUT passing name/recipe at all
+# (see int4_gptq's own note above for why that is a worse sign, not a better
+# one) - genuinely unknown until tested, not assumed either way.
+7b-fp8-edgellm-thor:
+  model: RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic
+  precision: "FP8 dynamic (compressed-tensors format, llmcompressor) - ungated, confirmed live 2026-09-09"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    INCONCLUSIVE, confirmed 2026-09-09 - fails, but NOT with the bias bug and
+    NOT informative about whether fp8_linear would hit it. Real error:
+    "unsupported compressed-tensors checkpoint format: float-quantized" -
+    Edge-LLM's compressed-tensors parser (quantization.py) only accepts that
+    quant_method when its format string contains "nvfp4"; this checkpoint's
+    llmcompressor-produced "float-quantized" FP8-dynamic format is rejected
+    before any layer is built, let alone the attention bias. A DIFFERENT,
+    NVIDIA-ModelOpt-authored checkpoint (embedding `quant_algo` rather than
+    `quant_method: compressed-tensors`) would take a different code path and
+    might not hit either failure - but no official/trustworthy ModelOpt-FP8
+    or NVFP4 checkpoint exists for base Qwen2.5-7B-Instruct as of 2026-09-09
+    (only VL variants: nvidia/Qwen2.5-VL-7B-Instruct-FP8/NVFP4; the text-model
+    hits found are unofficial community quants, which does not meet this lab's
+    provenance bar - see Apertus/Bielik's own GGUF sourcing for that standard).
+    Not pursued further on that basis, not because the code path is assumed
+    broken.
+
+# A THIRD checkpoint at the "same" quant_method, tried after the first two,
+# and it reveals a routing bug rather than testing int8 at all - see this
+# row's own notes for why Qwen's official GPTQ-Int8 repo does NOT exercise
+# Edge-LLM's real int8 path.
+# --- SELF-QUANTIZED rows, 2026-09-09 ---
+# Every published quantized checkpoint tried for this model was either blocked
+# by Edge-LLM's int4 bias bug (AWQ, GPTQ-Int4, GPTQ-Int8-misrouted) or in a
+# format its parser rejects (llmcompressor FP8-dynamic: "float-quantized" is
+# not accepted, and it carries no static input_scale, which Edge-LLM's FP8
+# loader requires unconditionally). The way out was NOT to hunt for a better
+# checkpoint - it was to MAKE one, with Edge-LLM's own bundled quantizer
+# (`tensorrt-edgellm-quantize`, ModelOpt-based), which by construction emits
+# exactly the `quant_algo` config and static scales the builder expects.
+#
+# Produced on-device from the plain FP16 Qwen2.5-7B-Instruct checkpoint, run
+# inside nvcr.io/nvidia/pytorch:25.12-py3 (the host has no torch, and Jetson
+# torch wheels are fragile to install; that container already ships a
+# platform-correct torch 2.10+cu13 for Thor). Calibration: cnn_dailymail,
+# 128 samples (the tool's default is 512 - reduced for a first pass; re-run
+# larger if a row is promoted). See patches/README.md for the two Edge-LLM
+# bugs that had to be cleared first, and note the container ships modelopt
+# 0.39 whose quant_cfg is a dict, while this code needs 0.45's list form -
+# install nvidia-modelopt==0.45.0 --no-deps into a --system-site-packages
+# venv so the container's own torch is left alone.
+7b-int8sq-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-int8_sq
+  served_model_name: qwen2.5-7b-int8_sq  # Edge-LLM registers a local checkpoint
+    # DIRECTORY under its basename, not the path it was launched with - without
+    # this every request 404s. See EdgeLlmCoordinator's served_model_name comment.
+  precision: "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/128"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    WORKING, 2026-09-09 - this lab's first INT8 row on any backend, and only
+    possible because the checkpoint was made rather than downloaded: its
+    config carries `quant_algo: W8A8_SQ_PER_CHANNEL`, which is the exact
+    string quantization.py matches to reach QUANT_INT8_SQ (`if "W8A8" in
+    algorithm`). No published Qwen2.5-7B checkpoint uses that format. 8.2GB
+    vs FP16's 15GB. Engine built, server up, plain completion correct
+    ("Warsaw"), and unforced tool_choice="auto" returned a correctly
+    structured get_weather({"city":"Warsaw"}) on 5/5 repeated attempts.
+    (One earlier probe appeared to fail; that was a test artifact - it used a
+    terser tool description, so the model judged differently. Not a
+    reliability defect.) Full BFCL/MMLU pending.
+
+7b-fp8-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8
+  served_model_name: qwen2.5-7b-fp8  # see the int8 row above
+  precision: "FP8 static per-tensor + FP8 KV cache, self-quantized via ModelOpt, cnn_dailymail/128"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Quantized 2026-09-09 (`quant_algo: FP8`, `dynamic: false` - STATIC, with
+    calibrated input scales, which is precisely what the rejected llmcompressor
+    FP8-dynamic checkpoint lacked). Also carries fp8 kv_cache_quantization and
+    exported calibrated Q-BMM scales for all 28 attention layers. 8.2GB.
+    NOTE the quantizer's own warning during calibration: "Large KV activations
+    detected. Quantized KV cache may lead to higher accuracy drop" - so if this
+    row underperforms on BFCL/MMLU relative to the INT8 row, re-run it WITHOUT
+    --kv_cache_quantization fp8 before concluding FP8 weights are the problem.
+    Build/serve and full BFCL/MMLU pending.
+
+# --- Remediation rows for the damaged first self-quant attempt, 2026-09-09 ---
+# The first pair came back broken (INT8: MMLU 67.5%->44.5%; FP8: 0/50 tool
+# calls, so its "100% irrelevance" is an artifact of never calling anything,
+# not judgment). INT4-GPTQ being essentially lossless while INT8/FP8 were not
+# is backwards from theory and points at this lab's own quantization, so these
+# two rows change exactly one variable each.
+7b-fp8-nokv-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-fp8-nokv
+  served_model_name: qwen2.5-7b-fp8-nokv
+  precision: "FP8 static per-tensor, NO kv-cache quantization, self-quantized via ModelOpt, cnn_dailymail/512"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Variable changed vs 7b-fp8-selfquant-edgellm-thor: kv-cache quantization
+    REMOVED (confirmed `kv_cache_quant_algo: None`), calibration raised
+    128->512. modelopt warned "Large KV activations detected. Quantized KV
+    cache may lead to higher accuracy drop" during the original run and that
+    warning was ignored - this row tests whether it explains FP8 emitting zero
+    tool calls. Not yet measured.
+
+7b-int8sq-512-selfquant-edgellm-thor:
+  model: /home/michal/dev/quantize-work/qwen2.5-7b-int8_sq-512
+  served_model_name: qwen2.5-7b-int8_sq-512
+  precision: "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/512"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Variable changed vs 7b-int8sq-selfquant-edgellm-thor: calibration samples
+    128->512 (the quantizer's own default, reduced originally only for speed).
+    SmoothQuant derives per-channel activation scales from calibration, so an
+    under-calibrated run is a plausible cause of that row's 23-point MMLU
+    loss. Not yet measured.
+
+7b-gptq-int8-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8
+  precision: "GPTQ int8, group_size=128, symmetric, exllama v1 (Qwen's own official quant, bits=8)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    BLOCKED, confirmed 2026-09-09, but by a ROUTING bug, not a real int8 test.
+    quantization.py's `method == "gptq"` branch (core/quantization.py:154)
+    unconditionally returns quant_type=int4_gptq - it never reads this
+    checkpoint's own `bits: 8` field. So this "Int8" checkpoint gets force-fed
+    through the SAME int4 unpacking path as 7b-gptq-edgellm-thor, and dies at
+    the identical line for the identical reason (backend.py:1179 _add_bias,
+    "external FP16 bias has no checkpoint recipe"). This result says nothing
+    new about int8 - it is a 4th confirmation of the same attention-bias bug
+    (AWQ, GPTQ-Int4, GPTQ-Int8 all hit it identically) plus a separate,
+    genuine bits-mismatch bug in how Edge-LLM 0.10.1 detects GPTQ precision.
+    Edge-LLM's REAL int8 path (int8_sq) only activates via a `quant_algo`
+    field containing "W8A8" or "INT8" (ModelOpt-style config, NOT plain HF
+    `quant_method: gptq`) - no official checkpoint in that format exists for
+    base Qwen2.5-7B-Instruct as of 2026-09-09, same provenance gap as the
+    FP8/NVFP4 row above.
+
+7b-gptq-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4
+  precision: "GPTQ int4, group_size=128, symmetric, exllama v1 (Qwen's own official quant)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    UNBLOCKED, 2026-09-09 - root cause found and fixed. Traced the
+    "external FP16 bias has no checkpoint recipe" failure to its actual
+    source: weights.py's linear_metadata(), int4 branch (AWQ/AWQ_MODELOPT/
+    GPTQ all share one return statement) computes `bias_recipe` correctly
+    a few lines earlier (identically to the FP16 branch, which DOES use it)
+    but simply OMITS `bias_recipe=bias_recipe` from the LinearWeights(...) it
+    returns - a one-line omission in Edge-LLM 0.10.1's own source, not a
+    checkpoint-format or provenance issue. Confirmed by patching that one
+    line locally (~/dev/TensorRT-Edge-LLM, not upstreamed) and re-running
+    this exact checkpoint: engine built, `Engine loaded and ready`, and both
+    smoke tests passed - plain completion coherent ("Four" for 2+2), and an
+    UNFORCED tool_choice="auto" call correctly returned
+    get_weather({"city":"Warsaw"}) with finish_reason="tool_calls". This is
+    now this lab's first working quantized Edge-LLM row - the "best of both
+    worlds" candidate (7B judgment at lower memory/bandwidth than FP16) is
+    real, not theoretical. Same one-line fix should also unblock int4_awq
+    and int4_awq_modelopt (identical return statement) - not yet re-verified
+    per format, only GPTQ has been re-tested end to end. Full BFCL/MMLU/
+    timing comparison against 7b-fp16-edgellm-thor is the next step, not yet
+    run.
+
+14b-fp16-edgellm-thor:
+  model: Qwen/Qwen2.5-14B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048
+  notes: >
+    Added 2026-09-08. In Edge-LLM's supported-models list and ungated
+    (confirmed live). Checkpoint pre-staged into the shared HF cache before
+    the window so the run itself is not waiting on a 28GB download. Not yet
+    run - if 7B already takes BFCL irrelevance to 94%, the question this row
+    answers is whether there is anything left for 14B to win, or whether the
+    size curve has already flattened and the memory is better spent elsewhere
+    (co-residency with the VLM tier, longer context, bigger KV cache).
+
+7b-fp16-edgellm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048  # matches the 1.5B rows so the sweep varies size ONLY
+  notes: >
+    Added 2026-09-08 for the size sweep. ~15.2GB of FP16 weights - fits Thor's
+    122GB pool with the box's production container resident (~37GB), unlike
+    anything this size on the Orin. Not yet run.
+
+1.5b-fp16-edgellm-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  precision: "fp16 (no quantization - see the AWQ block above for why this row is not int4)"
+  backend: edge-llm
+  platform: thor
+  notes: >
+    Smoke-tested 2026-09-08, WORKING - the first TensorRT Edge-LLM result in
+    this lab. Built and served on the first try after the AWQ attempt failed:
+    engine built from the checkpoint (llm.engine ~16.9MB + externalized
+    weights), CUDA graphs captured, server up on :8002 reporting
+    max_model_len=8192 kv_cache_dtype=fp16. Plain completion works. **Unforced
+    tool-calling works**: tool_choice="auto" with a single get_weather tool
+    returned a correctly structured get_weather({"city":"Warsaw"}) call with
+    finish_reason="tool_calls" on the first attempt - the same probe that
+    vLLM+Qwen2.5 passed and llama.cpp+Qwen2.5-1.5B initially failed on Orin.
+    Served with --tool-call-parser auto (choices here are
+    {auto,generic,hermes,qwen3_xml,nemotron,openai}) and --max-input-len 2048
+    to match the orin rows' context. Engine cache is currently
+    /opt/edgellm-cache, group-writable by `mlusers` so both users of this box
+    share one set of compiled engines rather than each keeping a private ~38GB
+    copy - the same convention as /opt/hf-cache and /opt/datasets. (It started
+    in ~/dev/edgellm-cache and was moved there on 2026-09-08; Edge-LLM keys
+    bundles on checkpoint+profile rather than on path, so the move cost
+    nothing.)
+
+# --- llama.cpp on Thor: a DIFFERENT image family than the Orin rows ---
+# `dustynv/llama_cpp` (what every -orin llama-cpp row above uses) publishes no
+# r38/Thor tag at all, only r35.x/r36.x - checked live against Docker Hub's
+# tag list, 2026-09-08, and Thor is L4T R38.4.0 / JetPack 7.1. So the Orin
+# image does not transfer. Upstream's own `ghcr.io/ggml-org/llama.cpp:
+# server-cuda` does publish a linux/arm64 manifest, and - the part that was
+# genuinely uncertain - DOES see this board's iGPU (`--list-devices` reports
+# "CUDA0: NVIDIA Thor (125771 MiB)") and loads the model, but then dies on the
+# FIRST inference request with "CUDA error: an internal operation failed" in
+# cublas_handle. Enumeration-compatible with Tegra, not runtime-compatible.
+# So this row uses NVIDIA's own Thor build from GHCR instead. Note two traps
+# in that repo: `dustynv/llama_cpp` on Docker Hub has no r38 tag at all
+# (jetson-containers publishes r38-era images to GHCR under nvidia-ai-iot/),
+# and GHCR's own rolling `r38.2.arm64-sbsa-cu130-24.04` tag ships an Apr-2025
+# llama-server linked against CUDA 12 inside a CUDA-13 image, which dies at
+# startup with "libcudart.so.12: cannot open shared object file". The dated
+# b-numbered tag below is the one that actually runs. Unlike ggml-org's image
+# it sets no ENTRYPOINT, so `server_argv0` keeps its "llama-server" default.
+1.5b-fp16-llamacpp-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct-GGUF
+  precision: "GGUF fp16 (NOT a k-quant - deliberately unquantized to match the other two Thor legs)"
+  backend: llama-cpp
+  platform: thor
+  quant: fp16  # the repo's own qwen2.5-1.5b-instruct-fp16.gguf, confirmed present
+               # via HF API 2026-09-08. Every -orin llama-cpp row uses Q4_K_M
+               # instead; this row is fp16 ONLY so the Thor framework comparison
+               # holds precision constant - Edge-LLM cannot build the AWQ/int4
+               # checkpoint at all, so fp16 is the one precision all three
+               # backends here share.
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 2048  # matches both other Thor legs
+  notes: >
+    Added 2026-09-08 as the llama.cpp leg of Thor's framework comparison.
+    Port stays LlamaCppCoordinator's 8090 default - free on this box (8000 is
+    the production vllm-vlm-thor, 8001 this file's vllm -thor rows, 8002 the
+    edge-llm row).
+1.5b-awq-vllm-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: thor
+  port: 8001  # NOT 8000 - vllm-vlm-thor already binds it, see comment block above
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.05  # untested starting point - conservative given
+                                 # vllm-vlm-thor's own already-resident 0.3 share
+  max_model_len: 2048  # matches 1.5b-awq-vllm-orin for a fair P5 cross-platform comparison
+  notes: >
+    Not yet smoke-tested. Thor counterpart of 1.5b-awq-vllm-orin, added
+    2026-09-08 once real Thor access started (docs/TODO.md Phase 6) - see
+    the comment block above this section for the port/image findings this
+    row's non-default fields come from.
+
+# The cross-BACKEND control row on Thor. Everything else about a framework
+# comparison is noise unless the model and precision are pinned, and Edge-LLM
+# forced the choice: it cannot build Qwen2.5's AWQ checkpoint at all (see the
+# 1.5b-fp16-edgellm-thor block below), so FP16 Qwen2.5-1.5B-Instruct is the
+# ONLY variant all candidate backends on this box can serve. That makes this
+# row - not 1.5b-awq-vllm-thor - the one to compare against Edge-LLM and
+# llama.cpp. It is deliberately NOT the same precision as
+# 1.5b-awq-vllm-orin, so do not read it as the Orin baseline's Thor twin.
+1.5b-fp16-vllm-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  precision: "fp16 (no quantization - matches 1.5b-fp16-edgellm-thor exactly, for the framework comparison)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.08  # ~9.8GB of Thor's 122GB - fp16 1.5B weights are
+                                 # ~3.1GB, the rest is KV cache headroom
+  max_model_len: 2048  # matches the edge-llm row's --max-input-len
+  extra_volumes:  # see VllmCoordinator's own `extra_volumes` comment - without this,
+    # vLLM's startup memory profiling asserts and dies on this board whenever free
+    # memory ticks UP mid-profile, which it does even on a completely idle Thor at
+    # 7B. Mounts embedded-ai-chain's already-deployed patch (the box's own production
+    # container has used it since 2026-08-04). Startup profiling only; touches no
+    # inference path, so it cannot flatter a latency or throughput number.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
+  notes: >
+    Added 2026-09-08 as the vLLM leg of Thor's framework comparison.
+
+3b-awq-vllm-thor:
+  model: Qwen/Qwen2.5-3B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.08  # untested starting point
+  max_model_len: 4096  # matches 3b-awq-vllm-orin
+  notes: >
+    Not yet smoke-tested. Thor counterpart of 3b-awq-vllm-orin - see the
+    comment block above this section.
+
+7b-awq-vllm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct-AWQ
+  precision: "AWQ int4 (weights), bf16 activations"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.15  # untested starting point
+  max_model_len: 4096  # matches 7b-awq-vllm-orin
+  notes: >
+    Not yet smoke-tested. Thor counterpart of 7b-awq-vllm-orin - see the
+    comment block above this section.
+
+bielik-11b-awq-vllm-thor:
+  model: speakleash/Bielik-11B-v3.0-Instruct-awq
+  precision: "compressed-tensors int4, group_size=128, symmetric=false (NOT classic AWQ despite the repo name - see bielik-11b-awq-vllm-orin's note)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.15  # untested starting point
+  max_model_len: 2048  # matches bielik-11b-awq-vllm-orin
+  notes: >
+    Not yet smoke-tested. Thor counterpart of bielik-11b-awq-vllm-orin - see
+    the comment block above this section. Whether Bielik's vLLM
+    tool-calling gap (confirmed NOT working on Orin, two parsers tried) is
+    backend-wide or Orin-specific is still open - this row is what would
+    answer that, not assumed to inherit the Orin result.
+
 1.5b-q4-llamacpp-orin:
   model: Qwen/Qwen2.5-1.5B-Instruct-GGUF
   precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
