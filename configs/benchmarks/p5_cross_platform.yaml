@@ -1,0 +1,64 @@
+schema_version: "1.0.0"
+name: p5_cross_platform
+tier: full
+description: >
+  Hypothesis: the preferred allocation changes with the hardware
+  (embedded-ai-chain/docs/paper.md's P5). This is the cleanest test of it this
+  lab can run - `1.5b-awq-vllm-thor` against `1.5b-awq-vllm-orin` holds the
+  checkpoint, precision, backend, max_model_len and workload point all fixed,
+  leaving the BOARD as the only variable. Every other Thor-vs-Orin pair in this
+  repo varies something else as well (Edge-LLM does not exist on Orin at all,
+  and the Thor framework-comparison rows are FP16 where the Orin rows are AWQ),
+  so this pair is the only genuine single-variable cross-platform comparison
+  available.
+
+  Varied: platform only (via which row is run; the Orin half already exists).
+  Held constant: input=512/output=128, batch, concurrency, sampling, execution
+  condition, checkpoint, precision, backend.
+
+models:
+  - 1.5b-awq-vllm-thor
+
+workload:
+  input_tokens: [512]
+  output_tokens: [128]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: false
+
+notes: >
+  input=512/output=128 is chosen to match the point Phase 4's output_sweep and
+  context_sweep BOTH include on Orin, so the Thor number lands directly
+  alongside `1.5b-awq-vllm-orin`'s existing data with no interpolation.
+
+  **`jetson_clocks: false` here is deliberate and is the known caveat of this
+  comparison.** Locking clocks on this Thor needs root, which this lab does not
+  have on that box, whereas the Orin numbers this compares against were taken at
+  `jetson_clocks_locked: true` after Phase 5's correction. That correction
+  mattered a lot on Orin for llama.cpp (TTFT roughly halved) and barely at all
+  for vLLM (it keeps the GPU saturated, leaving DVFS no idle gap to ramp from) -
+  and this is a vLLM row, which is why the comparison is still worth making
+  rather than being blocked outright. The manifest records the real measured
+  state either way, via `jetson_clocks_locked_heuristic()`, so the caveat is
+  carried in the data and not only in this note. Treat any TTFT difference under
+  roughly the size of Orin's own vLLM clock-lock delta as unresolved rather than
+  as a platform effect.

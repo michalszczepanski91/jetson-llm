@@ -41,7 +41,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from harness import _half_average, _rail_stats, percentiles, process_rss_mb  # noqa: E402
 from llm_client import stream_llm  # noqa: E402
-from manifest import SCHEMA_VERSION, build_manifest, energy_block, experiment_id  # noqa: E402
+from manifest import (  # noqa: E402
+    DEFAULT_ENERGY_RAILS, SCHEMA_VERSION, build_manifest, energy_block, experiment_id,
+)
 
 #: Below this many tegrastats samples inside the measurement window, the
 #: energy figure is flagged. Not a hard failure - a thin number is still a
@@ -59,7 +61,16 @@ _FILLER = (
     "Objects appear and disappear as people move between the desk and the door. "
 )
 
-_POWER_RAILS = ("vdd_gpu_soc_mw", "vdd_cpu_cv_mw", "vin_sys_5v0_mw")
+#: Every rail sampled into a result: the per-domain rails energy is computed
+#: from, plus the board-level supply (recorded for context, deliberately NOT
+#: summed into the energy figure - see DEFAULT_ENERGY_RAILS).
+#:
+#: DERIVED from DEFAULT_ENERGY_RAILS rather than restated, because restating it
+#: is what caused a real bug: this tuple was a third independent copy of Orin's
+#: rail names, so after harness.py and manifest.py both learned Thor's names on
+#: 2026-09-10, a Thor run STILL reported `rails_included: []` and no joules -
+#: measure_cell() reads this tuple, not those. One source of truth now.
+_POWER_RAILS = DEFAULT_ENERGY_RAILS + ("vin_sys_5v0_mw",)
 
 
 @dataclass(frozen=True)

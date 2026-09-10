@@ -69,8 +69,23 @@ _RAM_RE = re.compile(r"RAM (\d+)/(\d+)MB")
 _GR3D_RE = re.compile(r"GR3D_FREQ (\d+)%")
 _GPU_TEMP_RE = re.compile(r"gpu@([\d.]+)C")
 _TJ_TEMP_RE = re.compile(r"tj@([\d.]+)C")
+# Orin's per-domain rails.
 _VDD_GPU_SOC_RE = re.compile(r"VDD_GPU_SOC (\d+)mW/(\d+)mW")
 _VDD_CPU_CV_RE = re.compile(r"VDD_CPU_CV (\d+)mW/(\d+)mW")
+# Thor's per-domain rails - DIFFERENT NAMES AND A DIFFERENT SPLIT, added
+# 2026-09-10 after a real Thor run produced `rails_included: []` and therefore
+# no energy figure at all: the two regexes above are Orin-specific, so on Thor
+# only the board-level rail below matched and the per-domain data was silently
+# dropped. Deliberately parsed into their OWN field names rather than aliased
+# onto Orin's, because the decomposition genuinely differs - Orin bundles
+# GPU+SoC and CPU+CV, Thor splits GPU alone from CPU+SoC+MSS - and aliasing
+# would put two different quantities on one axis, exactly what
+# manifest.py's DEFAULT_ENERGY_RAILS comment warns against.
+# `VDD_GPU ` cannot collide with Orin's `VDD_GPU_SOC ` because the space is
+# part of the pattern.
+_VDD_GPU_RE = re.compile(r"VDD_GPU (\d+)mW/(\d+)mW")
+_VDD_CPU_SOC_MSS_RE = re.compile(r"VDD_CPU_SOC_MSS (\d+)mW/(\d+)mW")
+# Board-level supply, present on both boards.
 _VIN_SYS_5V0_RE = re.compile(r"VIN_SYS_5V0 (\d+)mW/(\d+)mW")
 _VMRSS_RE = re.compile(r"VmRSS:\s+(\d+)\s+kB")
 _L4T_RE = re.compile(r"# R(\d+) \(release\), REVISION: ([\d.]+)")
@@ -97,6 +112,10 @@ def parse_tegrastats_line(line: str) -> dict[str, float] | None:
         fields["vdd_gpu_soc_mw"] = float(m.group(1))
     if m := _VDD_CPU_CV_RE.search(line):
         fields["vdd_cpu_cv_mw"] = float(m.group(1))
+    if m := _VDD_GPU_RE.search(line):
+        fields["vdd_gpu_mw"] = float(m.group(1))
+    if m := _VDD_CPU_SOC_MSS_RE.search(line):
+        fields["vdd_cpu_soc_mss_mw"] = float(m.group(1))
     if m := _VIN_SYS_5V0_RE.search(line):
         fields["vin_sys_5v0_mw"] = float(m.group(1))
     return fields or None
@@ -400,7 +419,12 @@ def run_benchmark(
         power_samples = sampler.samples_between(t_meas_start, t_meas_end)
         power_mw = {
             rail: _rail_stats(power_samples, rail)
-            for rail in ("vdd_gpu_soc_mw", "vdd_cpu_cv_mw", "vin_sys_5v0_mw")
+            # Orin's two per-domain rails, Thor's two, and the board-level rail
+            # both expose. Absent rails come back None and are dropped downstream,
+            # so listing both boards' names here is how one harness serves both.
+            for rail in ("vdd_gpu_soc_mw", "vdd_cpu_cv_mw",
+                         "vdd_gpu_mw", "vdd_cpu_soc_mss_mw",
+                         "vin_sys_5v0_mw")
         }
         ram_samples = [s["ram_used_mb"] for s in power_samples if "ram_used_mb" in s]
         meas_temps = [s.get("tj_temp_c", s.get("gpu_temp_c")) for s in power_samples]

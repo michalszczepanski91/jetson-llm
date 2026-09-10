@@ -582,13 +582,30 @@ def write_result(
 
 # --- energy ----------------------------------------------------------------
 
-#: Rails summed into the energy figures by default. GPU+SoC and CPU+CV are
-#: the two the inference workload actually moves; VIN_SYS_5V0 is a separate
+#: Rails summed into the energy figures by default. The per-domain rails are
+#: the ones the inference workload actually moves; VIN_SYS_5V0 is a separate
 #: board-level supply, so including it would silently change the quantity
 #: being reported. docs/note.md §14 - and `rails_included` records the choice
 #: in the result, because a GPU-only figure and a board-total figure must
 #: never end up on one axis.
-DEFAULT_ENERGY_RAILS = ("vdd_gpu_soc_mw", "vdd_cpu_cv_mw")
+#:
+#: Both boards' names are listed because they are mutually exclusive in
+#: practice: Orin emits VDD_GPU_SOC/VDD_CPU_CV, Thor emits
+#: VDD_GPU/VDD_CPU_SOC_MSS, and whichever board is running contributes exactly
+#: two of these four. Added 2026-09-10 after the first Thor run through this
+#: pipeline produced NO energy figure at all - the tuple held only Orin's
+#: names, so `present` came back empty on Thor and the run silently reported
+#: no joules despite sampling power the whole time.
+#:
+#: **The two boards' sums are close but not identical in decomposition**: Orin
+#: bundles GPU+SoC against CPU+CV, Thor splits GPU alone from CPU+SoC+MSS. The
+#: union of domains is nearly the same, so the sums are broadly comparable, but
+#: a cross-platform energy claim must cite `rails_included` rather than assume
+#: the two figures were built the same way.
+DEFAULT_ENERGY_RAILS = (
+    "vdd_gpu_soc_mw", "vdd_cpu_cv_mw",      # Orin
+    "vdd_gpu_mw", "vdd_cpu_soc_mss_mw",     # Thor
+)
 
 
 def energy_block(

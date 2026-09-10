@@ -23,9 +23,9 @@ status column can't carry two boards, so the table splits them.
 |---|---|---|---|
 | 0 — Framework survey | ✅ | ✅ | vLLM + llama.cpp in scope; TensorRT excluded on Orin (JetPack 6.2.x), **superseded on Thor** |
 | 1 — Foundations | ✅ | ✅ | Qwen2.5 works on every backend; Bielik llama.cpp-only; Apertus blocked entirely |
-| 2 — Measurement integrity | ✅ | ⚠️ | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. **Thor's results never went through this pipeline** — see Phase 6 |
+| 2 — Measurement integrity | ✅ | 🚧 | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. Thor's campaign bypassed this pipeline; **one** Thor row now goes through it properly — see Phase 6 |
 | 3 — Experiment configuration | ✅ | ⚠️ | Config-driven campaigns; guard hardened after 2 more incidents. Thor ran from shell scripts, not `configs/benchmarks/` |
-| 4 — Canonical campaign | 🚧 partial | ⏳ | Orin: J/token amortization + a backend context-scaling gap. **Thor never re-ran the two sweeps** — so P5 is only half-answered, see Phase 6 |
+| 4 — Canonical campaign | 🚧 partial | 🚧 | Orin: J/token amortization + a backend context-scaling gap. Thor: one matched point run (P5 answered — Thor buys capacity, not speed), the two sweeps still not reproduced |
 | 5 — Full scorecard matrix | ✅ | ✅ | 7 Orin rows fully scored; `irrelevance` is the only accuracy axis that still discriminates |
 | 6 — Cross-platform arm | n/a | ✅ | Thor bring-up, three backends, exclusive-box campaign |
 | 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend, MMLU-controlled |
@@ -410,13 +410,38 @@ tight, FP16 otherwise.** Precision table in Phase 7 below.
       different, weaker mechanism, and the result documents record no
       `execution_condition` at all. This is the same class of gap as the
       `--target remote` one below, and it applies to data already published.
-- [ ] **Phase 4's two sweeps were never reproduced on Thor**, which was this phase's
-      original stated goal. What ran instead — a framework comparison and a precision
-      sweep — is more decision-relevant, but it means **P5 ("does the ranking change
-      with hardware?") is only half-answered**: we know which backend wins on Thor, not
-      whether the output-length energy curve or the context-scaling gap look different
-      there. `configs/benchmarks/{output_sweep,context_sweep}.yaml` already exist and
-      now run against `edge-llm` rows; this is execution time, not new design.
+- [x] **P5's first genuine single-variable answer, 2026-09-10.** `1.5b-awq-vllm-thor`
+      vs `1.5b-awq-vllm-orin`: identical checkpoint, precision, backend,
+      `max_model_len` and workload point (input=512/output=128), so the **board is the
+      only variable**. Every other Thor/Orin pair in this repo varies something else
+      too. Run via `configs/benchmarks/p5_cross_platform.yaml` through
+      `run_experiment.py` — the first Thor result with a real `experiment_id`,
+      manifest and `execution_condition`. 3 replicates, n=30 each.
+
+  | | Thor | Orin | verdict |
+  |---|---:|---:|---|
+  | decode tok/s | **123.6** | 108.2 / 108.7 | **~14% faster on Thor** — consistent against both Orin runs |
+  | TTFT p50 | 54.9 ms | 31.1 / **66.0** ms | **inconclusive** — Thor lands *inside* Orin's own spread |
+  | J/output-token | 0.308 | 0.297 / 0.321 | **inconclusive** — Thor inside Orin's spread, and see the rail caveat |
+
+  **The honest headline: Thor buys capacity, not speed, at this size.** Its 4×
+  memory is what makes 7B/14B purchasable at all (the real cross-platform finding,
+  Phase 6 above) — but for a model that already fits on Orin, decode improves ~14%
+  and nothing else clearly moves. Two caveats, both load-bearing rather than
+  boilerplate:
+  - **Orin's own two runs at this nominally identical point disagree 2× on TTFT**
+    (31.1 ms from `output_sweep` vs 66.0 ms from `context_sweep`, same model, same
+    day, same input/output). Something uncontrolled differs between those sweeps.
+    Until that is explained, no TTFT comparison against this row means anything —
+    **and that is a defect in the Orin baseline, not in the Thor measurement.**
+  - Thor ran at `jetson_clocks` unlocked (needs root there) against Orin's locked.
+    Phase 5 measured that lock as near-irrelevant for vLLM specifically — it keeps
+    the GPU saturated, leaving DVFS no idle gap — which is why this comparison is
+    worth making at all, but it is not zero.
+- [ ] **The two sweeps themselves still not reproduced on Thor.** The row above is
+      one workload point, not `output_sweep`/`context_sweep`, so the *shapes* —
+      J/token amortization and the backend context-scaling gap — remain unmeasured
+      there. Both configs already run against Thor rows; this is execution time.
 
 Also open, tracked in the comparison doc's own "Still open": the `jetson_clocks`-locked
 timing run, the official `bfcl-eval` checker, a co-residency run with the VLM tier,

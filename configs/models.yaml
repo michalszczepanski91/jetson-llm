@@ -555,14 +555,29 @@ bielik-11b-awq-vllm-orin:
   platform: thor
   port: 8001  # NOT 8000 - vllm-vlm-thor already binds it, see comment block above
   image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
-  gpu_memory_utilization: 0.05  # untested starting point - conservative given
-                                 # vllm-vlm-thor's own already-resident 0.3 share
+  gpu_memory_utilization: 0.05  # ~6.1GB of Thor's 122GB. Deliberately kept at the
+                                 # original conservative value rather than raised now
+                                 # that the box is exclusive: it is already MORE
+                                 # absolute memory than the Orin twin gets (0.15 of
+                                 # ~30GB = ~4.5GB) for the identical checkpoint, and
+                                 # max_model_len caps real KV use identically on both.
+                                 # Raising it would buy nothing and weaken the P5
+                                 # comparison.
   max_model_len: 2048  # matches 1.5b-awq-vllm-orin for a fair P5 cross-platform comparison
+  extra_volumes:  # same startup memory-profiling patch every other vLLM Thor row
+    # needs - see 7b-fp16-vllm-thor's comment for the full story. Added here
+    # pre-emptively rather than after a failure: it touches startup profiling only,
+    # never the inference path, so it cannot flatter a latency or throughput number.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
   notes: >
-    Not yet smoke-tested. Thor counterpart of 1.5b-awq-vllm-orin, added
-    2026-09-08 once real Thor access started (docs/TODO.md Phase 6) - see
-    the comment block above this section for the port/image findings this
-    row's non-default fields come from.
+    Thor counterpart of 1.5b-awq-vllm-orin - the same checkpoint, precision,
+    backend and max_model_len, so the pair is this lab's cleanest available
+    answer to paper.md's P5 ("does the ranking change with the hardware?").
+    Row added 2026-09-08; first actually run 2026-09-10, and deliberately
+    through scripts/run_experiment.py rather than the shell scripts the rest
+    of the Thor campaign used, so it is also the first Thor result to carry a
+    real experiment_id, manifest and execution_condition (docs/TODO.md
+    Phase 6's measurement-integrity gap).
 
 # The cross-BACKEND control row on Thor. Everything else about a framework
 # comparison is noise unless the model and precision are pinned, and Edge-LLM
