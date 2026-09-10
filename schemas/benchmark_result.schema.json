@@ -704,8 +704,15 @@
             },
             "vin_sys_5v0_mw": {
               "$ref": "#/$defs/rail_stats"
+            },
+            "vdd_gpu_mw": {
+              "$ref": "#/$defs/rail_stats"
+            },
+            "vdd_cpu_soc_mss_mw": {
+              "$ref": "#/$defs/rail_stats"
             }
-          }
+          },
+          "description": "Per-rail power, keyed by tegrastats' own rail names. BOTH boards' naming lives here because the rails differ by platform, not just in name but in how the domains are split: Orin reports VDD_GPU_SOC and VDD_CPU_CV, Thor reports VDD_GPU and VDD_CPU_SOC_MSS (the SOC domain moves from the GPU rail to the CPU rail). VIN_SYS_5V0 is the board-level rail both expose. Thor's two names were added 2026-09-10: benchmarks/harness.py had learned them earlier the same day, but this schema had not, so every Thor performance document failed validation on its power block with 'additionalProperties are not allowed' - one of the two concrete reasons docs/TODO.md records Thor's results as failing both result schemas. A result carries only the rails its board actually has; absent rails are dropped, not zero-filled."
         },
         "measurement_window_s": {
           "type": "number",

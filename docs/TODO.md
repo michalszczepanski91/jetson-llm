@@ -25,7 +25,7 @@ status column can't carry two boards, so the table splits them.
 | 1 — Foundations | ✅ | ✅ | Qwen2.5 works on every backend; Bielik llama.cpp-only; Apertus blocked entirely |
 | 2 — Measurement integrity | ✅ | 🚧 | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. Thor's campaign bypassed this pipeline; **one** Thor row now goes through it properly — see Phase 6 |
 | 3 — Experiment configuration | ✅ | ⚠️ | Config-driven campaigns; guard hardened after 2 more incidents. Thor ran from shell scripts, not `configs/benchmarks/` |
-| 4 — Canonical campaign | 🚧 partial | 🚧 | Orin: J/token amortization + a backend context-scaling gap. Thor: one matched point run (P5 answered — Thor buys capacity, not speed), the two sweeps still not reproduced |
+| 4 — Canonical campaign | 🚧 partial | 🚧 | Orin: J/token amortization + a backend context-scaling gap. Thor: one matched point (P5 — Thor buys capacity, not speed) **plus the context sweep, run 2026-09-10** — vLLM's linearity replicates independently and the backend gap is 2.3× here vs Orin's 4.9×. The **output** sweep is the remaining Thor gap |
 | 5 — Full scorecard matrix | ✅ | ✅ | 7 Orin rows fully scored; `irrelevance` is the only accuracy axis that still discriminates |
 | 6 — Cross-platform arm | n/a | ✅ | Thor bring-up, three backends, exclusive-box campaign |
 | 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend, MMLU-controlled |
@@ -351,6 +351,38 @@ So the backend difference is real but is a *marginal-cost and curvature* differe
 not the "flat vs super-linear" qualitative gap this table used to claim. Still
 confounded by quantization format (AWQ vs GGUF), stated not fixed, per this lab's
 fairness rules.
+
+**The Thor arm, run 2026-09-10** (`configs/benchmarks/context_sweep_thor.yaml`,
+8 cells, `results/raw/2026-09-10_thor_*_context_sweep_thor_*`) — the first time this
+shape has been measured on this board, closing half of what kept Phase 4 at 🚧 here.
+Least-squares fits of TTFT p50 against input length:
+
+| | 128 | 512 | 1024 | 1536 | slope | intercept | R² |
+|---|---|---|---|---|---|---|---|
+| Thor vLLM | 29.9 | 58.0 | 96.0 | 132.4 | **73.0 ms/1k tok** | 20.7ms | 0.9999 |
+| Thor llama.cpp | 46.1 | 110.3 | 192.2 | 284.5 | **168.4 ms/1k tok** | 23.6ms | 0.9993 |
+
+Three readings, in order of confidence:
+
+1. **The correction above replicates independently.** vLLM on Thor is linear to
+   R²=0.9999 — the "near-flat" shape does not appear on a board that never had the v1
+   prompts. Two boards, two backends, one conclusion.
+2. **The backend gap is real but smaller here: 2.31× on Thor against 4.89× on Orin**
+   (llama.cpp's prefill slope over vLLM's, both from the v2 numbers). Thor is roughly
+   3× faster at prefill on both backends (73 vs 103, 168 vs 504 ms/1k tok), and it
+   closes more of llama.cpp's disadvantage than vLLM's.
+3. **"Clearly super-linear" does not survive on Thor, and is weak on Orin.** llama.cpp
+   fits a straight line at R²=0.9993 here; a quadratic buys 0.0004 (0.9993→0.9997), and
+   on Orin's own v2 numbers it buys 0.007 (0.9829→0.9896) — which is what an extra free
+   parameter buys on four points regardless. The honest statement is that **both
+   backends are linear in input length and differ in SLOPE**, with llama.cpp noisier.
+   The curvature half of the claim above should be treated as unsupported until someone
+   runs enough input lengths to separate the two, which four points cannot.
+
+Caveats this arm carries and the Orin arm does not: `jetson_clocks` is **false** here
+(pinning needs root this lab lacks on the shared Thor), so these are unpinned-clock
+numbers and comparable to Orin's on *shape* but not on *level*. The AWQ-vs-GGUF
+quantization confound applies identically to both boards.
 
 **llama.cpp is the control that makes the correction trustworthy**: the identical code
 change moved vLLM by up to 2.3× and moved llama.cpp by <1.5% at every point, because
