@@ -611,6 +611,12 @@ class EdgeLlmCoordinator:
         self._model = model
         self._port = port
         self._cache_dir = cache_dir
+        # Cold-start state. Initialised here so cold_start_breakdown() is safe
+        # to call before start() (returns measured=False) rather than raising.
+        self._t_start: float | None = None
+        self._t_ready: float | None = None
+        self._engines_before: set[str] = set()
+        self._engine_cached_at_start: bool | None = None
         self._max_input_len = max_input_len
         self._tool_call_parser = tool_call_parser
         self._served_model_name = served_model_name
@@ -644,6 +650,15 @@ class EdgeLlmCoordinator:
         if self._proc is not None:
             raise RuntimeError(f"{type(self).__name__} already started")
         self._stop_event.clear()
+        # Snapshot engine-cache state BEFORE launching: a new directory
+        # appearing during startup means this run paid to build the engine.
+        # Empty set is indistinguishable from an unreadable cache dir, so
+        # `_engine_cached_at_start` stays None in that case rather than
+        # claiming a miss it cannot see.
+        self._engines_before = self._engine_dirs()
+        self._engine_cached_at_start: bool | None = None
+        self._t_ready = None
+        self._t_start = time.monotonic()
         cmd = [
             self._serve_bin, self._model,
             "--host", "0.0.0.0", "--port", str(self._port),
@@ -711,6 +726,12 @@ class EdgeLlmCoordinator:
                 try:
                     with urllib.request.urlopen(f"{self.base_url}/health", timeout=2) as resp:
                         if resp.status == 200:
+                            self._t_ready = time.monotonic()
+                            after = self._engine_dirs()
+                            if after or self._engines_before:
+                                # A directory that did not exist before this
+                                # start() means the engine was compiled now.
+                                self._engine_cached_at_start = not (after - self._engines_before)
                             self._ready_event.set()
                             return
                 except (urllib.error.URLError, ConnectionError, TimeoutError):
@@ -719,6 +740,68 @@ class EdgeLlmCoordinator:
         except BaseException as exc:  # noqa: BLE001
             self.error = exc
             self._ready_event.set()
+
+    def _engine_dirs(self) -> set[str]:
+        """Names of the per-checkpoint engine directories currently in the
+        cache. Edge-LLM names each one `model-<hash>` from the checkpoint and
+        build options, and the hash is not reproducible from here - so cache
+        state is detected by comparing this set across start(), not by trying
+        to predict the directory name."""
+        try:
+            return {p.name for p in Path(self._cache_dir, "engines").iterdir() if p.is_dir()}
+        except OSError:
+            return set()
+
+    def cold_start_breakdown(self) -> dict:
+        """The `cold_start` block, for a PROCESS-owning coordinator.
+
+        Deliberately not `_ColdStartMixin`: that mixin decomposes a cold start
+        as container-start plus model-load and asks `weights_cached`, and all
+        three of those are Docker-and-HuggingFace concepts. This backend
+        launches a local process and its bimodal cost is a TensorRT **engine
+        cache** miss (compiles for minutes) versus a hit (loads in seconds) -
+        a different axis from whether weights were downloaded, and the one
+        that actually decides whether a number here is 12s or 12min.
+
+        `container_start_s` is therefore null rather than 0.0: there is no
+        container, and a zero would read as an immeasurably fast one. Added
+        2026-09-10 after this method's ABSENCE crashed smoke_test.py on every
+        edge-llm row - a real gap left by merging the Orin branch (which added
+        the mixin to the two container coordinators) with the Thor branch
+        (which added this class); the two never met, and git merged both
+        cleanly because they touch different lines."""
+        total = (self._t_ready - self._t_start) if (self._t_ready and self._t_start) else None
+        cached = self._engine_cached_at_start
+
+        if cached is True:
+            caveat = ("engine cache HIT - the engine was already built, so total_s is a "
+                      "load time. A miss on the same checkpoint compiles TensorRT engines "
+                      "and takes minutes; the two must not be averaged or compared.")
+        elif cached is False:
+            caveat = ("engine cache MISS - total_s INCLUDES compiling the TensorRT engine "
+                      "for this checkpoint, which dominates it. Not comparable with a "
+                      "warm-cache start, and not a model-load figure.")
+        else:
+            caveat = ("engine cache state could not be determined (cache directory not "
+                      "inspectable), so it is unknown whether total_s includes an "
+                      "engine build.")
+        caveat += (" No container is involved, so container_start_s is null rather than 0."
+                   " Component resolution is bounded by the ~2s health-poll interval.")
+
+        return {
+            "measured": total is not None,
+            "total_s": round(total, 3) if total is not None else None,
+            "download_s": None,
+            # Reported under the schema's `weights_cached` field because that is
+            # the field the document has, but it carries ENGINE-cache state here.
+            # The caveat says so in words rather than leaving a reader to assume
+            # it means the same thing it does on a Docker row.
+            "weights_cached": cached,
+            "container_start_s": None,
+            "model_load_s": round(total, 3) if total is not None else None,
+            "server_ready_s": round(total, 3) if total is not None else None,
+            "caveat": caveat,
+        }
 
 
 class RemoteCoordinator:

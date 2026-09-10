@@ -55,6 +55,54 @@ _WEATHER_TOOL = [{
 _TOOL_PROMPT = "What's the weather like in Warsaw?"
 
 
+def _degenerate_reason(text: str | None) -> str | None:
+    """Does this response look like a BROKEN engine rather than a weak model?
+
+    Exists because this gate reported **PASS** for an engine answering "What is
+    the capital of Poland?" with `"0000000000000000..."` (Qwen3-8B-AWQ on
+    Edge-LLM, 2026-09-10). The old criterion was only that `call_llm()` had not
+    raised, so any HTTP 200 counted as a pass no matter what came back - the
+    same hole that let a damaged self-quantized FP8 checkpoint through earlier
+    (it emitted zero tool calls in 50 tries and scored a meaningless "100%
+    irrelevance"). A gate that passes garbage is worse than no gate, because it
+    is trusted.
+
+    Deliberately conservative: this must flag BROKEN, never merely BAD. A weak
+    model giving a wrong-but-fluent answer has to keep passing, because judging
+    answer quality is what BFCL and MMLU are for. All three checks below fire
+    only on output no working model produces.
+
+    Returns a reason string, or None if the text looks like real language."""
+    if text is None or not text.strip():
+        return "empty response"
+    stripped = text.strip()
+
+    # 1. Almost no letters. Catches "000000...", "]\n\t\n\t...", digit spew.
+    if len(stripped) >= 20:
+        alpha_ratio = sum(c.isalpha() for c in stripped) / len(stripped)
+        if alpha_ratio < 0.25:
+            return f"only {alpha_ratio:.0%} alphabetic characters - not language"
+
+    # 2. A long run of one repeated character.
+    longest_run = run = 1
+    for prev, cur in zip(stripped, stripped[1:]):
+        run = run + 1 if cur == prev else 1
+        longest_run = max(longest_run, run)
+    if longest_run >= 20:
+        return f"a single character repeats {longest_run} times consecutively"
+
+    # 3. A short vocabulary looping. Catches "very large and very large and...",
+    #    which has no single word repeated back-to-back and so slips past a
+    #    naive consecutive-repeat check.
+    words = stripped.split()
+    if len(words) >= 15:
+        variety = len(set(w.lower() for w in words)) / len(words)
+        if variety < 0.20:
+            return f"only {variety:.0%} distinct words over {len(words)} - looping"
+
+    return None
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model-config", required=True, help="key into configs/models.yaml")
@@ -106,8 +154,21 @@ def main():
         try:
             msg = call_llm(coordinator, [{"role": "user", "content": _PLAIN_PROMPT}],
                             max_tokens=64, temperature=args.temperature)
-            report["plain_completion"] = {"ok": True, "content": msg.get("content")}
-            print(f"  -> {msg.get('content')!r}")
+            content = msg.get("content")
+            degenerate = _degenerate_reason(content)
+            report["plain_completion"] = {
+                "ok": degenerate is None, "content": content,
+            }
+            if degenerate:
+                # `ok: False` on a 200 response is deliberate: the server
+                # answered, the ENGINE is broken, and that is a failed smoke
+                # test. See _degenerate_reason's docstring.
+                report["plain_completion"]["degenerate"] = degenerate
+                print(f"  -> {content!r}")
+                print(f"  FAILED: response is degenerate ({degenerate}) - "
+                      f"the server answered, but this engine is not usable")
+            else:
+                print(f"  -> {content!r}")
         except Exception as exc:  # noqa: BLE001 - a failure here is the result
             report["plain_completion"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
             print(f"  FAILED: {type(exc).__name__}: {exc}")
@@ -124,9 +185,20 @@ def main():
                                         "name": call["name"], "arguments": call["arguments"]}
                 print(f"  -> structured call: {call['name']}({call['arguments']})")
             else:
-                report["tool_call"] = {"ok": True, "structured": False, "content": msg.get("content")}
-                print(f"  -> NO structured call (formatting failure or narrated in prose): "
-                      f"{msg.get('content')!r}")
+                content = msg.get("content")
+                degenerate = _degenerate_reason(content)
+                report["tool_call"] = {"ok": degenerate is None, "structured": False,
+                                       "content": content}
+                if degenerate:
+                    report["tool_call"]["degenerate"] = degenerate
+                    print(f"  -> FAILED: degenerate response ({degenerate}): {content!r}")
+                else:
+                    # Narrating the call in prose is a real, known model
+                    # weakness (llama.cpp/Qwen2.5 did exactly this at default
+                    # temperature) - a weak result, NOT a broken engine, so it
+                    # stays ok=True and is quantified by BFCL rather than here.
+                    print(f"  -> NO structured call (formatting failure or narrated in prose): "
+                          f"{content!r}")
         except Exception as exc:  # noqa: BLE001
             report["tool_call"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
             print(f"  FAILED: {type(exc).__name__}: {exc}")

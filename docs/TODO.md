@@ -52,9 +52,14 @@ question this file gets asked most and it should not take eleven sections to ans
   llama.cpp, and nobody knows whether that is backend-wide or Orin-specific. Note the
   existing row is the *vLLM* one, i.e. the variant already known to fail on Orin; the
   *working* Bielik path (llama.cpp) has no Thor row at all, and neither does Edge-LLM.
-- **Qwen3 on any board**: no row anywhere, gated on "a real serving test" since
-  2026-09-04 that was never run. On Thor this is now the single highest-value
-  experiment left — see Phase 7 for the three checked reasons why.
+- **Qwen3 on Thor: tested 2026-09-10, and it is BLOCKED** — `Qwen3-8B-AWQ` (Qwen's
+  own published int4, in Edge-LLM's supported list) builds and serves, then emits
+  degenerate output: `"0000000..."` for "capital of Poland", a punctuation loop under
+  greedy decoding. Not a sampling artifact. It did *not* hit the int4 bias-recipe bug,
+  consistent with Qwen3 having dropped the QKV biases that trigger it — so that
+  hypothesis held, but the engine is unusable for a different reason further down.
+  Root cause open; the `patches/` fix is a live suspect and there is a cheap test to
+  settle it (see the row's own notes). **No Qwen3 row on Orin yet either.**
 - **Apertus-8B**: genuinely blocked, not neglected — llama.cpp doesn't recognize its
   GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
   cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking

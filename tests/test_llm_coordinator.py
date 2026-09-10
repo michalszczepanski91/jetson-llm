@@ -465,3 +465,39 @@ def test_build_coordinator_remote_ignores_backend_field():
     coordinator = build_coordinator(args, {"model": "fake/model", "backend": "llama-cpp"}, ready_timeout=1.0)
     assert isinstance(coordinator, RemoteCoordinator)
     assert coordinator.base_url == "http://10.0.0.5:9000"
+
+
+def test_edgellm_coordinator_has_cold_start_breakdown():
+    """Regression, 2026-09-10: EdgeLlmCoordinator had no cold_start_breakdown()
+    at all, so scripts/smoke_test.py and benchmark_streaming.py crashed with
+    AttributeError on EVERY edge-llm row - i.e. the whole Thor backend was
+    broken for the main measurement path.
+
+    A merge-integration gap, not a typo: the Orin branch added _ColdStartMixin
+    to the two container coordinators, the Thor branch added this class, and
+    git merged both cleanly because they touch different lines. Neither branch's
+    tests covered the combination. This asserts the duck-typed contract holds
+    across ALL coordinators rather than only the two that happened to inherit
+    the mixin."""
+    from llm_coordinator import (
+        EdgeLlmCoordinator, LlamaCppCoordinator, RemoteCoordinator, VllmCoordinator,
+    )
+    for cls in (VllmCoordinator, LlamaCppCoordinator, EdgeLlmCoordinator, RemoteCoordinator):
+        assert callable(getattr(cls, "cold_start_breakdown", None)), (
+            f"{cls.__name__} is missing cold_start_breakdown() - every coordinator "
+            "must satisfy the same contract, see docs/promotion-contract.md §1"
+        )
+
+
+def test_edgellm_cold_start_breakdown_before_start_is_unmeasured():
+    """Calling it before start() must report measured=False, not raise and not
+    invent a duration - the schema refuses a non-null total_s when measured is
+    False."""
+    from llm_coordinator import EdgeLlmCoordinator
+    c = EdgeLlmCoordinator(model="Qwen/Qwen3-8B-AWQ", port=8099)
+    block = c.cold_start_breakdown()
+    assert block["measured"] is False
+    assert block["total_s"] is None
+    # No container is involved, so this must be null rather than 0.0 - a zero
+    # would read as an immeasurably fast container start.
+    assert block["container_start_s"] is None

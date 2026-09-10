@@ -474,6 +474,58 @@ bielik-11b-awq-vllm-orin:
     size curve has already flattened and the memory is better spent elsewhere
     (co-residency with the VLM tier, longer context, bigger KV cache).
 
+# --- Qwen3: the first non-Qwen2.5 family actually tested on Thor -------------
+# Added 2026-09-10 to close docs/TODO.md's longest-standing gap ("Qwen3 gated on
+# a real serving test" since 2026-09-04, never run on either board). Three
+# reasons this is the right Qwen3 entry point rather than a smaller one, all
+# checked rather than assumed:
+#   1. `Qwen/Qwen3-8B-AWQ` is in Edge-LLM 0.10.1's OWN supported-models list,
+#      published by Qwen themselves - so this is the first PUBLISHED int4
+#      checkpoint this lab runs on Edge-LLM, not a self-quantized one.
+#   2. Qwen3 DROPPED the attention QKV biases that Qwen2 carries, and those
+#      biases are precisely what triggered the int4 bias-recipe bug patched in
+#      patches/. This row tests whether Qwen3+AWQ avoids that path entirely.
+#   3. 8B is the nearest size to the current 7B recommendation, so a family
+#      comparison is not confounded by a large capacity difference.
+# THINKING MODE: Qwen3 is a hybrid reasoning model, but Edge-LLM's server
+# defaults `enable_thinking` to False (experimental/server/api/protocol.py:75),
+# so this row runs NON-thinking by default - which is what makes it comparable
+# to the Qwen2.5 rows. Do not enable it without also adding the reasoning-token
+# accounting docs/TODO.md's deferred list requires.
+qwen3-8b-awq-edgellm-thor:
+  model: Qwen/Qwen3-8B-AWQ
+  precision: "AWQ int4 (weights), Qwen's own official quant"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048  # matches every other Thor row so family is the only variable
+  notes: >
+    BLOCKED, confirmed 2026-09-10 - builds and serves, then emits DEGENERATE
+    output. Engine built in ~3.5min and reported "Engine loaded and ready";
+    /health is green and requests return HTTP 200. But the content is garbage:
+    "What is the capital of Poland?" -> "0000000000000000..." at temperature 0,
+    "]\n\t\n\t\n\t..." under greedy top_k=1, and a "\u4e00\u3001" loop with tools
+    attached. Confirmed NOT a sampling artifact - greedy decoding is
+    deterministic and still degenerate.
+    Notably it did NOT hit the int4 bias-recipe bug that blocks Qwen2.5 AWQ,
+    consistent with Qwen3 having dropped the attention QKV biases that trigger
+    it - so hypothesis (2) in the comment block above is supported, but the
+    resulting engine is unusable anyway, which is a different failure further
+    down the pipeline.
+    NOT yet root-caused, and the patch in patches/ is a live suspect: it was
+    applied when this engine was built, so "Qwen3 avoids the bias path" and
+    "the patch silently produced a wrong engine" are not yet distinguishable.
+    Cheap next test: revert the patch, invalidate this engine's cache entry,
+    and rebuild - if it then fails LOUDLY with the bias error, the patch is
+    being exercised here and its output for this checkpoint is wrong.
+    This does NOT undermine 7b-gptq-edgellm-thor (the recommended row, built
+    with the same patch): that one was validated end-to-end at 90% BFCL
+    irrelevance and 66.5% MMLU, which a broken engine cannot score.
+    Second finding from this run, arguably more important: scripts/smoke_test.py
+    reported "PASS" for this engine, because its only criterion was that the
+    HTTP call had not raised. Fixed the same day - see that script's
+    _degenerate_reason() and tests/test_smoke_test_gate.py.
+
 7b-fp16-edgellm-thor:
   model: Qwen/Qwen2.5-7B-Instruct
   precision: "fp16 (no quantization)"
