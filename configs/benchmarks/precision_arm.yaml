@@ -1,0 +1,57 @@
+schema_version: "1.0.0"
+name: precision_arm
+tier: full
+description: >
+  Does AWQ int4 account for the shipping default's tool-call judgment failure?
+  1.5b-awq-vllm-orin abstains correctly on only 36.7% of BFCL irrelevance cases;
+  its fp16 twin scored 66.7% on 2026-09-09 - same model, same backend, same board,
+  precision the only variable. That accuracy half is already measured. What is
+  missing, and what this config supplies, is the cost half: fp16 weights are ~4x
+  int4's, and decode on this board is bandwidth-bound, so the precision that judges
+  better may not be affordable.
+  Varied: precision. Held constant: model, backend, platform, input length, output
+  length, batch, concurrency, sampling, power mode, execution condition.
+  Expected to move: decode tok/s (fp16 worse - 4x the weight traffic), J/output-token.
+  Expected to move much less: TTFT (prefill is compute-bound, and AWQ pays a
+  dequantization cost fp16 does not) - if fp16's TTFT is NOT worse, that is the
+  finding, not a measurement error.
+
+models:
+  - 1.5b-awq-vllm-orin
+  - 1.5b-fp16-vllm-orin
+
+workload:
+  input_tokens: [512]
+  output_tokens: [128]
+  batch_size: [1]
+  concurrency: [1]
+  prompt_source: repeated_filler_v1
+  prompt_template_version: v1
+  tools: null
+
+sampling:
+  temperature: 0.0
+  seed: 1234
+
+repetitions:
+  warmup_min: 5
+  warmup_max: 50
+  measurement_runs: 30
+  min_measurement_s: 15.0
+  outlier_policy: none
+
+execution_condition: standalone
+
+platform_state:
+  nvpmodel_mode: MAXN
+  jetson_clocks: true
+
+notes: >
+  The AWQ row is re-measured here rather than reused so the pair is same-day and
+  same-code - its previously published figures at this point came from output_sweep
+  and were contaminated by cross-cell prefix-cache reuse (docs/HISTORY.md, "Phase 4 -
+  prompt-salt contamination"). Both rows here run under the v2 salted prompt.
+  One cell per model, so neither row can be exposed to that reuse axis at all.
+  1.5b-fp16-vllm-orin's weights are not cached on this board: expect a ~3.1GB
+  download inside its first cold start, which makes its cold_start figure NOT
+  comparable with the AWQ row's (weights_cached is recorded per result).

@@ -8,13 +8,31 @@ result per the contract's own §4, not a failed process.
 
 | Row | TTFT p50 | decode tok/s | J/out-tok | BFCL simple | **BFCL irrelevance** | MMLU |
 |---|---:|---:|---:|---:|---:|---:|
-| `1.5b-awq-vllm-orin` **(current default)** | 31.1ms | 108.2 | 0.297 | 80.0% | **36.7%** | 40.0% |
+| `1.5b-awq-vllm-orin` **(current default)** | ~~31.1ms~~ **80.5ms** | 109.6 | ~~0.297~~ **0.329** | 80.0% | **36.7%** | 40.0% |
 | `3b-awq-vllm-orin` | 132.5ms | 64.4 | 0.566 | 96.7% | **70.0%** | 54.0% |
 | `7b-awq-vllm-orin` | 274.3ms | 33.5 | 1.224 | 96.7% | **40.0%** | 66.0% |
 | `1.5b-q4-llamacpp-orin` | 309.5ms | 38.7 | 0.647 | 100.0% | **70.0%** | 41.5% |
 | `3b-q4-llamacpp-orin` | 562.7ms | 22.2 | 1.178 | 100.0% | **46.7%** | 53.0% |
 | `7b-q4-llamacpp-orin` | 1017.8ms | 11.5 | 2.347 | 100.0% | **56.7%** | 64.0% |
 | `bielik-11b-q4-llamacpp-orin` | 1787.1ms | 7.4 | 4.293 | 100.0% | **10.0%** | 40.0% |
+
+> **Correction, 2026-09-10 — the current-default row's latency and energy figures.**
+> The `1.5b-awq-vllm-orin` row's TTFT and J/output-token were taken from `output_sweep`,
+> whose vLLM cells were contaminated by cross-cell prefix-cache reuse (root cause and
+> control in `docs/HISTORY.md`, "Phase 4 — prompt-salt contamination"). Corrected by
+> re-measurement at `--replicate 2` under the fix: **TTFT 31.1 → 80.5ms**, **J/out-tok
+> 0.297 → 0.329**, decode 108.2 → 109.6 tok/s (decode was never exposed). **No other row
+> is affected** — every other row's performance figures came from `scorecard.yaml`, which
+> is single-cell and so never had a second cell to reuse. No BFCL or MMLU number changes.
+>
+> **This does change the argument below, and §"Why this isn't a simple pick" is now
+> partly wrong as written.** It says `3b-awq-vllm-orin` costs "4.3x the TTFT" of the
+> current default. Against the corrected baseline it costs **1.65×** (132.5 vs 80.5ms),
+> a difference of ~52ms on a turn that misses its budget by ~60ms. That does not by
+> itself make 3B affordable — its decode is still 1.7× slower per token, and decode
+> dominates a two-call round trip — but "dramatically slower on every latency axis" is
+> no longer a fair description of the 1.5B→3B step, and the recommendation was written
+> on the un-corrected number. See "Reopened" at the end of this file.
 
 BFCL scores are the 2026-09-09 re-run under the corrected scorer (see `docs/TODO.md`
 Phase 5's "BFCL scorer fix"). **`simple` is saturated — five rows at exactly 100% — so
@@ -90,3 +108,36 @@ hard measurement of that risk's real frequency, not just its existence.
 
 Per contract §4.3, a pointer row is added to `embedded-ai-chain/docs/TODO.md`'s decision
 log referencing this document.
+
+## Reopened, 2026-09-10
+
+Two things surfaced after this decision was recorded. Neither is settled here; both
+belong to the still-open latency question this document defers to Phase 4.
+
+1. **The baseline was wrong** (see the correction above). The gap between the shipping
+   default and `3b-awq-vllm-orin` on TTFT is 1.65×, not 4.3×.
+
+2. **A precision arm was measured and never entered the record.** A BFCL run for
+   `1.5b-fp16-vllm-orin` exists, dated 2026-09-09, and scores **66.7% irrelevance**
+   against the shipping AWQ twin's 36.7% — same model, same backend, same board, the
+   only variable being AWQ int4 vs fp16. It was never committed: the registry rows lived
+   only in a `git stash` and the result document sat untracked, so its `model_config_key`
+   did not resolve and no analysis could have found it. Recovered and committed
+   2026-09-10.
+
+   | row | BFCL irrelevance | false positives (of 30) | MMLU |
+   |---|---:|---:|---:|
+   | `1.5b-awq-vllm-orin` (shipping) | 36.7% | 19 | 40.0% |
+   | `1.5b-fp16-vllm-orin` | **66.7%** | **10** | not yet measured |
+   | `3b-awq-vllm-orin` | 70.0% | 9 | 54.0% |
+
+   **`1.5b-fp16` and `3b-awq` are one case apart on the axis that decides this
+   comparison** — inside the ~7pp noise band this document defines — while `1.5b-fp16`
+   is the same 1.5B model the pipeline already runs. That is a direct challenge to this
+   document's framing that "every accuracy-improving alternative is slower": the
+   alternative that may not be slower was never on the table.
+
+   It is **not** a recommendation yet. `1.5b-fp16-vllm-orin` has no latency, energy or
+   MMLU measurement at all, and fp16 weights are ~4× AWQ int4's, which on a
+   bandwidth-bound decode is the axis most likely to hurt. Measuring it is the cheapest
+   input to the latency decision and should happen before that decision is made.

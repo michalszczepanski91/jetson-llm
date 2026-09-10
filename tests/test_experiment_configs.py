@@ -21,7 +21,7 @@ from jsonschema import Draft202012Validator
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
-from runner import Cell, build_prompt, expand_grid  # noqa: E402
+from runner import Cell, build_prompt, cell_salt, expand_grid  # noqa: E402
 
 import json  # noqa: E402
 
@@ -34,6 +34,7 @@ def test_configs_exist():
     """Zero-parameter parametrisation passes silently, so assert the set."""
     assert {p.stem for p in CONFIGS} == {
         "smoke", "output_sweep", "context_sweep", "scorecard", "p5_cross_platform",
+        "precision_arm",
     }
 
 
@@ -125,7 +126,7 @@ def test_uniqueness_marker_goes_at_the_front():
     would leave everything before it reusable and defeat nothing. Measured
     consequence of getting this wrong: TTFT p50 40.8ms vs 268.1ms."""
     prompt, _ = build_prompt(None, run_index=7)
-    assert prompt.startswith("[run 7] ")
+    assert prompt.startswith("[run 7 ")
 
 
 def test_prompts_differ_between_runs_but_are_stable_within_one():
@@ -133,6 +134,35 @@ def test_prompts_differ_between_runs_but_are_stable_within_one():
     b, _ = build_prompt(128, run_index=2)
     assert a != b
     assert a == build_prompt(128, run_index=1)[0]
+
+
+def test_cells_sharing_an_input_length_do_not_share_prompts():
+    """The regression guard for the 2x TTFT error of 2026-09-04.
+
+    `build_prompt` is a function of input length and run index, so every cell
+    of `output_sweep` (input held at 512, output varied) emitted a
+    byte-identical prompt sequence. vLLM's automatic prefix cache served
+    cells 1-5 out of cell 0's blocks: TTFT p50 74.9ms then ~30ms, a step at
+    the cell boundary. The published `1.5b-awq-vllm-orin` TTFT of 31.1ms was
+    that artifact; the honest number is ~66ms. Nothing about the marker being
+    at the front prevents this - the marker was simply the same in both cells."""
+    a = Cell(output_tokens=16, input_tokens=512)
+    b = Cell(output_tokens=128, input_tokens=512)
+    assert cell_salt(a) != cell_salt(b)
+    for run_index in (0, 1, 29):
+        pa, _ = build_prompt(512, run_index=run_index, salt=cell_salt(a))
+        pb, _ = build_prompt(512, run_index=run_index, salt=cell_salt(b))
+        assert pa != pb, f"cells share a prompt at run {run_index}"
+        # fixed-width salt: the cells must still be the same workload point
+        assert len(pa) == len(pb)
+
+
+def test_cell_salt_is_deterministic():
+    """A cell stays reproducible from its identity - the salt is a
+    disambiguator, not a nonce."""
+    c = Cell(output_tokens=128, input_tokens=512)
+    assert cell_salt(c) == cell_salt(Cell(output_tokens=128, input_tokens=512))
+    assert cell_salt(c, replicate=1) != cell_salt(c, replicate=2)
 
 
 def test_no_run_index_means_no_marker():

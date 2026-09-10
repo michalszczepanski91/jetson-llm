@@ -375,3 +375,101 @@ once the adapter itself heats up and its output sags (matches the crash landing 
 fairly consistent elapsed time regardless of which model was loaded). Resolved by
 swapping to a genuine 90W supply; campaign then ran 7+ consecutive rows and 1h17m
 uptime with zero resets. See decision log.
+
+## Phase 4 — prompt-salt contamination, found 2026-09-10
+
+The largest measurement error this lab has found in its own published data, and the
+one that had already propagated furthest: into `docs/promotion-decision.md`'s
+scorecard, into Phase 4's headline context-scaling finding, and into the Phase 5
+cross-platform Orin-vs-Thor comparison.
+
+### The symptom that started it
+
+`1.5b-awq-vllm-orin` reported **TTFT p50 31.1ms** in `output_sweep` and **66.0ms** in
+`context_sweep` at a nominally identical workload point (in=512, out=128), same model,
+same backend, same day. Phase 5 had already flagged this as "something uncontrolled
+differs between those sweeps" and correctly refused to draw any TTFT conclusion
+against Thor until it was explained.
+
+### Root cause
+
+`benchmarks/runner.py:build_prompt()` was a function of `input_tokens` and `run_index`
+**only** — not of the cell. Two consequences, and the second was not suspected at all:
+
+1. **Cells that hold input length fixed emit byte-identical prompt sequences.**
+   `output_sweep` varies only `output_tokens`, so all six of its cells sent the same 30
+   prompts. vLLM V1 has automatic prefix caching **on by default**: cell 0 populated the
+   cache and cells 1-5 read their entire prefill out of it.
+2. **Cells that vary input length emit prompts that are literal prefixes of each other.**
+   `build_prompt` truncates one fixed filler string, so the in=128 prompt is a character-
+   for-character prefix of the in=512 prompt, which is a prefix of in=1024, and so on —
+   25% / 50% / 66% shared. So `context_sweep` was contaminated too, *progressively more
+   at longer contexts*, which is precisely the shape that flattens a scaling curve.
+
+The marker being at the front — which the docstring reasoned about carefully and got
+right — defeats reuse *between repetitions*. It does nothing about reuse *between
+cells*, because it was the same marker in every cell.
+
+### How it was confirmed, before any hardware was touched
+
+The already-collected data made a falsifiable prediction: if this is cross-cell prefix
+caching, `output_sweep`'s cell 0 must be clean and cells 1-5 must step down at the cell
+boundary — not decay, which is what a thermal or warmup explanation would produce.
+
+| `output_sweep`, in=512, one vLLM session | cell#0 | #1 | #2 | #3 | #4 | #5 |
+|---|---|---|---|---|---|---|
+| v1 TTFT p50 (ms) | 74.9 | 29.9 | 29.9 | 31.1 | 31.2 | 30.2 |
+| v2 TTFT p50 (ms), re-run 2026-09-10 | 79.8 | 79.7 | 79.9 | 80.5 | 80.8 | 80.7 |
+
+Flat within every cell (cell 0: 71 runs, 73.1-76.0ms, no trend), stepping at the
+boundary. Confirmed live by re-running under the fix at `--replicate 2`: same container
+digest, same vLLM 0.19.0, MAXN + `jetson_clocks` locked in both.
+
+### The fix
+
+`build_prompt` takes a `salt`, and `measure_cell` derives it from the cell's identity
+(`cell_salt()`: a 4-hex-char digest of input/output/batch/concurrency/replicate). Fixed
+width, so it costs the same tokens in every cell; deterministic, so a cell is still
+reproducible from its identity. `PROMPT_TEMPLATE_VERSION` went to **v2**, so every
+result document says which regime it belongs to: a `..._v1` result from a multi-cell
+vLLM session may carry cross-cell cache hits in its TTFT, a `..._v2` result cannot.
+Regression guard: `tests/test_experiment_configs.py::test_cells_sharing_an_input_length_do_not_share_prompts`.
+
+### The control
+
+llama.cpp is the negative control and it is what makes the correction trustworthy. It
+keeps a single-slot prompt cache, which 30 rotating unique prompts evict, so it should
+have been unaffected. Re-run under the identical code change:
+
+| input tokens | 128 | 512 | 1024 | 1536 |
+|---|---|---|---|---|
+| llama.cpp v1 | 213.2 | 310.1 | 630.3 | 897.7 |
+| llama.cpp v2 | 216.4 | 313.6 | 637.0 | 897.9 |
+
+<1.5% at every point, while vLLM moved by up to 2.3×. A shared environmental cause
+would have moved both.
+
+### What it invalidates
+
+- **`docs/promotion-decision.md`'s scorecard, `1.5b-awq-vllm-orin` row only.** Its
+  TTFT/energy came from `output_sweep`; every other row's came from `scorecard.yaml`,
+  which is single-cell and therefore never exposed. Corrected: TTFT 31.1 → **80.5ms**,
+  J/output-token 0.297 → **0.329**. Decode is unaffected (108.2 → 109.6 tok/s), as
+  expected — prefix caching cannot touch decode.
+- **Phase 4's context-scaling finding.** "vLLM near-flat" was the artifact; vLLM is
+  linear. See Phase 4's own corrected table.
+- **The Phase 5 cross-platform TTFT row.** It compared Thor's 54.9ms against Orin's
+  "31.1 / 66.0" spread and called it inconclusive. Both Orin numbers were contaminated;
+  the honest Orin value at that point is ~80.5ms. Thor's own row is single-cell and so
+  is not itself exposed — but re-deriving that comparison is Thor-side work.
+
+### The generalisable lesson
+
+Prefix caching had already cost this lab one 6.6× error (Phase 2, Incident 1) and the
+fix then was per-repetition unique prompts. That fix was correct and insufficient, and
+the reason it looked complete is that it was verified *within* one cell. **A campaign
+has a second reuse axis — between cells sharing a server session — and nothing in the
+result document made it visible**, because each cell's document is written and validated
+alone. Worth carrying to the sibling repos: `jetson-vlm-lab` and `jetson-whisper-trt`
+share this harness's ancestry, and any multi-cell sweep against a prefix-caching server
+has the same exposure.

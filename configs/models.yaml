@@ -28,6 +28,64 @@
 # n_gpu_layers left unconfirmed until a real run against Thor's own free
 # memory happens; do not guess a number here ahead of that.
 
+# --- fp16 precision arm, added 2026-09-09 -----------------------------------
+# Why these exist: every Orin row in this file is quantized (AWQ int4 or GGUF
+# Q4_K_M) and every Thor row on the thor-edge-llm branch is fp16 - so the
+# Orin-vs-Thor BFCL `irrelevance` gap (1.5B vLLM: 36.7% here vs 68% there)
+# has precision and hardware varying together and cannot be attributed to
+# either. These rows hold hardware, backend, image, model family and sample
+# fixed and vary ONLY precision, which is the one comparison the
+# cross-platform data structurally cannot make.
+#
+# This matters beyond methodology: embedded-ai-chain ships the AWQ int4 row,
+# and its documented production failure is over-escalation - exactly what
+# `irrelevance` measures. If int4 is implicated, that is directly actionable.
+#
+# gpu_memory_utilization is scaled from the AWQ rows by the weight-size ratio
+# (fp16 is ~4x int4) plus KV/activation headroom, NOT copied from the Thor
+# rows - Thor sets 0.25 of 122GB, which is ~30GB, i.e. this entire board.
+
+1.5b-fp16-vllm-orin:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.30  # ~9GB of 30GB: ~3.1GB weights + KV/activation headroom
+  max_model_len: 2048  # matches 1.5b-awq-vllm-orin exactly, so precision is the only delta
+  notes: >
+    Untested starting point, added 2026-09-09 as the fp16 control for
+    1.5b-awq-vllm-orin. Weights are not cached on this board yet (~3.1GB
+    download on first start). The decisive comparison of the pair: does
+    AWQ int4 account for this row's AWQ twin scoring 36.7% BFCL irrelevance
+    where the same model/backend at fp16 scored 68% on Thor?
+
+3b-fp16-vllm-orin:
+  model: Qwen/Qwen2.5-3B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.45  # ~13.5GB of 30GB: ~6.2GB weights + KV/activation headroom
+  max_model_len: 2048
+  notes: >
+    Untested starting point, added 2026-09-09 as the fp16 control for
+    3b-awq-vllm-orin (~6.2GB download on first start). Second point on the
+    precision axis - one pair could be coincidence.
+
+7b-fp16-vllm-orin:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (no quantization)"
+  backend: vllm
+  platform: orin
+  gpu_memory_utilization: 0.75  # ~22.5GB of 30GB: ~15.2GB weights leaves ~7GB for KV
+  max_model_len: 2048
+  notes: >
+    Untested and the highest-risk row in this file, added 2026-09-09
+    (~15.2GB download on first start). 15.2GB of fp16 weights on a ~30GB
+    board leaves a thin margin, and this may simply not fit even standalone -
+    if it OOMs, that is a real result to record (docs/note.md 54), not a
+    reason to retune until it passes. Directly comparable to Thor's
+    7b-fp16-vllm-thor, which had 122GB to work with.
+
 1.5b-awq-vllm-orin:
   model: Qwen/Qwen2.5-1.5B-Instruct-AWQ
   precision: "AWQ int4 (weights), bf16 activations"

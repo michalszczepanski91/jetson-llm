@@ -140,6 +140,18 @@ Three rules the code enforces rather than trusts:
   in the aggregates and only caught by reading llama-server's own log
   (`prompt eval time = ... / 1 tokens` for a 40-token prompt). `--prompt-uniqueness`
   controls it and the choice is recorded in every result.
+- **Prompts also vary per *cell*, not just per repetition** (`cell_salt()`, added
+  2026-09-10 after this exact gap cost a 2.3x error). Per-repetition uniqueness was
+  correct and **insufficient**: `build_prompt` was a function of input length and run
+  index only, so every cell of a sweep holding input length fixed sent byte-identical
+  prompts, and vLLM V1's automatic prefix caching (**on by default**) served cells 1..n
+  out of cell 0's blocks. Worse, `build_prompt` truncates one fixed filler, so a shorter
+  cell's prompt is a literal *prefix* of a longer one's - contaminating the context
+  sweep progressively with length, which flattened a published scaling curve. It was
+  invisible because each result document is written and validated **alone**, and the
+  reuse axis is between documents. `PROMPT_TEMPLATE_VERSION` is now `v2`: any `..._v1`
+  result from a multi-cell vLLM session may carry cross-cell cache hits in its TTFT.
+  Full record: `docs/HISTORY.md`, "Phase 4 - prompt-salt contamination".
 
 `scripts/run_experiment.py` is the path for anything that will be reported: it takes
 a `configs/benchmarks/*.yaml` file, so an experiment is re-runnable from (model config
@@ -254,8 +266,10 @@ having no OpenAI-compatible server at all) and what's still pending (Thor access
 
 **Phase 2-4 (measurement integrity + a real campaign)**: done 2026-09-04. See
 README's "Current State" for the two real findings (J/output-token amortization with
-generation length; a backend-specific context-scaling gap - vLLM's TTFT stays near
-flat 128->1536 input tokens, llama.cpp's is clearly super-linear) and
+generation length; a backend-specific context-scaling gap - **corrected 2026-09-10**:
+vLLM's TTFT is *linear* in input length 128->1536, not "near flat" as originally
+published, and llama.cpp's is clearly super-linear at ~5.5x vLLM's marginal cost per
+token) and
 `docs/project.diagram.md` §6 for the full tables. `docs/TODO.md` Phases 2-4 have the
 complete record, including the three measurement-integrity incidents this section's
 "Measurement integrity" above summarizes.

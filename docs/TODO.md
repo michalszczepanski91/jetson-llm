@@ -236,16 +236,34 @@ shape:
 | llama.cpp J/tok | 0.949 | 0.757 | 0.682 | 0.647 | 0.673 | 0.657 |
 
 *A real backend-specific context-scaling difference* — TTFT vs input length, decode
-throughput held flat on both:
+throughput held flat on both. **Every vLLM number in the original version of this
+table was wrong, and the shape it showed was an artifact** — corrected 2026-09-10,
+see "Prompt-salt contamination" below:
 
 | input tokens | 128 | 512 | 1024 | 1536 |
 |---|---|---|---|---|
-| vLLM TTFT ms | 40.8 | 66.0 | 83.2 | 81.8 |
-| llama.cpp TTFT ms | 213.2 | 310.1 | 630.3 | 897.7 |
+| vLLM TTFT ms (v1, WITHDRAWN) | 40.8 | ~~66.0~~ | ~~83.2~~ | ~~81.8~~ |
+| **vLLM TTFT ms (v2, corrected)** | **41.1** | **80.4** | **132.3** | **186.4** |
+| llama.cpp TTFT ms (v1) | 213.2 | 310.1 | 630.3 | 897.7 |
+| llama.cpp TTFT ms (v2, control) | 216.4 | 313.6 | 637.0 | 897.9 |
 
-vLLM near-flat over the range; llama.cpp clearly super-linear (roughly doubles
-512→1024 alone). A *prefill*-specific difference, not general speed — confounded by
-quantization format (AWQ vs GGUF), stated not fixed, per this lab's fairness rules.
+**The corrected reading is the opposite of the original one on vLLM's half.** vLLM is
+not "near-flat" — it is textbook *linear* in input length: a least-squares fit of the
+512/1536 points, `27.4ms + 0.1035ms/token`, predicts 40.7ms at 128 tokens against
+41.1ms measured. The v1 row fitted nothing (it "predicted" 60ms at 128 where 40.8 was
+measured) and was even non-monotonic at the top, 83.2 → 81.8 — the tell that should
+have been caught at the time. llama.cpp is still clearly super-linear and its marginal
+prefill cost is **5.5×** vLLM's (0.574 vs 0.104 ms/token).
+
+So the backend difference is real but is a *marginal-cost and curvature* difference,
+not the "flat vs super-linear" qualitative gap this table used to claim. Still
+confounded by quantization format (AWQ vs GGUF), stated not fixed, per this lab's
+fairness rules.
+
+**llama.cpp is the control that makes the correction trustworthy**: the identical code
+change moved vLLM by up to 2.3× and moved llama.cpp by <1.5% at every point, because
+llama-server keeps a single-slot prompt cache that 30 rotating unique prompts evict,
+while vLLM V1 has multi-block automatic prefix caching on by default.
 
 **Also surfaced, not yet a controlled finding**: llama.cpp's standalone decode here
 (36-43 tok/s) is roughly double Phase 2's co-resident measurement at the same config

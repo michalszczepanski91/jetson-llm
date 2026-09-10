@@ -29,6 +29,7 @@ both were found by running the thing rather than reasoning about it:
 from __future__ import annotations
 
 import datetime
+import hashlib
 import itertools
 import sys
 import time
@@ -53,7 +54,10 @@ MIN_POWER_SAMPLES = 20
 
 #: Versioned per docs/note.md §21: a prompt change is an experimental change,
 #: so it may not live silently inside the benchmark implementation.
-PROMPT_TEMPLATE_VERSION = "v1"
+#: v2 (2026-09-10) adds the per-cell salt - see `build_prompt`. Any `..._v1`
+#: result from a multi-cell vLLM session may carry cross-cell prefix-cache
+#: hits in its TTFT; `..._v2` cannot.
+PROMPT_TEMPLATE_VERSION = "v2"
 
 _BASE_PROMPT = "What do you see in front of you right now?"
 _FILLER = (
@@ -105,15 +109,49 @@ def expand_grid(workload: dict[str, Any]) -> list[Cell]:
     ]
 
 
-def build_prompt(target_tokens: int | None, run_index: int | None = None) -> tuple[str, str]:
+def cell_salt(cell: "Cell", replicate: int = 1) -> str:
+    """A short fixed-width tag that differs between cells of one session.
+
+    Exists because `build_prompt`'s run-index marker alone was NOT enough to
+    defeat prefix reuse, which cost this lab a real 2x error - see that
+    function's docstring."""
+    key = f"{cell.input_tokens}|{cell.output_tokens}|{cell.batch_size}|{cell.concurrency}|{replicate}"
+    return hashlib.sha256(key.encode()).hexdigest()[:4]
+
+
+def build_prompt(
+    target_tokens: int | None,
+    run_index: int | None = None,
+    salt: str = "0000",
+) -> tuple[str, str]:
     """Return (prompt, prompt_source).
 
-    `run_index` makes the prompt unique per repetition, to defeat KV-cache
-    reuse. The marker goes at the FRONT because both backends cache by
-    prefix - a unique suffix would leave everything before it reusable and
-    change nothing. The chat template's own system prefix stays cacheable
-    even so, which is realistic: a real deployment also has a stable system
-    prompt.
+    `run_index` makes the prompt unique per repetition and `salt` makes it
+    unique per *cell*, both to defeat KV-cache reuse. Both go at the FRONT
+    because both backends cache by prefix - a unique suffix would leave
+    everything before it reusable and change nothing. The chat template's own
+    system prefix stays cacheable even so, which is realistic: a real
+    deployment also has a stable system prompt.
+
+    **Why `salt` exists (2026-09-10).** The run-index marker alone was not
+    enough, and the gap was live in published data. `build_prompt` is a
+    function of `input_tokens` and `run_index` only - not of `output_tokens`
+    - so every cell of a sweep that holds input length fixed emitted a
+    *byte-identical* prompt sequence. Under vLLM's automatic prefix caching
+    (on by default in V1) the first such cell populates the cache and every
+    later one reads out of it. Measured on this Orin, `output_sweep`
+    (in=512, 6 output lengths, one server session): cell 0 TTFT p50 74.9ms,
+    then 29.9 / 29.9 / 31.1 / 31.2 / 30.2ms for cells 1-5 - a step function
+    at the cell boundary, not a decay, and flat within every cell. The
+    matching `context_sweep` cell, whose input length made its prompts unique,
+    read 66.0ms. That 2.1x is the whole of the discrepancy that made every
+    Orin TTFT comparison - including the cross-platform one against Thor -
+    unusable until it was explained. llama.cpp is the negative control: it
+    keeps a single-slot prompt cache, so its two sweeps agreed (309.5 vs
+    310.1ms) and only the vLLM rows were affected.
+
+    The salt is fixed-width so it costs the same tokens in every cell, and
+    deterministic so a cell is still reproducible from its identity.
 
     Token targets are approximate. There is no tokenizer on the host (this
     repo is stdlib-only by design and the tokenizer lives inside the serving
@@ -121,7 +159,7 @@ def build_prompt(target_tokens: int | None, run_index: int | None = None) -> tup
     ACHIEVED count is read back from the server's own usage block and is what
     every derived figure uses. That is why the schema keeps
     `input_tokens_target` and per-run `input_tokens` as separate fields."""
-    marker = f"[run {run_index}] " if run_index is not None else ""
+    marker = f"[run {run_index} {salt}] " if run_index is not None else ""
     if target_tokens is None:
         return marker + _BASE_PROMPT, f"fixed_transcript_{PROMPT_TEMPLATE_VERSION}"
     words_needed = int(target_tokens * 0.75)
@@ -179,9 +217,12 @@ def measure_cell(
     """
     unique = prompt_uniqueness == "unique-per-run"
     _, prompt_source = build_prompt(cell.input_tokens)
+    salt = cell_salt(cell, replicate)
 
     def messages_for(i: int) -> list[dict]:
-        prompt, _ = build_prompt(cell.input_tokens, run_index=i if unique else None)
+        prompt, _ = build_prompt(
+            cell.input_tokens, run_index=i if unique else None, salt=salt
+        )
         return [{"role": "user", "content": prompt}]
 
     exp_id = experiment_id(
