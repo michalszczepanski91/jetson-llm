@@ -484,6 +484,8 @@ def main():
                 backend=variant["backend"], platform=variant["platform"], base_url=coordinator.base_url,
                 image=getattr(coordinator, "image", None), command=shlex.join([sys.executable, *sys.argv]),
                 model_config_key=args.model_config, target=args.target,
+                execution_condition=args.execution_condition,
+                co_resident_with=args.co_resident,
             ),
             "model": {
                 "name": variant["model"], "precision": variant["precision"], "backend": variant["backend"],

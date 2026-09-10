@@ -93,9 +93,38 @@ is why Edge-LLM can turn extra capacity into judgment (78%→94%) while vLLM get
   truncation defaults (a real flaw in the original setup, which had pinned only
   `temperature`). Forcing `top_k=1` (deterministic argmax on all three, making
   `top_p`/`min_p`/temperature inert) reproduced every backend's own score exactly.
-  With weights, parser, and decoding all controlled, the gap is structural — most
-  likely in how each backend renders the tools prompt or decides a generation counts
-  as a tool call. Not yet isolated further.
+- *Not chat-template rendering* — **2026-09-10, and this was the leading candidate
+  until it was tested.** `scripts/chat_template_crossfeed.py` captured what each
+  backend actually sends (vLLM via `POST /tokenize` with `return_token_strs`,
+  llama.cpp via `POST /apply-template`, Edge-LLM through its own
+  `ToolChatTemplateFormatter` — the class `runtime/engine.py` calls — checked against
+  the live server's own `usage.prompt_tokens`, 224 == 224). **Edge-LLM and vLLM build
+  byte-identical prompts on all 50 cases.** Crossfeeding each rendering to each
+  backend that has `/v1/completions` moves abstention by at most 4 points, while
+  swapping the backend moves it 32–40:
+
+  | serving ↓ / rendering → | Edge-LLM (canonical) | llama.cpp (braces) | own chat path |
+  |---|---|---|---|
+  | vLLM | 52% | 56% | 54% |
+  | llama.cpp | 60% | 62% | 62% |
+  | Edge-LLM | *no `/v1/completions`* | — | 94% |
+
+  llama.cpp's rendering *does* differ from the other two on 50/50 cases — it emits
+  `{{"name": ...}}` where the canonical Qwen2.5 template emits `{"name": ...}`, a real
+  template bug (226 vs 224 tokens, HF and llama.cpp tokenizers agreeing exactly) — and
+  it is worth ~2 points, not 32.
+- *Not numeric dtype* — the one structural difference the crossfeed turned up:
+  Qwen2.5-7B-Instruct's config.json is `torch_dtype: bfloat16`, vLLM follows it, and
+  Edge-LLM's built engine is `"dtype": "F16"`. Same bytes in, different numbers.
+  Forcing vLLM to `--dtype float16` (`7b-fp16dtype-vllm-thor`) scored `irrelevance`
+  **54.0%, identical to bf16** — though not a null result: 6 of 50 irrelevance
+  verdicts flip and `simple` improves 92%→98%, the flips simply cancel. llama.cpp is
+  already fp16 at 62%, so dtype could not have explained the ordering anyway.
+
+  With weights, parser, decoding, prompt bytes and dtype all controlled, the gap is
+  still structural and **still unidentified**. What is left sits inside Edge-LLM's
+  own runtime — its TensorRT kernels and KV-cache handling are the untested surface —
+  and is no longer cheap to probe from the outside.
 
 **14B buys nothing.** It agrees with 7B on 98/100 BFCL cases — not approximately,
 byte-identical aggregates — while costing 2× the latency and 2.1× the energy. Thor's

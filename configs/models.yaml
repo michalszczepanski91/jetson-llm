@@ -913,3 +913,128 @@ bielik-11b-q4-llamacpp-orin:
     repo IS gated (HF_FS_ACCESS_DENIED confirmed live on the base repo,
     2026-09-04) - same "base gated, official GGUF repo isn't" pattern as
     Apertus, but here the GGUF repo is SpeakLeash's own, not a third party's.
+
+# --- Bielik on Thor, added 2026-09-10 ---
+# docs/TODO.md's "Not tested yet" flagged that the only Bielik Thor row was the
+# vLLM one - i.e. the variant already CONFIRMED broken for tool-calling on Orin
+# across two parsers. The path that actually works for this family (llama.cpp,
+# which reaches it through a grammar-CONSTRAINED "Generic" tool-call route
+# rather than tag detection - see bielik-11b-q4-llamacpp-orin) had no Thor row
+# at all, so the open question "is Bielik's vLLM tool-calling gap backend-wide
+# or Orin-specific?" could not be answered from this registry. This row is the
+# working leg; its vLLM twin above is the failing leg. Both are needed.
+#
+# There is deliberately NO edge-llm Bielik row. Edge-LLM's builder registry
+# does support LlamaForCausalLM (experimental/builder/models/registry.py:76),
+# which is Bielik-v3's architecture, so the backend is not the obstacle - the
+# WEIGHTS are: Edge-LLM builds from an HF checkpoint, and
+# speakleash/Bielik-11B-v3.0-Instruct is still GATED (re-confirmed live via the
+# HF API, 2026-09-10 - unchanged since the 2026-09-04 Orin finding). The
+# ungated `-awq` sibling is compressed-tensors, not a format Edge-LLM's builder
+# reads. So an Edge-LLM Bielik row would be blocked on HF gate acceptance, not
+# on anything this lab can fix by writing a row - recorded here rather than
+# added as a row that could never start.
+bielik-11b-q4-llamacpp-thor:
+  model: speakleash/Bielik-11B-v3.0-Instruct-GGUF
+  precision: "GGUF Q4_K_M (llama.cpp k-quant, ~4.5 bits/weight effective)"
+  backend: llama-cpp
+  platform: thor
+  quant: Q4_K_M  # matches bielik-11b-q4-llamacpp-orin exactly - this row exists to
+                 # vary PLATFORM, so precision must not move with it. Note the other
+                 # Thor llama-cpp rows are fp16 for a different reason (they hold
+                 # precision constant across the three-backend comparison, which
+                 # Edge-LLM can only join at fp16); this row is not part of that
+                 # comparison.
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 2048  # matches bielik-11b-q4-llamacpp-orin
+  notes: >
+    Added 2026-09-10. Thor counterpart of bielik-11b-q4-llamacpp-orin, which is
+    the strongest llama.cpp result of any family in this lab (correctly
+    structured get_weather tool call on the first try, 2026-09-04). Exists to
+    settle whether Bielik's CONFIRMED vLLM tool-calling failure is
+    backend-specific or platform-specific: the Orin has one working backend
+    (llama.cpp) and one failing one (vLLM) for this family, and until Thor has
+    both legs the platform cannot be ruled in or out. Not yet smoke-tested at
+    the time this row was added.
+
+# --- Qwen3-8B-AWQ on vLLM: the checkpoint-vs-Edge-LLM discriminator ---
+# Added 2026-09-10 to settle an open question this lab cannot leave open:
+# qwen3-8b-awq-edgellm-thor builds and serves and then emits DEGENERATE output
+# ("0000000..." for "capital of Poland", still degenerate under greedy), and
+# patches/edgellm-int4-bias-recipe.patch is a live suspect because it was
+# applied when that engine was built. If a patch this lab RELIES ON (the
+# recommended 7b-gptq row is built with it) can silently produce a wrong
+# engine, that has to be known.
+#
+# This row is the cheap half of the two-part test. It runs the SAME
+# checkpoint through a backend that has never seen the patch:
+#   - garbage here too  -> the checkpoint is bad, Edge-LLM and the patch are
+#                          both exonerated
+#   - clean here        -> the checkpoint is fine and the fault is in
+#                          Edge-LLM's int4/AWQ path, which is where the patch
+#                          lives
+# Neither outcome alone proves the patch is at fault - that needs the second
+# half (revert the patch, invalidate the engine cache entry, rebuild) - but
+# this half needs no rebuild and no patch surgery, so it goes first.
+qwen3-8b-awq-vllm-thor:
+  model: Qwen/Qwen3-8B-AWQ
+  precision: "AWQ int4 (weights), Qwen's own official quant - byte-identical checkpoint to qwen3-8b-awq-edgellm-thor"
+  backend: vllm
+  platform: thor
+  port: 8001  # NOT 8000 - the box's production vllm-vlm-thor binds it
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.15  # untested starting point; ~5.5GB of int4 weights, so
+                                # ~18GB of Thor's 122GB pool is generous headroom
+  max_model_len: 2048  # matches every other Thor row
+  extra_volumes:  # same startup-profiling patch every other Thor vllm row needs -
+    # see 7b-fp16-vllm-thor's comment for why. Startup profiling only, no inference path.
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
+  notes: >
+    Added 2026-09-10 as a control for qwen3-8b-awq-edgellm-thor's degenerate
+    output, NOT as a serving candidate in its own right - the family question
+    (does Qwen3 beat Qwen2.5 on `irrelevance`?) is downstream of first having a
+    Qwen3 engine that produces text at all. Not yet run at the time this row
+    was added.
+
+# --- The dtype control: the one structural difference left between vLLM and
+#     Edge-LLM once rendering was ruled out (2026-09-10) ---
+# The chat-template probe (scripts/chat_template_probe.py) established that
+# Edge-LLM and vLLM build BYTE-IDENTICAL prompts for all 50 BFCL irrelevance
+# cases - so the 40-point `irrelevance` gap between them is not prompt
+# rendering, and the leading hypothesis in CLAUDE.md is refuted. What the probe
+# then turned up instead: the two backends do not run the same NUMBERS.
+#   Qwen2.5-7B-Instruct's config.json  -> torch_dtype: bfloat16
+#   vLLM                               -> dtype=torch.bfloat16 (follows it)
+#   Edge-LLM's built engine            -> "dtype": "F16" (converts to fp16)
+# bf16 and fp16 carry different mantissa widths (~8 vs ~10 bits), which under
+# GREEDY decoding is not cosmetic: it can flip an argmax wherever the model is
+# near-indifferent between starting a <tool_call> block and answering in prose,
+# and abstention on an irrelevance case is exactly that kind of marginal call.
+# This row is vLLM held identical to 7b-fp16-vllm-thor in every respect except
+# --dtype float16, so numeric format is the ONLY variable.
+7b-fp16dtype-vllm-thor:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (forced via --dtype float16; the checkpoint itself is bf16)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.25  # identical to 7b-fp16-vllm-thor
+  max_model_len: 2048           # identical to 7b-fp16-vllm-thor
+  extra_args:
+    - --dtype
+    - float16
+  extra_volumes:
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
+  notes: >
+    Added 2026-09-10 as the dtype control for the framework gap. Differs from
+    7b-fp16-vllm-thor by `--dtype float16` and nothing else. If vLLM's
+    `irrelevance` moves materially off its 54% toward Edge-LLM's 94%, numeric
+    format is a real part of the mechanism and - unlike Edge-LLM itself - it
+    is available on the Orin at JetPack 6.2 with no reflash, which is the
+    reason this question was worth the box time. If it does not move, dtype
+    joins rendering, parser and decoding on the list of eliminated
+    explanations. Not a serving recommendation either way: fp16 on a bf16-trained
+    checkpoint carries its own overflow risk and would need its own MMLU check
+    before anyone shipped it.

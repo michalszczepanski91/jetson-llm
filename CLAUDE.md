@@ -29,9 +29,15 @@ note that pinning only `temperature` is NOT controlled sampling, since the three
 backends apply three different `top_p`/`top_k`/`min_p` defaults); it is **not** a
 parser artifact (Edge-LLM scores identically with `auto` and `hermes`, 100/100
 identical per-case verdicts); and **14B is pointless** (98/100 identical verdicts to
-7B at 2x the latency and 2.1x the energy). What remains unidentified is *which*
-structural difference causes the framework gap - chat-template rendering is the
-leading candidate.
+7B at 2x the latency and 2.1x the energy); it is **not** chat-template rendering
+(2026-09-10 - Edge-LLM and vLLM build **byte-identical** prompts for all 50 BFCL
+irrelevance cases, and vLLM fed Edge-LLM's exact bytes through `/v1/completions`
+still abstains at 52% against Edge-LLM's 94%); and it is **not** numeric dtype
+(vLLM forced to `--dtype float16`, matching Edge-LLM's engine, scored `irrelevance`
+54.0% - identical to its own bf16 54.0%). What remains unidentified is *which*
+structural difference causes the framework gap, and the list of things it is NOT is
+now longer than the list of candidates. See `scripts/chat_template_crossfeed.py` and
+`docs/thor-framework-comparison.md`'s "Why the gap exists".
 
 Currently Qwen2.5-Instruct (1.5B/3B/7B/14B), Apertus-8B-Instruct-2509
 (data-sovereignty framing - Swiss-public-funded and fully open including training

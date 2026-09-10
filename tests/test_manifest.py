@@ -517,3 +517,43 @@ def test_quality_manifest_remote_target_flag_is_recorded(monkeypatch):
     )
     assert m["target"] == "remote"
     assert "n/a" in m["container_image"]
+
+
+def test_quality_manifest_records_execution_condition_as_structured_data(monkeypatch):
+    """Until 2026-09-10 an accuracy result stated its board state only inside
+    the free-text `manifest.command` string, so no validator and no analysis
+    join could read it - while the performance schema had required the field
+    since Phase 2. The guard always ran; the label just never survived into the
+    document."""
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    m = manifest.quality_manifest(
+        backend="vllm", platform="thor", base_url="http://127.0.0.1:8001",
+        image="ghcr.io/x:tag", command="cmd", model_config_key="k",
+        execution_condition="standalone",
+    )
+    assert m["execution_condition"] == "standalone"
+    # standalone names nothing alongside it, so the key must be absent rather
+    # than an empty list a reader could mistake for "declared, and it was none"
+    assert "co_resident_with" not in m
+
+
+def test_quality_manifest_co_resident_names_the_other_workload(monkeypatch):
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    m = manifest.quality_manifest(
+        backend="vllm", platform="thor", base_url="http://127.0.0.1:8001",
+        image="ghcr.io/x:tag", command="cmd", model_config_key="k",
+        execution_condition="co-resident", co_resident_with=["vllm-vlm-thor"],
+    )
+    assert m["execution_condition"] == "co-resident"
+    assert m["co_resident_with"] == ["vllm-vlm-thor"]
+
+
+def test_quality_manifest_omits_execution_condition_when_not_given(monkeypatch):
+    """Absent, not guessed. A default of "standalone" here would manufacture
+    exactly the false claim assert_condition_matches_reality() exists to catch."""
+    monkeypatch.setattr(manifest, "probe_backend_version", lambda *a, **k: "vllm 0.19.0")
+    m = manifest.quality_manifest(
+        backend="vllm", platform="orin", base_url="http://127.0.0.1:8000",
+        image="ghcr.io/x:tag", command="cmd", model_config_key="k",
+    )
+    assert "execution_condition" not in m

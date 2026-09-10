@@ -64,8 +64,29 @@ question this file gets asked most and it should not take eleven sections to ans
   GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
   cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking
   *every* int4 checkpoint, so it may have been masking an Apertus/Bielik path too.
-- **The chat-template test — two of three legs RUN, 2026-09-10; the Edge-LLM leg is
-  still outstanding and is Thor-only.** `scripts/chat_template_probe.py`, full record in
+- **The chat-template test — COMPLETE, 2026-09-10, and it REFUTES the hypothesis.**
+  The Thor (Edge-LLM) leg ran precision-matched at 7B fp16 across all three backends,
+  via `scripts/chat_template_crossfeed.py`; raw documents in
+  `output/chat_template_probe/`. Two results, in order of importance:
+  **(1) Edge-LLM and vLLM render byte-identically — 50/50 cases.** Same weights, same
+  prompt bytes, 94% vs 54%. So rendering cannot be what separates them. (llama.cpp
+  differs from both on 50/50, by exactly two characters: it emits
+  `{{"name": ...}}` where the canonical Qwen2.5 template emits `{"name": ...}` — a real
+  llama.cpp template bug, confirmed by token count 226 vs 224 with the HF and llama.cpp
+  tokenizers agreeing exactly.)
+  **(2) The crossfeed matrix settles it.** Feeding each captured rendering to each
+  backend that has `/v1/completions` (greedy `top_k=1`, `max_tokens=200`,
+  `stop=["<|im_end|>"]`, n=50): vLLM scores 52% on Edge-LLM's rendering and 56% on
+  llama.cpp's; llama.cpp scores 60% and 62%. Matched chat-path references on the same
+  50 cases reproduce the campaign exactly (Edge-LLM 94%, llama.cpp 62%, vLLM 54%).
+  **Swapping the prompt moves abstention by ≤4 points; swapping the backend moves it
+  32–40.** The cheap Orin win this test was hoping for — render like Edge-LLM, keep
+  vLLM at JetPack 6.2 — is not available.
+  **Note Edge-LLM cannot be a crossfeed target at all**: its server exposes no
+  `/v1/completions` (only `/v1/chat/completions`, `/v1/messages` and audio routes —
+  `experimental/server/api/routes.py`, 0.10.1). That is why this needed a
+  rendering-capture design rather than `scripts/chat_template_probe.py` unchanged.
+  Superseded record of the two-leg state: `scripts/chat_template_probe.py`, full record in
   `results/raw/2026-09-10_orin_chat-template-probe/`. On Orin, with the template removed
   and the prompt bytes verified identical, **the gap survives**: vLLM 33.3%
   correct-abstain vs llama.cpp 60.0% (against 36.7% / 70.0% through the chat path), only
@@ -76,7 +97,36 @@ question this file gets asked most and it should not take eleven sections to ans
   points, so quantization format explains it at least as well as backend runtime does.
   The mechanism behind the *Thor* 40-point finding stays unidentified: that comparison
   held precision at fp16, so it is a different question and needs the Edge-LLM leg.
-- **Bielik on Thor — still NOT smoke-tested.** Unchanged since it was first flagged.
+- **dtype is NOT the mechanism either — tested 2026-09-10.** The one structural
+  difference the crossfeed did turn up: `Qwen2.5-7B-Instruct`'s config.json is
+  `torch_dtype: bfloat16`, vLLM follows it, and **Edge-LLM's built engine is
+  `"dtype": "F16"`** — byte-identical prompts, numerically different weights. Tested
+  with `7b-fp16dtype-vllm-thor` (vLLM identical to `7b-fp16-vllm-thor` except
+  `--dtype float16`; vLLM logs `Casting torch.bfloat16 to torch.float16`).
+  Result: `irrelevance` **54.0%, exactly its bf16 score**. Not a null run — the dtype
+  change is real and visible (6 of 50 irrelevance verdicts flip, and `simple` improves
+  92%→98%) — but the flips cancel and the abstention rate does not move. Full document,
+  schema-conforming, at
+  `results/raw/2026-09-10_thor_7b-fp16dtype-vllm-thor_bfcl-v3_n100/`.
+  Also note llama.cpp is *already* fp16 and sits at 62%, so dtype could never have
+  explained the ordering on its own.
+- **A truncation artifact worth knowing before trusting any `irrelevance` number.**
+  Qwen2.5 on these prompts writes prose FIRST and emits the tool call after it. At
+  `max_tokens=64` vLLM measures **92%** `irrelevance` with `finish_reason=length` on
+  every case — a 38-point error in the flattering direction, found and corrected here
+  the same day. `validate_tool_calling.py`'s default of 200 is load-bearing, not
+  incidental. Even at 200 there are 5–9 truncations per 50 cases, and vLLM's hermes
+  parser throws `JSONDecodeError: Unterminated string` on a tool call cut off
+  mid-JSON, which scores as an abstention. Worst-case bounds (counting every
+  truncation as a call) are Edge-LLM 76% / llama.cpp 50% / vLLM 36% — the ordering and
+  the size of the gap both survive, but the absolute numbers are upper bounds.
+- **Bielik on Thor — row added 2026-09-10, still NOT smoke-tested.**
+  `bielik-11b-q4-llamacpp-thor` now exists, so the *working* Bielik path finally has a
+  Thor row (the pre-existing `bielik-11b-awq-vllm-thor` is the variant already known to
+  fail on Orin). No Edge-LLM Bielik row is possible: `speakleash/Bielik-11B-v3.0-Instruct`
+  is still **gated** (re-confirmed live via the HF API, 2026-09-10) and the ungated
+  `-awq` sibling is compressed-tensors, which Edge-LLM's builder does not read — so
+  that leg is blocked on gate acceptance, not on lab work.
 - **Co-residency on either board** (Phase 9) — the single most valuable unmeasured
   quantity in the project, per both `paper.md` and `embedded-ai-chain`'s own TODO.
 

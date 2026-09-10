@@ -491,6 +491,8 @@ def quality_manifest(
     command: str,
     model_config_key: str,
     target: str = "local",
+    execution_condition: str | None = None,
+    co_resident_with: list[str] | None = None,
 ) -> dict[str, Any]:
     """The flat manifest shape schemas/quality_result.schema.json expects -
     quality evaluations (BFCL, MMLU) don't need the full nested
@@ -513,6 +515,18 @@ def quality_manifest(
         "platform": platform,
         "target": target,
     }
+    # The board state, as STRUCTURED data. It was always enforced (every
+    # scripts/validate_*.py requires --execution-condition, and
+    # assert_condition_matches_reality() refuses a false claim), but until
+    # 2026-09-10 it survived into the document only inside the free-text
+    # `command` string - so no validator, and no analysis join, could see it.
+    # An accuracy score is less condition-sensitive than a latency one, which
+    # is why this went unnoticed; it is not condition-INsensitive, and a
+    # result that cannot state its own condition cannot be audited later.
+    if execution_condition is not None:
+        manifest["execution_condition"] = execution_condition
+        if co_resident_with:
+            manifest["co_resident_with"] = list(co_resident_with)
     return manifest
 
 

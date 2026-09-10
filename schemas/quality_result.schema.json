@@ -2,96 +2,254 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/mszczep/jetson-llm/schemas/quality_result.schema.json",
   "title": "Quality / accuracy benchmark result",
-  "description": "One quality evaluation of one candidate against one dataset - the output of scripts/validate_tool_calling.py (BFCL) and scripts/validate_mmlu.py (MMLU). Deliberately a SEPARATE schema from benchmark_result.schema.json: docs/note.md §5 keeps the quality and performance layers independently measurable, and §34 warns against collapsing them into a single score before the trade-off has been characterised. The two are joined at analysis time on `model_config_key`, not merged at write time. Self-contained (no cross-file $ref). Conformance levels: see schemas/README.md - the current scripts emit a flatter row than this, and docs/TODO.md Phase 5 is where they are brought into conformance.",
+  "description": "One quality evaluation of one candidate against one dataset - the output of scripts/validate_tool_calling.py (BFCL) and scripts/validate_mmlu.py (MMLU). Deliberately a SEPARATE schema from benchmark_result.schema.json: docs/note.md \u00a75 keeps the quality and performance layers independently measurable, and \u00a734 warns against collapsing them into a single score before the trade-off has been characterised. The two are joined at analysis time on `model_config_key`, not merged at write time. Self-contained (no cross-file $ref). Conformance levels: see schemas/README.md - the current scripts emit a flatter row than this, and docs/TODO.md Phase 5 is where they are brought into conformance.",
   "type": "object",
-  "required": ["schema_version", "result_id", "timestamp", "manifest", "model", "dataset", "protocol", "scores"],
+  "required": [
+    "schema_version",
+    "result_id",
+    "timestamp",
+    "manifest",
+    "model",
+    "dataset",
+    "protocol",
+    "scores"
+  ],
   "additionalProperties": false,
-
   "properties": {
     "_comment": {
       "type": "string",
       "description": "Optional free-text annotation. JSON has no comment syntax, and the example documents in schemas/examples/ need to say plainly that their numbers are illustrative rather than measured - a caveat that must travel with the file, not sit in a README nobody opens next to it. Ignored by every consumer; never carries data."
     },
-    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "examples": ["1.0.0"]},
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": [
+        "1.0.0"
+      ]
+    },
     "result_id": {
       "type": "string",
       "minLength": 1,
       "description": "Traceable back to (model config, dataset version, git commit) the same way a benchmark_result's experiment_id is.",
-      "examples": ["2026-09-04_orin_1.5b-q4-llamacpp-orin_bfcl-v3_n40"]
+      "examples": [
+        "2026-09-04_orin_1.5b-q4-llamacpp-orin_bfcl-v3_n40"
+      ]
     },
-    "timestamp": {"type": "string", "format": "date-time"},
-
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
     "manifest": {
       "type": "object",
       "description": "Reduced form of benchmark_result's manifest. A quality score is as backend-dependent as a latency number - both of this lab's known tool-calling failures (llama.cpp's temperature sensitivity, Bielik's empty tool_calls on vLLM) are backend/version effects, not model effects, and would be uninterpretable without this block.",
-      "required": ["git_commit", "command", "backend", "backend_version"],
+      "required": [
+        "git_commit",
+        "command",
+        "backend",
+        "backend_version"
+      ],
       "additionalProperties": false,
       "properties": {
-        "git_commit": {"type": "string", "minLength": 7},
-        "git_dirty": {"type": "boolean"},
-        "command": {"type": "string"},
-        "model_config_key": {"type": "string", "description": "Key into configs/models.yaml - the join key against benchmark_result documents."},
-        "backend": {"type": "string", "enum": ["vllm", "llama-cpp"]},
-        "backend_version": {"type": "string", "description": "From the running server. llama.cpp build 4579 rejects tool_choice outright while 5058 does not, so a tool-calling score without a build number is unattributable."},
-        "container_image": {"type": "string"},
-        "platform": {"type": "string", "enum": ["orin", "thor"]},
-        "target": {"type": "string", "enum": ["local", "remote"]}
+        "git_commit": {
+          "type": "string",
+          "minLength": 7
+        },
+        "git_dirty": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "model_config_key": {
+          "type": "string",
+          "description": "Key into configs/models.yaml - the join key against benchmark_result documents."
+        },
+        "backend": {
+          "type": "string",
+          "enum": [
+            "vllm",
+            "llama-cpp"
+          ]
+        },
+        "backend_version": {
+          "type": "string",
+          "description": "From the running server. llama.cpp build 4579 rejects tool_choice outright while 5058 does not, so a tool-calling score without a build number is unattributable."
+        },
+        "container_image": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "orin",
+            "thor"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "local",
+            "remote"
+          ]
+        },
+        "execution_condition": {
+          "type": "string",
+          "enum": [
+            "standalone",
+            "co-resident"
+          ],
+          "description": "Which board state produced this score. NOT required yet, and that is a recorded gap rather than a judgement that it does not matter: benchmark_result.schema.json has made this a first-class REQUIRED field since Phase 2, while every quality result written before 2026-09-10 carried the condition only inside the free-text `manifest.command` string, where no validator could reach it. The guard (benchmarks/manifest.py:assert_condition_matches_reality) did run for those results - scripts/validate_tool_calling.py has always required --execution-condition - so the label was enforced, just never structured. Made optional so the 25 already-conforming Orin results stay valid; promote to `required` once they are backfilled (docs/TODO.md Phase 5)."
+        },
+        "co_resident_with": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What else ran, when execution_condition is 'co-resident'. Same completeness rule the perf side enforces: a declared workload a reader trusts to be complete is exactly as load-bearing as the top-level label (docs/HISTORY.md Phase 3, incident 3 - five results named vllm-orchestrator but not tts_consumer.py and had to be corrected in place)."
+        }
       }
     },
-
     "model": {
       "type": "object",
-      "required": ["name", "precision", "backend"],
+      "required": [
+        "name",
+        "precision",
+        "backend"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": {"type": "string"},
-        "revision": {"type": ["string", "null"]},
-        "family": {"type": "string"},
-        "parameters_b": {"type": "number", "exclusiveMinimum": 0},
-        "precision": {"type": "string"},
-        "quantization_method": {"type": "string"},
-        "backend": {"type": "string", "enum": ["vllm", "llama-cpp"]},
-        "tool_call_parser": {"type": ["string", "null"], "description": "vLLM's --tool-call-parser, when tool calling was evaluated. A first-class result axis here: `hermes` and `llama3_json` both score 0 for Bielik on vLLM while llama.cpp's grammar-constrained path scores well on the same model."}
+        "name": {
+          "type": "string"
+        },
+        "revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family": {
+          "type": "string"
+        },
+        "parameters_b": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "precision": {
+          "type": "string"
+        },
+        "quantization_method": {
+          "type": "string"
+        },
+        "backend": {
+          "type": "string",
+          "enum": [
+            "vllm",
+            "llama-cpp"
+          ]
+        },
+        "tool_call_parser": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "vLLM's --tool-call-parser, when tool calling was evaluated. A first-class result axis here: `hermes` and `llama3_json` both score 0 for Bielik on vLLM while llama.cpp's grammar-constrained path scores well on the same model."
+        }
       }
     },
-
     "dataset": {
       "type": "object",
-      "description": "docs/note.md §20 - a dataset without a version is not a reproducible evaluation, and a silently modified dataset invalidates every comparison drawn against it.",
-      "required": ["name", "version", "split", "n_available", "n_evaluated"],
+      "description": "docs/note.md \u00a720 - a dataset without a version is not a reproducible evaluation, and a silently modified dataset invalidates every comparison drawn against it.",
+      "required": [
+        "name",
+        "version",
+        "split",
+        "n_available",
+        "n_evaluated"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": {"type": "string", "examples": ["BFCL", "MMLU"]},
-        "version": {"type": "string", "description": "Dataset release, e.g. BFCL_v3. Bumped on any change to the staged corpus.", "examples": ["v3"]},
-        "source": {"type": "string", "examples": ["gorilla-llm/Berkeley-Function-Calling-Leaderboard", "cais/mmlu"]},
-        "split": {"type": "string", "examples": ["simple+irrelevance", "all/test"]},
-        "license": {"type": "string"},
-        "n_available": {"type": "integer", "minimum": 0, "description": "Cases in the staged corpus - e.g. 399 BFCL simple + 239 irrelevance, 14042 MMLU all/test."},
+        "name": {
+          "type": "string",
+          "examples": [
+            "BFCL",
+            "MMLU"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "description": "Dataset release, e.g. BFCL_v3. Bumped on any change to the staged corpus.",
+          "examples": [
+            "v3"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "examples": [
+            "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+            "cais/mmlu"
+          ]
+        },
+        "split": {
+          "type": "string",
+          "examples": [
+            "simple+irrelevance",
+            "all/test"
+          ]
+        },
+        "license": {
+          "type": "string"
+        },
+        "n_available": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cases in the staged corpus - e.g. 399 BFCL simple + 239 irrelevance, 14042 MMLU all/test."
+        },
         "n_evaluated": {
           "type": "integer",
           "minimum": 1,
           "description": "Cases actually scored. Required alongside n_available so a sampled run can never be mistaken for a full one: this lab's only real BFCL scorecard so far is n=40 of 638, and that context is the difference between a data point and a claim."
         },
-        "sampling_method": {"type": "string", "enum": ["first-n", "random", "full"], "description": "How n_evaluated was drawn. `first-n` (the --limit flag's behaviour) is not a random sample and must not be described as one."},
-        "sampling_seed": {"type": ["integer", "null"]},
+        "sampling_method": {
+          "type": "string",
+          "enum": [
+            "first-n",
+            "random",
+            "full"
+          ],
+          "description": "How n_evaluated was drawn. `first-n` (the --limit flag's behaviour) is not a random sample and must not be described as one."
+        },
+        "sampling_seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "preprocessing_version": {
           "type": "string",
-          "description": "docs/note.md §20. Bumped whenever the loader changes what the model sees. Not bookkeeping: BFCL's own non-standard JSON-schema type names (\"float\" x215, \"tuple\" x2, \"any\" x1) crash llama.cpp's grammar builder and are rewritten by this repo's loader - two runs either side of that fix are not comparable."
+          "description": "docs/note.md \u00a720. Bumped whenever the loader changes what the model sees. Not bookkeeping: BFCL's own non-standard JSON-schema type names (\"float\" x215, \"tuple\" x2, \"any\" x1) crash llama.cpp's grammar builder and are rewritten by this repo's loader - two runs either side of that fix are not comparable."
         },
-        "prompt_template_version": {"type": "string", "description": "docs/note.md §21 - the chat template materially changes behaviour and is therefore an experimental variable."}
+        "prompt_template_version": {
+          "type": "string",
+          "description": "docs/note.md \u00a721 - the chat template materially changes behaviour and is therefore an experimental variable."
+        }
       }
     },
-
     "protocol": {
       "type": "object",
-      "description": "How scoring was performed. docs/note.md §41 requires the same evaluation protocol across compared candidates, which is only checkable if the protocol is recorded rather than assumed.",
-      "required": ["scorer", "temperature"],
+      "description": "How scoring was performed. docs/note.md \u00a741 requires the same evaluation protocol across compared candidates, which is only checkable if the protocol is recorded rather than assumed.",
+      "required": [
+        "scorer",
+        "temperature"
+      ],
       "additionalProperties": false,
       "properties": {
         "scorer": {
           "type": "string",
           "description": "Which scorer produced these numbers, stated precisely enough that the score is not mistaken for an official leaderboard figure. This repo uses a simplified AST-style checker, not the official `bfcl-eval` package, and generative letter-parsing for MMLU rather than logprob scoring (which would need a backend-specific API and so could not compare vLLM against llama.cpp at all).",
-          "examples": ["simplified-ast (this repo, not official bfcl-eval)", "generative-letter-parse"]
+          "examples": [
+            "simplified-ast (this repo, not official bfcl-eval)",
+            "generative-letter-parse"
+          ]
         },
         "temperature": {
           "type": "number",
@@ -99,83 +257,184 @@
           "description": "Pinned, and material. At llama.cpp's server default (~0.8) Qwen2.5-1.5B emits a correct tool call 12/15 times; at 0.1 it is 15/15, while vLLM is 15/15 at both. A tool-calling score without its temperature is not a property of the model."
         },
         "tool_choice": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "\"auto\" for this lab's tool-calling eval: the point is measuring UNFORCED judgment, so orchestrator.py's forced-tool_choice production workaround is deliberately not used here.",
-          "examples": ["auto"]
+          "examples": [
+            "auto"
+          ]
         },
-        "max_tokens": {"type": "integer", "exclusiveMinimum": 0},
-        "repetitions": {"type": "integer", "minimum": 1, "description": "Times the whole set was evaluated. >1 enables the mean/stddev/CI reporting docs/note.md §32 allows for stochastic evaluation - which is the only context where a mean belongs in this repo at all."}
+        "max_tokens": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Times the whole set was evaluated. >1 enables the mean/stddev/CI reporting docs/note.md \u00a732 allows for stochastic evaluation - which is the only context where a mean belongs in this repo at all."
+        },
+        "top_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Nucleus truncation, recorded for the same reason as `temperature`: pinning temperature ALONE is not controlled sampling, because the backends ship different truncation defaults (Edge-LLM top_p=0.9/top_k=50, vLLM top_p=1.0/top_k=-1). On a tool-call ABSTENTION decision that is not cosmetic - a 0.9 nucleus can drop a low-probability <tool_call> start that an untruncated sampler emits. Added 2026-09-10, after scripts/validate_tool_calling.py had been writing this field since the 2026-09-09 cross-backend campaign and every result it produced consequently failed validation against this schema."
+        },
+        "top_k": {
+          "type": "integer",
+          "description": "Top-k truncation. Same reasoning as `top_p`. `top_k=1` is this lab's greedy control: with one surviving candidate token, top_p/min_p/temperature are all inert, so all three backends decode deterministically and identically-configured - which is what made the decoding hypothesis falsifiable."
+        }
       }
     },
-
     "scores": {
       "type": "object",
-      "description": "Accuracy figures, always with the sample count they were computed over (docs/note.md §32: score, n, benchmark version - never a bare percentage).",
-      "required": ["overall_accuracy", "n"],
+      "description": "Accuracy figures, always with the sample count they were computed over (docs/note.md \u00a732: score, n, benchmark version - never a bare percentage).",
+      "required": [
+        "overall_accuracy",
+        "n"
+      ],
       "additionalProperties": false,
       "properties": {
-        "overall_accuracy": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-        "n": {"type": "integer", "minimum": 1},
+        "overall_accuracy": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
         "by_category": {
           "type": "object",
           "description": "Per-category breakdown; for BFCL, `simple` and `irrelevance` measure opposite error directions and their average alone hides which way a model fails.",
           "additionalProperties": {
             "type": "object",
-            "required": ["accuracy", "n"],
+            "required": [
+              "accuracy",
+              "n"
+            ],
             "additionalProperties": false,
             "properties": {
-              "accuracy": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-              "n": {"type": "integer", "minimum": 1},
-              "n_correct": {"type": "integer", "minimum": 0}
+              "accuracy": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "n": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "n_correct": {
+                "type": "integer",
+                "minimum": 0
+              }
             }
           }
         },
-        "mean": {"type": "number", "description": "Only meaningful when protocol.repetitions > 1."},
-        "stddev": {"type": "number"},
+        "mean": {
+          "type": "number",
+          "description": "Only meaningful when protocol.repetitions > 1."
+        },
+        "stddev": {
+          "type": "number"
+        },
         "confidence_interval_95": {
           "type": "array",
-          "items": {"type": "number"},
+          "items": {
+            "type": "number"
+          },
           "minItems": 2,
           "maxItems": 2,
-          "description": "Only where statistically meaningful. docs/note.md §32 also warns against excessive decimal precision - an interval implied by n=40 is wide, and rounding should show that."
+          "description": "Only where statistically meaningful. docs/note.md \u00a732 also warns against excessive decimal precision - an interval implied by n=40 is wide, and rounding should show that."
         }
       }
     },
-
     "tool_call_outcomes": {
       "type": "object",
-      "description": "docs/note.md §36 - tool calling reported as a confusion matrix plus failure taxonomy, not one percentage. The distinction that matters for embedded-ai-chain is between a model that calls the wrong tool and one that calls a tool when it should have answered directly: the second wastes an escalation the orchestrator did not need, which is exactly embedded-ai-chain/docs/paper.md's P4 cost. Present only for tool-calling evaluations.",
+      "description": "docs/note.md \u00a736 - tool calling reported as a confusion matrix plus failure taxonomy, not one percentage. The distinction that matters for embedded-ai-chain is between a model that calls the wrong tool and one that calls a tool when it should have answered directly: the second wastes an escalation the orchestrator did not need, which is exactly embedded-ai-chain/docs/paper.md's P4 cost. Present only for tool-calling evaluations.",
       "additionalProperties": false,
       "properties": {
         "confusion_matrix": {
           "type": "object",
-          "required": ["true_positive", "false_positive", "false_negative", "true_negative"],
+          "required": [
+            "true_positive",
+            "false_positive",
+            "false_negative",
+            "true_negative"
+          ],
           "additionalProperties": false,
           "properties": {
-            "true_positive": {"type": "integer", "minimum": 0, "description": "Tool expected, tool called."},
-            "false_positive": {"type": "integer", "minimum": 0, "description": "No tool expected, tool called - the wasted-escalation case."},
-            "false_negative": {"type": "integer", "minimum": 0, "description": "Tool expected, none called - the missed-escalation case."},
-            "true_negative": {"type": "integer", "minimum": 0, "description": "No tool expected, none called."}
+            "true_positive": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Tool expected, tool called."
+            },
+            "false_positive": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "No tool expected, tool called - the wasted-escalation case."
+            },
+            "false_negative": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Tool expected, none called - the missed-escalation case."
+            },
+            "true_negative": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "No tool expected, none called."
+            }
           }
         },
-        "correct_tool": {"type": "integer", "minimum": 0, "description": "Right function chosen, among calls made."},
-        "correct_arguments": {"type": "integer", "minimum": 0, "description": "Right function AND right arguments. Strictly stronger than correct_tool; kept separate because argument extraction and tool selection fail for different reasons."},
-        "wrong_tool": {"type": "integer", "minimum": 0},
-        "hallucinated_tool": {"type": "integer", "minimum": 0, "description": "A function name that was never offered."},
-        "invalid_call": {"type": "integer", "minimum": 0, "description": "Structurally valid call, unusable arguments."},
+        "correct_tool": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Right function chosen, among calls made."
+        },
+        "correct_arguments": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Right function AND right arguments. Strictly stronger than correct_tool; kept separate because argument extraction and tool selection fail for different reasons."
+        },
+        "wrong_tool": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hallucinated_tool": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "A function name that was never offered."
+        },
+        "invalid_call": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Structurally valid call, unusable arguments."
+        },
         "formatting_failure": {
           "type": "integer",
           "minimum": 0,
           "description": "The model described wanting to call a tool in prose instead of emitting a structured call - the exact failure mode observed for Qwen2.5-1.5B on llama.cpp at default temperature, and for Bielik on vLLM under both parsers tried. A capability question and a formatting question have different fixes, so they are counted separately."
         },
-        "server_error": {"type": "integer", "minimum": 0, "description": "The request failed at the server (HTTP 500, grammar-conversion failure). A backend defect, not a model score - and one this lab has already hit twice."}
+        "server_error": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The request failed at the server (HTTP 500, grammar-conversion failure). A backend defect, not a model score - and one this lab has already hit twice."
+        }
       }
     },
-
     "outcomes_file": {
       "type": "string",
       "description": "Path to the per-case raw outcomes, relative to the results root. Same principle as benchmark_result's `runs`: per-case data is preserved so a score can be re-derived and error analysis stays possible. Kept out-of-line only because a full BFCL corpus is 638 cases and a full MMLU run is 14042."
     },
-    "notes": {"type": "string"}
+    "notes": {
+      "type": "string"
+    }
   }
 }
