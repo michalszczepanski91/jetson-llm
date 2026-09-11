@@ -157,6 +157,35 @@ def test_cells_sharing_an_input_length_do_not_share_prompts():
         assert len(pa) == len(pb)
 
 
+def test_prompt_regime_is_part_of_the_experiment_id():
+    """Two materially different experiments must never share an identity.
+
+    The prompt regime changes what is measured, not just how it is labelled -
+    prompt_uniqueness alone was measured at 6.6x TTFT on this device, and the
+    v1->v2 template change was made because v1 let cells share prefix-cache
+    state. Before 2026-09-11 neither was in the ID, so a v1 and a v2 run of the
+    same cell at the same replicate on the same day collided and write_result()
+    would refuse the second as a duplicate - the immutability guard rejecting a
+    new experiment rather than protecting an old one."""
+    from datetime import date
+    from manifest import experiment_id
+    from runner import _prompt_regime
+
+    def eid(regime):
+        return experiment_id(
+            platform="orin", model_config_key="k", experiment="e",
+            input_tokens=512, output_tokens=128, replicate=1,
+            prompt_regime=regime, on=date(2026, 9, 4),
+        )
+
+    # The historical baseline keeps its bare ID, so every result already on
+    # disk stays reproducible.
+    assert eid(None) == "2026-09-04_orin_k_e_in512_out128_bs1_r01"
+    # A deviating regime is a different identity, not a relabelling.
+    assert eid(_prompt_regime("unique-per-run")) != eid(None)
+    assert eid(_prompt_regime("identical-per-run")) != eid(_prompt_regime("unique-per-run"))
+
+
 def test_cell_salt_is_deterministic():
     """A cell stays reproducible from its identity - the salt is a
     disambiguator, not a nonce."""

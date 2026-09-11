@@ -542,15 +542,36 @@ def experiment_id(
     output_tokens: int | None = None,
     batch_size: int = 1,
     replicate: int = 1,
+    prompt_regime: str | None = None,
     on: date | None = None,
 ) -> str:
     """docs/note.md §30's convention, generated rather than hand-typed:
 
-        <date>_<platform>_<model-config-key>_<experiment>_in<N>_out<N>_bs<N>_rNN
+        <date>_<platform>_<model-config-key>_<experiment>_in<N>_out<N>_bs<N>_rNN[_<regime>]
 
     Human-readable on purpose - an opaque UUID would satisfy uniqueness but
     not the other half of §30, which is that a result should be traceable by
-    eye back to the configuration that produced it."""
+    eye back to the configuration that produced it.
+
+    **`prompt_regime` exists because the ID is an identity, and two materially
+    different experiments must never share one** (added 2026-09-11). The prompt
+    regime - template version and per-run uniqueness - changes what is being
+    measured, not just how it is labelled: `prompt_uniqueness` alone was
+    measured at a 6.6x TTFT difference on this device, and the v1->v2 template
+    change was made precisely because v1 let cells share prefix-cache state.
+    Neither was in the ID, so a v1 and a v2 run of the same cell at the same
+    replicate on the same day would have collided and `write_result()` would
+    have refused the second as a duplicate of the first - the immutability
+    guard rejecting a genuinely new experiment instead of protecting an old
+    one. The Thor session hit exactly this collision class with MMLU sampling
+    method and flagged it.
+
+    Passed only when the regime deviates from the historical baseline
+    (`repeated_filler_v1` + `unique-per-run`), so **every ID already on disk
+    stays reproducible** - the point is to make a new axis visible, not to
+    rewrite the existing record. Results written before this date carry no
+    suffix even where their regime would now earn one; their `workload` block
+    records it, which is where it was always recoverable."""
     parts = [
         (on or date.today()).isoformat(),
         platform,
@@ -563,6 +584,8 @@ def experiment_id(
         parts.append(f"out{output_tokens}")
     parts.append(f"bs{batch_size}")
     parts.append(f"r{replicate:02d}")
+    if prompt_regime:
+        parts.append(prompt_regime)
     return "_".join(parts)
 
 

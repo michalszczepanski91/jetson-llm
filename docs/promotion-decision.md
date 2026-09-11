@@ -41,14 +41,30 @@ result per the contract's own §4, not a failed process.
 > among its hardest. These are therefore *not* MMLU accuracies and must not be quoted as
 > such anywhere, this document included.
 >
-> They remain valid for the **only** job §3 of the contract gives them — comparing a
-> quantization against its same-size sibling — because every row was scored on the
-> identical 200 questions, so the comparison is controlled even though the absolute level
-> is not meaningful. What they cannot support is any statement about a model's general
-> knowledge, including this document's own "sane scaling from the 1.5B row's 40.0%"
-> reasoning below, which should be read as "sane scaling on two subjects".
-> Found by the Thor session, which measured both its 7B checkpoints moving ~7 points
-> between `--limit 200` and `--limit 1000`.
+> **What survives is the ordering, and only the ordering.** The first version of this
+> caveat said the comparison stays "controlled" because every row saw the identical 200
+> questions, and that was too generous — the Thor session then measured the point
+> directly, re-running one 7B pair three ways:
+>
+> | sample | FP16 | INT8-SQ | gap |
+> |---|---:|---:|---:|
+> | n=200 first-n (2 of 57 subjects) | 67.5% | 54.0% | 13.5 pt |
+> | n=1000 first-n (8 of 57 subjects) | 74.0% | 61.4% | 12.6 pt |
+> | **n=1000 random, seed 1234 (all 57)** | 70.8% | 63.0% | **7.8 pt** |
+>
+> A controlled comparison on an unrepresentative slice yields a controlled but **biased
+> effect size**, because quantization damage is subject-dependent. The slice overstated
+> that gap by ~60%. So: **rankings hold, magnitudes do not.** Every difference in this
+> table is an upper bound of unknown tightness, not a measured gap.
+>
+> That kills more than absolute readings — it kills this document's own
+> "sane scaling from the 1.5B row's 40.0%" reasoning below, which argues from the *size*
+> of a 14-point step to conclude the quantization is not broken. On these two subjects
+> that step's magnitude is not interpretable; only "3B scores higher than 1.5B" is. Read
+> it as an ordering claim.
+>
+> Anywhere this lab reasons from the *size* of an MMLU gap, the number needs re-measuring
+> with `--sample random`, not caveating.
 
 BFCL scores are the 2026-09-09 re-run under the corrected scorer (see `docs/TODO.md`
 Phase 5's "BFCL scorer fix"). **`simple` is saturated — five rows at exactly 100% — so
@@ -111,8 +127,9 @@ hard measurement of that risk's real frequency, not just its existence.
    `3b-awq-vllm-orin` is the strongest candidate measured: best irrelevance-abstain rate
    among any row that isn't already disqualified on latency (70.0%, vs the current
    default's 36.7% — a 33-point gap, well outside the ~7pp noise band), and no MMLU
-   red flag (54.0% — sane
-   scaling from the 1.5B row's 40.0%, not a broken quantization). Promoting it would
+   red flag (54.0%, i.e. it *ranks above* the 1.5B row's 40.0% — but see the MMLU caveat
+   above: on a 2-subject slice the ordering is interpretable and the 14-point size of the
+   step is not, so this supports "not obviously broken", not "sanely scaled"). Promoting it would
    still require the co-resident/end-to-end measurement §3 of the contract calls for
    (everything in this table is `standalone` — Phase 5 did not repeat the co-resident run
    the current default was measured under) before being declared final per §4.

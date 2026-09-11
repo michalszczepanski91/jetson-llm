@@ -169,6 +169,23 @@ def build_prompt(
     return f"{marker}{body}\n\n{_BASE_PROMPT}", f"repeated_filler_{PROMPT_TEMPLATE_VERSION}"
 
 
+#: The historical baseline every result on disk before 2026-09-11 was taken
+#: under. A run matching it gets no ID suffix, so those IDs stay reproducible.
+_BASELINE_REGIME = ("v1", "unique-per-run")
+
+
+def _prompt_regime(prompt_uniqueness: str) -> str | None:
+    """The ID component for the prompt regime, or None when it matches the
+    historical baseline - see `manifest.experiment_id`'s own docstring for why
+    this is an identity question and not a labelling one."""
+    if (PROMPT_TEMPLATE_VERSION, prompt_uniqueness) == _BASELINE_REGIME:
+        return None
+    tag = f"pt{PROMPT_TEMPLATE_VERSION}"
+    if prompt_uniqueness != "unique-per-run":
+        tag += "-identical"
+    return tag
+
+
 def _cold_start_for_cell(cold_start: dict[str, Any], cell_index: int) -> tuple[dict[str, Any], list[str]]:
     """One server session serves many cells, so only the first cell of a
     session actually paid for the cold start. Later cells carry the same
@@ -233,6 +250,7 @@ def measure_cell(
         output_tokens=cell.output_tokens,
         batch_size=cell.batch_size,
         replicate=replicate,
+        prompt_regime=_prompt_regime(prompt_uniqueness),
     )
 
     # --- warmup: to thermal steady state, not a guessed count -------------
