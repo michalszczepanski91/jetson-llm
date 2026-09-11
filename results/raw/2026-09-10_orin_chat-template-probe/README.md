@@ -8,10 +8,20 @@ why *identity* here would have been strong evidence while *difference* is weak.
 Prompt bytes verified identical on all 30 cases (`prompt_sha` matches per case).
 Sampling pinned on both: `temperature=0, top_p=1.0, top_k=1, seed=1234`.
 
-| leg | precision | emitted a tool call | correct-abstain | for reference: same row via `/v1/chat/completions` |
-|---|---|---:|---:|---:|
-| `1.5b-awq-vllm-orin` | AWQ int4 | 20/30 | 33.3% | 36.7% |
-| `1.5b-q4-llamacpp-orin` | GGUF Q4_K_M | 12/30 | 60.0% | 70.0% |
+| leg | precision | emitted a tool call | correct-abstain | worst case* | for reference: chat path |
+|---|---|---:|---:|---:|---:|
+| `1.5b-awq-vllm-orin` | AWQ int4 | 20/30 | 33.3% | 30.0% | 36.7% |
+| `1.5b-q4-llamacpp-orin` | GGUF Q4_K_M | 12/30 | 60.0% | 53.3% | 70.0% |
+
+\* **Re-run 2026-09-11 with a truncation gate** (`*_gated.json`). Qwen2.5 on these
+prompts writes prose first and emits the tool call after it, so a completion cut off at
+`max_tokens` scores as an abstention it did not earn — the Thor session measured that
+artifact at 38 points in the flattering direction at `max_tokens=64`. The first run here
+recorded no `finish_reason` and so could not be checked after the fact. Re-run at
+`max_tokens=200` with `stop=["<|im_end|>"]`: **1 truncation on vLLM, 2 on llama.cpp**,
+tool-call counts otherwise identical (20/30 and 12/30). The "worst case" column counts
+every truncation as a call. **Ordering and gap both survive** — 26.7pp headline, 23.3pp
+worst case — so the conclusion below stands.
 
 Byte-identical completions: **5/30**. Agreement on call-vs-abstain: 22/30, and all 8
 disagreements run the same direction — vLLM calls where llama.cpp abstains.
