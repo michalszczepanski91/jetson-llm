@@ -46,9 +46,12 @@ over-escalation failure. Checked once against a real orchestrator, **it inverted
 `embedded-ai-chain` ran this lab's two leading Orin rows through the real
 `LlmOrchestrator.handle_transcript()` and the shipping 1.5B (36.7% `irrelevance`) made
 **0/40** spurious tool calls where the recommended 3B (70.0%) made **21/40**. The
-mechanism is not Orin-specific: BFCL measures the model naked with one generic tool,
-while production supplies a grounding block asserting the scene is already current and
-offers a cheap tool beside an expensive actuating one. So **every `irrelevance` number
+difference is not Orin-specific: BFCL measures the model naked with one generic tool,
+while production runs a task-specific prompt offering a cheap tool beside an expensive
+actuating one. *Which* part of that accounts for the gap is **not established** - the
+obvious candidate, the grounding block, was tested on 2026-09-11 and **refuted** (removing
+it changed chit-chat tool calls not at all; its real effect is latency, not judgment). So
+**every `irrelevance` number
 in this lab, Thor's 94% included, is measured in a configuration shown at least once to
 be unrepresentative.** That does not transfer the inversion to the Thor
 backend-at-fixed-precision comparison, which is a different comparison - it means no

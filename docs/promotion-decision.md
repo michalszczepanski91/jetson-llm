@@ -222,11 +222,18 @@ important number for this lab specifically", on the grounds that it maps to the
 production `ask_vlm` escalation failure. **It does not map to it — here it inverts it.**
 Two reasons, both structural rather than incidental:
 
-- **BFCL measures the model naked.** Production wraps it in `_grounding_context()`, which
-  supplies the scene data with "already up to date — no need to call `read_scene_state`
-  again". That prompt alone suppresses the spurious-call failure completely for 1.5B. So
-  §"What this data does add" above is **overstated**: 63.3% is a real property of the
-  model, not "the first hard measurement of that risk's real frequency" in production.
+- **BFCL measures the model naked**, and production does not. So §"What this data does
+  add" above is **overstated**: 63.3% is a real property of the model, not "the first hard
+  measurement of that risk's real frequency" in production.
+  **Which** part of the production setup accounts for the gap is *not* established. The
+  first version of this section blamed `_grounding_context()`. That was an inference and
+  it was **tested on 2026-09-11 and refuted**: with the grounding block removed (and the
+  matching instruction stripped from the system prompt too), 1.5B still made **0/15**
+  tool calls on chit-chat turns, the one shape where a call is wrong regardless. The
+  block's real effect is to make a *correct* call unnecessary — 1.00 vs 1.80 calls per
+  perception turn — which is latency, not judgment. 3B also made spurious `ask_vlm` calls
+  *with* full grounding. Mechanism still open; see
+  `embedded-ai-chain/docs/round-trip-measurement.md`, "The mechanism, tested and not found".
 - **The tool set differs.** BFCL offers one generic tool; production offers a cheap one
   (`read_scene_state`) beside an expensive actuating one (`ask_vlm`). All 21 of 3B's
   spurious calls were `ask_vlm`. "Calls a tool when it shouldn't" is not one failure mode
