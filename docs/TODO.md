@@ -134,7 +134,22 @@ question this file gets asked most and it should not take eleven sections to ans
   wrong on both halves: the Orin llama.cpp success came from an older build's generic
   grammar fallback, and the Orin vLLM failure ("empty `tool_calls` on two parsers") is
   exactly what an extraction failure looks like — **nobody checked whether `content`
-  contained the call.** That re-check is cheap and belongs to whoever holds the Orin.
+  contained the call.**
+  **That re-check is now DONE, 2026-09-11 on the Orin, and it comes back negative.**
+  `bielik-11b-awq-vllm-orin`, `tool_choice="auto"`, a trivial `get_weather` tool,
+  temperatures 0.1 and 0.0: `tool_calls` is empty **and `content` contains no tool-call
+  block of any shape** — the model answers in prose ("I don't have real-time data access.
+  However, I can tell you that Warsaw…") identically at both temperatures. So the Orin
+  vLLM result is *not* an extraction failure and the recorded verdict stands as written;
+  the family's exclusion does not rest on a misreading.
+  **What the two results jointly suggest is better than either alone.** The Thor finding
+  is that Bielik's *template* carries no tools handling, so `tools` is silently dropped
+  before the model ever sees it. If Bielik's HF `chat_template` shares that gap, vLLM is
+  dropping `tools` for exactly the same reason — which would make this a **property of
+  the model's template, not of any backend**, and explain both boards and all three
+  parsers with one cause. **Not yet tested, and it is the cheap decisive one**: serve
+  `bielik-11b-awq-vllm-orin` with `--chat-template` pointing at a tool-aware ChatML
+  template and re-check. Until then the observation is confirmed and the cause is open.
   No Edge-LLM Bielik row is possible: `speakleash/Bielik-11B-v3.0-Instruct` is still
   **gated** (re-confirmed live via the HF API, 2026-09-10) and the ungated `-awq`
   sibling is compressed-tensors, which Edge-LLM's builder does not read — so that leg
