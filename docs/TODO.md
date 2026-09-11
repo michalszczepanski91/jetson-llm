@@ -178,9 +178,12 @@ question this file gets asked most and it should not take eleven sections to ans
   GGUF ships a bare 209-character ChatML template with no tools handling at all, so
   llama.cpp silently drops the `tools` parameter and the model never sees the tool.
   Given a tool-aware ChatML template instead (Qwen2.5's own), **the model emits a
-  correct `get_weather({"city":"Warsaw"})` call 6/6 — and llama.cpp parses it 0/6**,
-  because the emitted tag is `<tool_call> \n` where the extractor expects
-  `<tool_call>\n`. Two independent serving-stack layers, neither of them the model.
+  correct `get_weather({"city":"Warsaw"})` call 6/6 — and llama.cpp parses it 0/6**.
+  The emission is measured; the *cause* of the extraction failure is a **leading
+  explanation, not proven** — the emitted opening tag is `<tool_call> ` with a trailing
+  space before the newline where llama.cpp's extractor expects `<tool_call>\n`, which
+  was read off the responses rather than confirmed against the extractor's source.
+  Two independent serving-stack layers, neither of them the model.
   This lab's "Bielik works on llama.cpp, is broken on vLLM" framing is therefore
   wrong on both halves: the Orin llama.cpp success is best explained by an older build's
   generic grammar fallback (the Thor session's hypothesis, **unproven** - the r36/CUDA-12

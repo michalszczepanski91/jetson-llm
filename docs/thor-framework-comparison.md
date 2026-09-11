@@ -302,7 +302,11 @@ vLLM/llama.cpp rows use an HF repo id as both values.
       a wrong diagnosis.** Not the bias-recipe bug, and not a backend difference at all.
       `speakleash/Bielik-11B-v3.0-Instruct-awq`'s HF `chat_template` is a **209-character
       bare ChatML loop that never mentions `tools`, `tool_call`, `function_call` or
-      `function_list`** — and the GGUF ships the identical template. Every backend
+      `function_list`** — and the GGUF ships the **byte-identical** template (both 209
+      chars, SHA256 `a805e50fed68938a`; verified 2026-09-11 by diffing the GGUF's
+      embedded template, read off `llama-server`'s `GET /props`, against the HF
+      `tokenizer_config.json`. Stated first from matching length and visible body, which
+      was not the same claim — measured afterwards, and it held). Every backend
       therefore drops the `tools` parameter before the model ever sees it, which
       explains in ONE cause what was recorded as several: vLLM/Orin returning empty
       `tool_calls` with no tool-call block anywhere in `content` (re-checked by the Orin
