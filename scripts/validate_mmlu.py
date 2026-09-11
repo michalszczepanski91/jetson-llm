@@ -45,6 +45,7 @@ Usage:
 import argparse
 import datetime
 import json
+import random
 import re
 import shlex
 import sys
@@ -104,7 +105,19 @@ def parse_args():
     p.add_argument("--model-config", default="1.5b-awq-vllm-orin", help="key into configs/models.yaml")
     p.add_argument("--data-path", default=_DEFAULT_DATA_PATH, help="staged MMLU 'all/test' parquet file")
     p.add_argument("--limit", type=int, default=200, help="MMLU's 'all/test' split has 14K+ questions - a full run "
-                   "is impractical on-device; 200 is a reasonable quantization-sanity sample size")
+                   "is impractical on-device; 200 is a reasonable quantization-sanity sample size. READ --sample "
+                   "before quoting any number this produces.")
+    p.add_argument("--sample", choices=["first-n", "random"], default="first-n",
+                   help="HOW those --limit questions are drawn, and it is not cosmetic. MMLU's 'all/test' parquet "
+                        "is ordered BY SUBJECT, so the historical default ('first-n', i.e. all_rows[:limit]) is not "
+                        "a sample of MMLU at all: --limit 200 is 100 abstract_algebra + 100 anatomy, 2 of 57 "
+                        "subjects, and --limit 1000 is 8 of 57. Measured 2026-09-11: moving the same two 7B "
+                        "checkpoints from limit=200 to limit=1000 moved BOTH scores ~7 points (FP16 67.5%%->74.0%%, "
+                        "INT8-SQ 54.0%%->61.4%%), which is the subsample changing, not the models. 'random' draws "
+                        "across all 57 subjects with --sample-seed and is what any absolute number should use. "
+                        "'first-n' is kept as the default only so historical results stay reproducible.")
+    p.add_argument("--sample-seed", type=int, default=1234,
+                   help="seed for --sample random; recorded in the result so the draw is reproducible")
     p.add_argument("--max-tokens", type=int, default=8, help="a bare letter answer needs very few tokens")
     p.add_argument("--execution-condition", choices=["standalone", "co-resident"], required=True,
                    help="REQUIRED, no default - an accuracy score is as backend/board-state-dependent as a "
@@ -133,7 +146,13 @@ def main():
 
     all_rows = _load_mmlu_rows(Path(args.data_path))
     n_available = len(all_rows)
-    rows = all_rows[: args.limit] if args.limit else all_rows
+    if not args.limit or args.limit >= n_available:
+        rows, sampling_method = all_rows, "full"
+    elif args.sample == "random":
+        rows = random.Random(args.sample_seed).sample(all_rows, args.limit)
+        sampling_method = "random"
+    else:
+        rows, sampling_method = all_rows[: args.limit], "first-n"
     n_evaluated = len(rows)
 
     variant = load_model_config(args.model_config)
@@ -173,9 +192,19 @@ def main():
         n_unparsed = sum(1 for o in scored if o["actual"] is None)
         n_errors = sum(1 for o in outcomes if o["error"])
 
+        # The sampling method is part of the experiment's IDENTITY, not just its
+        # metadata: a first-n draw and a random draw of the same size are
+        # different question sets and produce materially different scores (on
+        # this dataset, ~7 points - see --sample). Without it in the id, the two
+        # collide and write_result() refuses the second as a duplicate of the
+        # first, which is exactly what happened on 2026-09-11. The guard caught
+        # it, but the right fix is for the id to distinguish them.
+        sample_tag = "" if sampling_method == "full" else f"_{sampling_method}"
+        if sampling_method == "random":
+            sample_tag += f"{args.sample_seed}"
         result_id = (
             f"{datetime.date.today().isoformat()}_{variant['platform']}_{args.model_config}"
-            f"_mmlu-{_DATASET_VERSION}_n{n_evaluated}"
+            f"_mmlu-{_DATASET_VERSION}_n{n_evaluated}{sample_tag}"
         )
         result = {
             "schema_version": SCHEMA_VERSION,
@@ -194,8 +223,9 @@ def main():
             "dataset": {
                 "name": "MMLU", "version": _DATASET_VERSION, "source": "cais/mmlu",
                 "split": "all/test", "n_available": n_available, "n_evaluated": n_evaluated,
-                "sampling_method": "full" if (args.limit or n_available) >= n_available else "first-n",
-                "sampling_seed": None, "prompt_template_version": _PROMPT_TEMPLATE_VERSION,
+                "sampling_method": sampling_method,
+                "sampling_seed": (args.sample_seed if sampling_method == "random" else None),
+                "prompt_template_version": _PROMPT_TEMPLATE_VERSION,
             },
             "protocol": {
                 "scorer": "generative-letter-parse", "temperature": 0.0, "tool_choice": None,

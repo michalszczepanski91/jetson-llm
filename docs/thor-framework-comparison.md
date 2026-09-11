@@ -248,10 +248,39 @@ vLLM/llama.cpp rows use an HF repo id as both values.
 - [ ] Co-residency run: orchestrator + VLM tier together — the real deployment
       shape. Known price tag so far: an idle-but-resident neighbor container raises
       board idle from 5.4 W to ~17.5 W, ~12 W continuous before any inference.
-- [ ] **INT8-SQ's 12.5-point MMLU gap is still unexplained** after the calibration
-      fix. Try `--text_dataset wikitext`, more than 512 samples, or check against
-      modelopt's documented SmoothQuant trouble spots (attention output /
-      embedding layers) before treating this precision as usable.
+- [ ] **INT8-SQ's MMLU gap is REAL but it is 7.8 points, not 12.5** — re-measured
+      2026-09-11, and the original figure was a sampling artifact. `validate_mmlu.py`'s
+      `--limit` takes `all_rows[:limit]` and MMLU's `all/test` parquet is **ordered by
+      subject**, so the n=200 runs every published figure came from are 100
+      abstract_algebra + 100 anatomy — 2 of 57 subjects, with one of MMLU's hardest
+      subjects at half weight. The same two checkpoints, measured three ways:
+
+      | sample | subjects | FP16 | INT8-SQ | gap |
+      |---|---|---|---|---|
+      | n=200 first-n (as published) | 2 of 57 | 67.5% | 54.0% | 13.5 pt |
+      | n=1000 first-n | 8 of 57 | 74.0% | 61.4% | 12.6 pt |
+      | **n=1000 random, seed 1234** | **all 57** | **70.8%** | **63.0%** | **7.8 pt** |
+
+      The direction survives decisively (z=3.7), so "do not ship INT8-SQ without
+      closing this" stands. The magnitude does not: the biased slice **overstated the
+      damage by about 60%**. The three calibration hypotheses (`--text_dataset
+      wikitext`, >512 samples, modelopt's SmoothQuant trouble spots) are all still
+      untried, and are now **blocked on tooling, not on time**: `modelopt` and `torch`
+      are both absent from the Edge-LLM venv, so `scripts/quantize_edgellm.sh` cannot
+      run at all on this box today. Re-creating that environment means installing a
+      Jetson-specific torch wheel, which is the wheel-shadowing hazard
+      `embedded-ai-chain/docs/environment.md` warns about — a deliberate decision, not
+      a chore to slip into another task.
+- [ ] **Re-measure any MMLU number that is quoted as a magnitude.** Generalises the
+      row above. `--sample random` (with the seed recorded in both the document and the
+      `result_id`) was added 2026-09-11; `first-n` remains the default so historical
+      results stay reproducible. Every MMLU figure written before that date is a
+      2-subject score. For *ranking* a quantization against its same-size sibling —
+      the only job `docs/promotion-contract.md` §3 gives MMLU — those runs are still a
+      controlled comparison, because every row saw the identical 200 questions. What
+      they cannot support is an **effect size** or any general-knowledge reading, since
+      the damage is subject-dependent: that is precisely how 7.8 points was published
+      as 12.5.
 - [x] **`int4_awq` against the bias-recipe patch: VERIFIED 2026-09-11 — it builds,
       and the engine is still unusable.** "Should work (identical return statement)"
       was half right. `Qwen2.5-1.5B-Instruct-AWQ` now compiles and serves (the patch
@@ -269,8 +298,28 @@ vLLM/llama.cpp rows use an HF repo id as both values.
       than an assumption: producing such a checkpoint needs a modelopt environment that
       no longer exists on this box (see the INT8-SQ item), for a format whose sibling
       just failed twice.
-- [ ] Whether the same bias-recipe bug was silently blocking int4 for Apertus/Bielik
-      on this repo's Orin rows — worth checking before assuming it's Qwen2-specific.
+- [x] **Bielik's tool-calling: ROOT-CAUSED 2026-09-11, and the family was excluded on
+      a wrong diagnosis.** Not the bias-recipe bug, and not a backend difference at all.
+      `speakleash/Bielik-11B-v3.0-Instruct-awq`'s HF `chat_template` is a **209-character
+      bare ChatML loop that never mentions `tools`, `tool_call`, `function_call` or
+      `function_list`** — and the GGUF ships the identical template. Every backend
+      therefore drops the `tools` parameter before the model ever sees it, which
+      explains in ONE cause what was recorded as several: vLLM/Orin returning empty
+      `tool_calls` with no tool-call block anywhere in `content` (re-checked by the Orin
+      arm), both of its parsers "failing" (there was nothing to parse), and llama.cpp on
+      Thor scoring 0/9 across temperatures and 0/6 with `--jinja` removed.
+      **The model is tool-capable and was trained for it.** Its tokenizer carries
+      dedicated `<|function_call|>`, `<|function_list|>`, `<|function_output|>`,
+      `<tool_call>` and `</tool_call>` special tokens, and when served with a tool-aware
+      ChatML template (Qwen2.5's, structurally compatible) it emits a correct
+      `get_weather({"city":"Warsaw"})` call **6/6**. This contradicts the recorded root
+      cause, which read the GGUF README's manual prompt-injection convention as evidence
+      of "no native training on any tagged format" — the added-token table says
+      otherwise. Consequence: the 2026-09-07 decision excluding this family from the
+      scorecard rests on a serving defect this lab can fix by supplying a template, not
+      on a model limitation. Revisiting that exclusion is a real decision, not a
+      formality. (Apertus is untouched by this and remains blocked on llama.cpp not
+      recognizing its GGUF architecture at all.)
 - [ ] Identify *what* structural difference actually causes the backend gap (leading
       candidate: chat-template rendering). Cheap decisive test: send one identical
       pre-rendered prompt to all three via `/v1/completions` with no `tools`

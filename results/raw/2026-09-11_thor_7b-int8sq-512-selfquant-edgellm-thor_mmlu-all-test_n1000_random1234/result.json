@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-11_thor_7b-int8sq-512-selfquant-edgellm-thor_mmlu-all-test_n1000_random1234",
+  "timestamp": "2026-09-11T10:17:04.742476+02:00",
+  "manifest": {
+    "git_commit": "16afa89da049a560be4ee1149f42817a9d081721",
+    "git_dirty": true,
+    "command": "/home/michal/dev/jetson-llm/.venv/bin/python3 scripts/validate_mmlu.py --model-config 7b-int8sq-512-selfquant-edgellm-thor --execution-condition standalone --limit 1000 --sample random --sample-seed 1234 --ready-timeout 1800",
+    "model_config_key": "7b-int8sq-512-selfquant-edgellm-thor",
+    "backend": "edge-llm",
+    "backend_version": "unknown (server exposed no version endpoint)",
+    "container_image": "n/a (remote target - image not owned by this host)",
+    "platform": "thor",
+    "target": "local",
+    "execution_condition": "standalone"
+  },
+  "model": {
+    "name": "/home/michal/dev/quantize-work/qwen2.5-7b-int8_sq-512",
+    "precision": "INT8 SmoothQuant per-channel (W8A8_SQ_PER_CHANNEL), self-quantized via ModelOpt, cnn_dailymail/512",
+    "backend": "edge-llm"
+  },
+  "dataset": {
+    "name": "MMLU",
+    "version": "all-test",
+    "source": "cais/mmlu",
+    "split": "all/test",
+    "n_available": 14042,
+    "n_evaluated": 1000,
+    "sampling_method": "random",
+    "sampling_seed": 1234,
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "generative-letter-parse",
+    "temperature": 0.0,
+    "tool_choice": null,
+    "max_tokens": 8,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.63,
+    "n": 1000
+  },
+  "notes": "quantization-regression sanity check, not a model-ranking benchmark - compare same-size backend/precision pairs against each other, not across sizes. Generative letter-parsing scoring, not logprob-based. 0 response(s) had no parseable A/B/C/D letter; 0 case(s) failed at the server and are excluded from the accuracy figure.",
+  "outcomes_file": "results/raw/2026-09-11_thor_7b-int8sq-512-selfquant-edgellm-thor_mmlu-all-test_n1000_random1234/outcomes.jsonl"
+}
