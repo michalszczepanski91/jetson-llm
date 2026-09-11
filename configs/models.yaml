@@ -252,12 +252,19 @@ bielik-11b-awq-vllm-orin:
 # production vllm-vlm-thor) and 8001 (this file's own -thor vllm rows).
 #
 # WHY FP16 AND NOT AWQ, i.e. why this row cannot mirror 1.5b-awq-vllm-orin
-# exactly: Qwen2.5-1.5B-Instruct-AWQ FAILS to build here. Edge-LLM's server
-# always goes through its experimental direct (checkpoint->engine, no ONNX)
-# builder with externalized weights, and that path raises "external FP16 bias
-# has no checkpoint recipe" for int4_awq on a qwen2 graph - Qwen2-family
-# models have attention QKV biases (Qwen3 dropped them) and this corner has no
-# recipe. Confirmed 2026-09-08, upstream limitation, not a config error here.
+# exactly. THE REASON CHANGED on 2026-09-11 - the conclusion did not.
+# Originally: Qwen2.5-1.5B-Instruct-AWQ FAILED TO BUILD, raising "external
+# FP16 bias has no checkpoint recipe" for int4_awq on a qwen2 graph (Qwen2
+# models have attention QKV biases; Qwen3 dropped them). That was recorded
+# 2026-09-08 as an upstream limitation - one day BEFORE
+# patches/edgellm-int4-bias-recipe.patch was written, and that error is exactly
+# what the patch fixes. Re-tested with the patch applied: it BUILDS now.
+# But it is still not usable, for a worse reason: the engine emits ZERO tool
+# calls in 100 BFCL cases while scoring MMLU 42.0%, identical to this FP16
+# row. It builds, it reasons, it will not tool-call. See
+# 1.5b-awq-edgellm-thor's own notes. So this row stays FP16, and any
+# cross-platform comparison using it still varies precision against the orin
+# rows rather than mirroring them.
 # So the Edge-LLM leg varies precision against the orin rows; it holds the
 # model constant instead. Say so in any cross-platform comparison that uses it.
 # The size sweep Orin cannot run. Every -orin row is memory-constrained on a
@@ -1127,3 +1134,58 @@ qwen3-8b-awq-vllm-thor:
     a row that differs from its Orin counterpart in platform alone. Not a
     serving candidate in its own right - the Thor framework comparison uses the
     fp16 rows. Not yet run at the time this row was added.
+
+# --- int4_awq against the bias-recipe patch, added 2026-09-11 ---
+# docs/thor-framework-comparison.md's "Still open" asked for
+# `int4_awq`/`int4_awq_modelopt` to be re-verified per format against
+# patches/edgellm-int4-bias-recipe.patch: the patch touches ONE return
+# statement shared by all three int4 branches, and only `int4_gptq` was ever
+# confirmed to build through it.
+#
+# This row matters more than a tick-box, because a stale claim is load-bearing
+# elsewhere in this file. The comment above 1.5b-fp16-edgellm-thor says
+# Qwen2.5-1.5B-Instruct-AWQ "FAILS to build here ... upstream limitation",
+# and the comment above 7b-fp16-vllm-thor generalises that to "its builder
+# cannot do this family's AWQ" - which is why EVERY Edge-LLM row in this file
+# is FP16, and why the Thor framework comparison had to vary precision against
+# the Orin rows instead of mirroring them. But that failure was confirmed
+# 2026-09-08, the day BEFORE the patch was written, and its error message
+# ("external FP16 bias has no checkpoint recipe") is precisely what the patch
+# fixes. The checkpoint has 84 QKV bias tensors, i.e. it is exactly the shape
+# that triggers the bug. So the "cannot do AWQ" claim is probably an artifact
+# of testing before the fix existed - this row settles it.
+1.5b-awq-edgellm-thor:
+  model: Qwen/Qwen2.5-1.5B-Instruct-AWQ
+  precision: "AWQ int4 (weights), classic AutoAWQ format - Qwen's own official quant"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 2048  # matches 1.5b-fp16-edgellm-thor so precision is the only variable
+  notes: >
+    Added and tested 2026-09-11. Two findings, and the second is the important
+    one - do NOT read the first as a green light.
+
+    (1) THE PATCH DOES COVER int4_awq. The build no longer raises "external
+    FP16 bias has no checkpoint recipe": the engine compiles in ~104s from a
+    cold cache and serves. So the "upstream limitation" recorded on 2026-09-08
+    was really "tested the day before the fix existed", and the per-format
+    verification the comparison doc asked for is done for this format.
+
+    (2) THE RESULTING ENGINE IS UNUSABLE ANYWAY, in a way that builds cleanly
+    and passes a smoke test. It emits ZERO tool calls in 100 BFCL cases -
+    0/50 on `simple`, and a meaningless "100% irrelevance" that is the known
+    MUTE-MODEL signature, not abstention (the same false positive the first FP8
+    attempt produced; see scripts/quantize_edgellm.sh). It is not a damaged
+    engine in the ordinary sense: MMLU is **42.0%, identical to
+    1.5b-fp16-edgellm-thor's 42.0%**, and plain completion is correct ("The
+    capital of Poland is Warsaw."). General capability is fully intact and
+    tool-calling is totally gone. The FP16 twin, same size and backend, calls a
+    tool in **50/50** `simple` cases. Precision is the only variable.
+
+    This is the SECOND Edge-LLM AWQ engine to build and then be silently wrong
+    (qwen3-8b-awq-edgellm-thor emits "0000000..."), against an int4_gptq path
+    that is validated end-to-end. Two AWQ checkpoints, two different silent
+    failures, one working GPTQ - so the fault is specific to Edge-LLM's AWQ
+    path, not to int4, and not to the patch (which is what makes these engines
+    build at all). Practical guidance is unchanged: on Edge-LLM use FP16 or
+    GPTQ-Int4, never AWQ.

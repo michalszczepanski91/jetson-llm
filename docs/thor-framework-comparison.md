@@ -219,8 +219,31 @@ vLLM/llama.cpp rows use an HF repo id as both values.
 ## Still open
 
 - [ ] `jetson_clocks`-locked run to settle the idle-box DVFS effect (needs root).
-- [ ] Replace the simplified BFCL AST checker with the official `bfcl-eval` so
-      `simple` stops saturating.
+- [x] **Official `bfcl-eval` checker: RUN 2026-09-11, and the premise was backwards.**
+      `scripts/rescore_bfcl_official.py` re-scores recorded `simple` outcomes with the
+      real `bfcl_eval` AST checker (installed `--no-deps` into an isolated venv, with
+      only `constants.model_config` stubbed - that one module is why the import chain
+      pulls torch, and its sole use in `ast_checker.py` is a registry lookup this lab
+      does not need). No re-generation, no GPU: the arguments are already in
+      `outcomes.jsonl`. Across all 10 re-scorable sets the official checker scores
+      **2.0-3.3 points LOWER** than this repo's, never higher. Our matcher is more
+      LENIENT, not more strict, so the documented "~8-point false-negative floor" does
+      not exist - and swapping checkers would not stop `simple` saturating, because
+      official scores still land in a 77-97% band with everything 3B-and-up at 93%+.
+      `simple` is uninformative because the models are genuinely good at it, not
+      because the scorer is wrong. **Recommendation: keep the simplified checker as the
+      default** (making `bfcl-eval` a hard dependency would drag torch into a Jetson
+      venv for a <=3.3-point correction) and use this script as the audit tool.
+      Almost all of the disagreement is a single case, `simple_13`: the model sends
+      `interval: [1, 3]` where the schema declares an array of `float`, which the
+      official checker rejects as `type_error:nested` and ours accepts.
+- [ ] **Retain per-case arguments in every accuracy result.** Found by the above: the
+      9 results written before 2026-09-09 record only the verdict
+      (`correct_arguments: true/false`), not `actual_arguments`/`acceptable_arguments`,
+      so they cannot be re-scored by any independent checker, ever. Newer runs do.
+      Nothing to fix in the code (it already records them); the gap is that those 9
+      results are permanently un-auditable and should be re-run rather than trusted if
+      their `simple` numbers ever matter.
 - [ ] Cold-start-from-empty-cache as its own measurement for Edge-LLM and vLLM.
 - [ ] Co-residency run: orchestrator + VLM tier together — the real deployment
       shape. Known price tag so far: an idle-but-resident neighbor container raises
@@ -229,8 +252,23 @@ vLLM/llama.cpp rows use an HF repo id as both values.
       fix. Try `--text_dataset wikitext`, more than 512 samples, or check against
       modelopt's documented SmoothQuant trouble spots (attention output /
       embedding layers) before treating this precision as usable.
-- [ ] `int4_awq`/`int4_awq_modelopt` against the same bias-recipe patch — should
-      work (identical return statement) but not re-verified per format.
+- [x] **`int4_awq` against the bias-recipe patch: VERIFIED 2026-09-11 — it builds,
+      and the engine is still unusable.** "Should work (identical return statement)"
+      was half right. `Qwen2.5-1.5B-Instruct-AWQ` now compiles and serves (the patch
+      does cover this format; the 2026-09-08 "cannot build AWQ" record was taken the
+      day before the fix existed). But the engine emits **zero tool calls in 100 BFCL
+      cases** — 0/50 `simple`, and a meaningless 100% `irrelevance` that is the
+      mute-model false positive, not abstention. It is not numerically broken: **MMLU
+      42.0%, identical to the FP16 twin's 42.0%**, and plain completion is correct.
+      The FP16 twin calls a tool in **50/50** `simple` cases. Same size, same backend,
+      precision the only variable. That makes **two** Edge-LLM AWQ engines that build
+      and are then silently wrong in different ways (Qwen3-8B-AWQ emits
+      `"0000000..."`), against an `int4_gptq` path validated end-to-end — so the fault
+      is specific to Edge-LLM's **AWQ** path, not to int4, and not to the patch.
+      `int4_awq_modelopt` remains untested and now needs a deliberate decision rather
+      than an assumption: producing such a checkpoint needs a modelopt environment that
+      no longer exists on this box (see the INT8-SQ item), for a format whose sibling
+      just failed twice.
 - [ ] Whether the same bias-recipe bug was silently blocking int4 for Apertus/Bielik
       on this repo's Orin rows — worth checking before assuming it's Qwen2-specific.
 - [ ] Identify *what* structural difference actually causes the backend gap (leading

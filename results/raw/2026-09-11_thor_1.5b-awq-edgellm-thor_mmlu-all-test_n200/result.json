@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "2026-09-11_thor_1.5b-awq-edgellm-thor_mmlu-all-test_n200",
+  "timestamp": "2026-09-11T09:48:23.295579+02:00",
+  "manifest": {
+    "git_commit": "a1ca592c68664dc9102d0c2823a3d67816df4da9",
+    "git_dirty": true,
+    "command": "/home/michal/dev/jetson-llm/.venv/bin/python3 scripts/validate_mmlu.py --model-config 1.5b-awq-edgellm-thor --execution-condition standalone --limit 200 --ready-timeout 1800",
+    "model_config_key": "1.5b-awq-edgellm-thor",
+    "backend": "edge-llm",
+    "backend_version": "unknown (server exposed no version endpoint)",
+    "container_image": "n/a (remote target - image not owned by this host)",
+    "platform": "thor",
+    "target": "local",
+    "execution_condition": "standalone"
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",
+    "precision": "AWQ int4 (weights), classic AutoAWQ format - Qwen's own official quant",
+    "backend": "edge-llm"
+  },
+  "dataset": {
+    "name": "MMLU",
+    "version": "all-test",
+    "source": "cais/mmlu",
+    "split": "all/test",
+    "n_available": 14042,
+    "n_evaluated": 200,
+    "sampling_method": "first-n",
+    "sampling_seed": null,
+    "prompt_template_version": "v1"
+  },
+  "protocol": {
+    "scorer": "generative-letter-parse",
+    "temperature": 0.0,
+    "tool_choice": null,
+    "max_tokens": 8,
+    "repetitions": 1
+  },
+  "scores": {
+    "overall_accuracy": 0.42,
+    "n": 200
+  },
+  "notes": "quantization-regression sanity check, not a model-ranking benchmark - compare same-size backend/precision pairs against each other, not across sizes. Generative letter-parsing scoring, not logprob-based. 0 response(s) had no parseable A/B/C/D letter; 0 case(s) failed at the server and are excluded from the accuracy figure.",
+  "outcomes_file": "results/raw/2026-09-11_thor_1.5b-awq-edgellm-thor_mmlu-all-test_n200/outcomes.jsonl"
+}
