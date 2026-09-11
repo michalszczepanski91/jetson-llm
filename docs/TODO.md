@@ -182,8 +182,10 @@ question this file gets asked most and it should not take eleven sections to ans
   because the emitted tag is `<tool_call> \n` where the extractor expects
   `<tool_call>\n`. Two independent serving-stack layers, neither of them the model.
   This lab's "Bielik works on llama.cpp, is broken on vLLM" framing is therefore
-  wrong on both halves: the Orin llama.cpp success came from an older build's generic
-  grammar fallback, and the Orin vLLM failure ("empty `tool_calls` on two parsers") is
+  wrong on both halves: the Orin llama.cpp success is best explained by an older build's
+  generic grammar fallback (the Thor session's hypothesis, **unproven** - the r36/CUDA-12
+  image will not run on Thor, so the two builds cannot be compared on one board), and the
+  Orin vLLM failure ("empty `tool_calls` on two parsers") is
   exactly what an extraction failure looks like — **nobody checked whether `content`
   contained the call.**
   **That re-check is now DONE, 2026-09-11 on the Orin, and it comes back negative.**

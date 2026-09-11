@@ -493,6 +493,21 @@ already propagated into published conclusions.
 | 2 | Bielik's `added_tokens_decoder`: five tool-calling special tokens, `special: true` | "not evidence of native training on any tagged format" — recorded as root cause | A whole model family excluded on a serving defect |
 | 3 | `context_sweep.yaml`'s own comment on the uniqueness marker's position | Correct about within-cell reuse, silent about between-cell reuse | 2.3x TTFT error; a headline scaling finding inverted |
 | 4 | `models.yaml`: Edge-LLM "cannot do this family's AWQ … upstream limitation" — true when written 2026-09-08 | Still treated as true after the patch landed 2026-09-09 | Every Edge-LLM row is FP16 *because of it*; the Thor comparison varies precision as a result |
+| 5 | The Thor session's own words: "my leading explanation, not a proven one", and separately "same length, same visible body" | Written into `CLAUDE.md` and `configs/models.yaml` as a flat mechanism, and "byte-identical" | Caught in review; the unproven claim sat in the always-loaded file, in two files from one commit |
+
+**Incident 5 happened one commit after this table was written**, which is the most
+useful thing about it. Both halves were mine, and they are different errors in the same
+direction. The Thor session supplied a hypothesis *and* its caveat in one paragraph; only
+the hypothesis survived my summary into `CLAUDE.md` and `configs/models.yaml`. Separately
+it reported two templates as "same length, same visible body" and I wrote "byte-identical"
+— a confidence upgrade that happened to be true, confirmed only afterwards by an actual
+SHA256 comparison (`a805e50fed68938a`, exact match). **The near miss is the instructive
+half**: had it been false it would have been indistinguishable, in the record, from the
+verified claim beside it.
+
+The lesson is narrower than "be careful". The caveat *was* travelling with the claim —
+adjacent, in the same paragraph, from a careful source. **It still did not survive being
+summarised, because summarising is exactly the operation that drops adjacent prose.**
 
 Two variants of one failure. **1–3 are the metadata-vs-narrative version**: the refuting
 evidence was already in the repository, one read away, and the prose over-read the
@@ -517,6 +532,12 @@ enforced schemas, an immutability guard, and a condition-vs-reality assertion.
   about an inference drawn from a README.
 - An analysis joins on **recorded fields**, never on what an identifier or a filename
   appears to imply. IDs are for uniqueness; the document body is the record.
+- **A repeated claim carries its epistemic status inline, as part of the claim** — "leading
+  explanation (untested: reason)", not a flat statement followed by a hedge two sentences
+  later. The hedge is what gets cut for length. This applies with most force to evidence
+  taken from another agent or another document, where the summariser did not do the work
+  and cannot feel the difference between what was measured and what was inferred.
+  (The Thor session's convention, from incident 5.)
 - **A discriminator must be something a caller can vary.** Before adding any field to an
   identifier — or to any key meant to tell two things apart — ask *which pair of runs
   this separates*. A module constant separates none: changing it moves the whole repo

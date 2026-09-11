@@ -198,8 +198,13 @@ bielik-11b-awq-vllm-orin:
     the Thor session off llama-server's GET /props), and the 2026-09-11 Orin
     re-check finding no tool-call block in `content` either. The Orin
     llama.cpp success is the one that needed the special explanation, not the
-    failures: an older build's grammar-CONSTRAINED "Generic" path forces
-    valid JSON structurally regardless of what the prompt asked for.
+    failures. Leading explanation (UNPROVEN, and untestable from either board):
+    the Orin's older build (dustynv/llama_cpp:0.3.9-r36.4.0, which logged
+    "Chat format: Generic") took a grammar-CONSTRAINED path forcing valid JSON
+    regardless of what the prompt asked, where Thor's required newer build does
+    not. It cannot be settled by comparing the two builds on one board - the
+    r36/CUDA-12 image does not run on Thor. Best available account of that one
+    result, not an established mechanism.
 
     Handed a tool-aware ChatML template instead, the model emits a correct
     get_weather call 6/6 (Thor session, llama.cpp). **The exclusion below
