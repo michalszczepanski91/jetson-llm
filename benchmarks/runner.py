@@ -169,21 +169,34 @@ def build_prompt(
     return f"{marker}{body}\n\n{_BASE_PROMPT}", f"repeated_filler_{PROMPT_TEMPLATE_VERSION}"
 
 
-#: The historical baseline every result on disk before 2026-09-11 was taken
-#: under. A run matching it gets no ID suffix, so those IDs stay reproducible.
-_BASELINE_REGIME = ("v1", "unique-per-run")
-
-
 def _prompt_regime(prompt_uniqueness: str) -> str | None:
-    """The ID component for the prompt regime, or None when it matches the
-    historical baseline - see `manifest.experiment_id`'s own docstring for why
-    this is an identity question and not a labelling one."""
-    if (PROMPT_TEMPLATE_VERSION, prompt_uniqueness) == _BASELINE_REGIME:
+    """The ID component for the prompt regime, or None for the default.
+
+    **Scoped to `prompt_uniqueness` only, and the reason is what makes an ID
+    component worth having.** An ID exists to keep two materially different
+    experiments from sharing one identity, so the axes that belong in it are
+    the ones that can actually *differ between two runs the ID has to tell
+    apart*. `prompt_uniqueness` is a CLI flag: two runs of the same cell, same
+    replicate, same day can genuinely differ on it, and the difference is a
+    measured 6.6x in TTFT. That is a real collision and it is prevented here.
+
+    `PROMPT_TEMPLATE_VERSION` is not that. It is a module constant, so changing
+    it is a code edit that moves the whole repo forward at once - there is no
+    pair of same-day runs it can distinguish. Putting it in the ID (as the
+    first version of this fix did, 2026-09-11) bought no discrimination and
+    cost two real things: every future ID carried a constant `ptv2` suffix that
+    signals nothing, and results taken at v2 *before* that change kept bare IDs,
+    so one ID shape meant two different regimes. The Thor session found the
+    second on its own 8 `context_sweep_thor` results and flagged it. Narrowed
+    the same day.
+
+    The template version stays recorded where it is actually recoverable and
+    joinable - `workload.prompt_template_version` in every result document.
+    Phase 10's analysis layer must join on that field and must not infer regime
+    from the ID."""
+    if prompt_uniqueness == "unique-per-run":
         return None
-    tag = f"pt{PROMPT_TEMPLATE_VERSION}"
-    if prompt_uniqueness != "unique-per-run":
-        tag += "-identical"
-    return tag
+    return "identical-prompts"
 
 
 def _cold_start_for_cell(cold_start: dict[str, Any], cell_index: int) -> tuple[dict[str, Any], list[str]]:

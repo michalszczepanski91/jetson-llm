@@ -477,3 +477,43 @@ result document made it visible**, because each cell's document is written and v
 alone. Worth carrying to the sibling repos: `jetson-vlm-lab` and `jetson-whisper-trt`
 share this harness's ancestry, and any multi-cell sweep against a prefix-caching server
 has the same exposure.
+
+
+## The recurring failure this lab keeps finding in itself, 2026-09-11
+
+Four separate incidents this week shared one shape, and it is worth naming because
+none of them was caught by a schema, a test, or a validator — and two of them had
+already propagated into published conclusions.
+
+**In every case the record was honest and the narrative written on top of it was not.**
+
+| # | The record said | The narrative said | Cost |
+|---|---|---|---|
+| 1 | `sampling_method`'s own schema description: first-n "is not a random sample and must not be described as one" | An `--limit 200` score quoted as an MMLU accuracy, and a 12.5-point gap reasoned from | Gap overstated ~60% (7.8pt on a representative draw) |
+| 2 | Bielik's `added_tokens_decoder`: five tool-calling special tokens, `special: true` | "not evidence of native training on any tagged format" — recorded as root cause | A whole model family excluded on a serving defect |
+| 3 | `context_sweep.yaml`'s own comment on the uniqueness marker's position | Correct about within-cell reuse, silent about between-cell reuse | 2.3x TTFT error; a headline scaling finding inverted |
+| 4 | `models.yaml`: Edge-LLM "cannot do this family's AWQ … upstream limitation" — true when written 2026-09-08 | Still treated as true after the patch landed 2026-09-09 | Every Edge-LLM row is FP16 *because of it*; the Thor comparison varies precision as a result |
+
+Two variants of one failure. **1–3 are the metadata-vs-narrative version**: the refuting
+evidence was already in the repository, one read away, and the prose over-read the
+document it sat in. **4 is the time version** (identified by the Thor session): a *dated
+observation* was written down as a *standing property*, and nothing in the record carried
+an expiry date, so nobody re-tested it when the thing that made it true changed.
+
+**Why schemas do not catch this, and arguably invite it.** A schema validates that a
+field is well-formed. It never validates that the field is still true, nor that the
+sentence someone wrote about it is entailed by it. Worse, a validated field reads as a
+*settled* question — the presence of rigorous machinery around a number makes the prose
+about that number feel already-checked. Every incident above happened in a repo with
+enforced schemas, an immutability guard, and a condition-vs-reality assertion.
+
+**The convention that follows**, and the one to carry into any methods section:
+
+- A claim of the form **"X cannot do Y"** carries the date it was established and the
+  version it was established against, so a later reader knows what would invalidate it.
+  Without that it is indistinguishable from a standing property.
+- **"Root cause" is a stronger word than "observed"** and should be used only when the
+  mechanism was checked, not inferred. Incident 2 said "Root cause, not just symptom:"
+  about an inference drawn from a README.
+- An analysis joins on **recorded fields**, never on what an identifier or a filename
+  appears to imply. IDs are for uniqueness; the document body is the record.

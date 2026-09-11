@@ -566,12 +566,18 @@ def experiment_id(
     one. The Thor session hit exactly this collision class with MMLU sampling
     method and flagged it.
 
-    Passed only when the regime deviates from the historical baseline
-    (`repeated_filler_v1` + `unique-per-run`), so **every ID already on disk
-    stays reproducible** - the point is to make a new axis visible, not to
-    rewrite the existing record. Results written before this date carry no
-    suffix even where their regime would now earn one; their `workload` block
-    records it, which is where it was always recoverable."""
+    Scoped to `prompt_uniqueness`, which is a CLI flag and so can actually
+    differ between two runs this ID has to tell apart. The template version is
+    deliberately NOT here: it is a module constant, so no pair of same-day runs
+    can differ on it, and including it only stamps a meaningless constant on
+    every future ID - see `runner._prompt_regime` for the full reasoning and
+    for the ambiguity that mistake caused before it was narrowed.
+
+    Passed only when the regime deviates from the default, so **every ID
+    already on disk stays reproducible** - the point is to make a reachable
+    axis visible, not to rewrite the existing record. Regime is always
+    recoverable from `workload.prompt_template_version` and
+    `workload.prompt_uniqueness`, which is what an analysis must join on."""
     parts = [
         (on or date.today()).isoformat(),
         platform,

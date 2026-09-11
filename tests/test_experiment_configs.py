@@ -178,12 +178,20 @@ def test_prompt_regime_is_part_of_the_experiment_id():
             prompt_regime=regime, on=date(2026, 9, 4),
         )
 
-    # The historical baseline keeps its bare ID, so every result already on
-    # disk stays reproducible.
+    # The default keeps its bare ID, so every result already on disk stays
+    # reproducible - including results taken at template v2 before the ID
+    # gained this component at all.
     assert eid(None) == "2026-09-04_orin_k_e_in512_out128_bs1_r01"
-    # A deviating regime is a different identity, not a relabelling.
-    assert eid(_prompt_regime("unique-per-run")) != eid(None)
-    assert eid(_prompt_regime("identical-per-run")) != eid(_prompt_regime("unique-per-run"))
+    assert eid(_prompt_regime("unique-per-run")) == eid(None)
+    # The reachable axis is a different identity, not a relabelling.
+    assert eid(_prompt_regime("identical-per-run")) != eid(None)
+
+    # The template version must NOT reach the ID: it is a module constant, so
+    # no pair of same-day runs can differ on it, and stamping it on every ID
+    # made one ID shape mean two regimes. Recorded in the workload block
+    # instead, which is what an analysis joins on.
+    from runner import PROMPT_TEMPLATE_VERSION
+    assert PROMPT_TEMPLATE_VERSION not in eid(_prompt_regime("identical-per-run"))
 
 
 def test_cell_salt_is_deterministic():
