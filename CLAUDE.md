@@ -71,8 +71,13 @@ appears in `content` either. It is **not** that the model lacks tool training: i
 `added_tokens_decoder` carries five dedicated tool-calling special tokens (32002-32006,
 `<|function_list|>` / `<|function_output|>` / `<|function_call|>` / `<tool_call>` /
 `</tool_call>`), and given a tool-aware template it emits a correct call 6/6. The Orin
-llama.cpp "success" is the part that needed explaining, not the failures - an older
-build's grammar-CONSTRAINED path forced valid JSON regardless of what the prompt asked.
+llama.cpp "success" is the part that needed explaining, not the failures. The leading
+explanation - **not proven, and flagged as such deliberately** - is that the Orin's
+older build (`dustynv/llama_cpp:0.3.9-r36.4.0`, which logged "Chat format: Generic")
+took a grammar-CONSTRAINED path that forced valid JSON regardless of what the prompt
+asked, and that Thor's required newer build does not. It could not be tested directly:
+the r36/CUDA-12 image does not run on Thor, so the two builds cannot be compared on one
+board. Treat it as the best available account of that one result, not as established.
 **So the 2026-09-07 exclusion of this family rests on a fixable serving defect, not a
 model limitation, and is flagged for revisit.** See README's "Model families" table.
 
