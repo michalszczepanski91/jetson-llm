@@ -80,11 +80,21 @@ def render_prompt(case: dict) -> str:
     )
 
 
-def complete(base_url: str, model: str, prompt: str, max_tokens: int) -> str:
+def complete(base_url: str, model: str, prompt: str, max_tokens: int) -> tuple[str, str]:
+    """Returns (text, finish_reason).
+
+    `finish_reason` is load-bearing, not bookkeeping. Qwen2.5 on these prompts
+    writes prose FIRST and emits the tool call after it, so a completion cut off
+    at `max_tokens` scores as an abstention even though the model was on its way
+    to calling a tool. The Thor session measured that artifact directly: at
+    `max_tokens=64`, vLLM read 92% `irrelevance` with `finish_reason=length` on
+    every case - a 38-point error in the flattering direction. It persists at 200
+    (5-9 truncations per 50 cases there), which is why every caller here must gate
+    on it rather than trust a high abstention rate."""
     body = {
         "model": model, "prompt": prompt, "max_tokens": max_tokens,
         "temperature": 0.0, "top_p": 1.0, "top_k": 1, "seed": 1234,
-        "stream": False,
+        "stream": False, "stop": ["<|im_end|>"],
     }
     req = urllib.request.Request(
         f"{base_url}/v1/completions",
@@ -92,7 +102,8 @@ def complete(base_url: str, model: str, prompt: str, max_tokens: int) -> str:
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=180) as resp:
-        return json.load(resp)["choices"][0]["text"]
+        choice = json.load(resp)["choices"][0]
+    return choice["text"], choice.get("finish_reason") or "unknown"
 
 
 def main() -> None:
@@ -128,14 +139,19 @@ def main() -> None:
         rows = []
         for i, case in enumerate(cases):
             prompt = render_prompt(case)
-            text = complete(coordinator.base_url, coordinator.model, prompt, args.max_tokens)
+            text, finish = complete(coordinator.base_url, coordinator.model, prompt, args.max_tokens)
+            emits = "<tool_call>" in text
             rows.append({
                 "id": case["id"],
                 "prompt_sha": __import__("hashlib").sha256(prompt.encode()).hexdigest()[:16],
                 "text": text,
-                "emits_tool_call": "<tool_call>" in text,
+                "finish_reason": finish,
+                "emits_tool_call": emits,
+                # An abstention that ran out of budget is not evidence of judgment.
+                "truncated_without_tool_call": finish == "length" and not emits,
             })
-            print(f"[{i+1}/{len(cases)}] {case['id']}: tool_call={'YES' if '<tool_call>' in text else 'no'}")
+            flag = " TRUNCATED" if rows[-1]["truncated_without_tool_call"] else ""
+            print(f"[{i+1}/{len(cases)}] {case['id']}: tool_call={'YES' if emits else 'no'}{flag}")
     finally:
         coordinator.stop()
 
@@ -147,9 +163,16 @@ def main() -> None:
         "sampling": {"temperature": 0.0, "top_p": 1.0, "top_k": 1, "seed": 1234},
         "n": len(rows),
         "n_emitting_tool_call": sum(r["emits_tool_call"] for r in rows),
+        "n_truncated_without_tool_call": sum(r["truncated_without_tool_call"] for r in rows),
         "rows": rows,
     }, indent=2))
-    print(f"\nwrote {args.out}: {sum(r['emits_tool_call'] for r in rows)}/{len(rows)} emitted a tool call")
+    n_call = sum(r["emits_tool_call"] for r in rows)
+    n_trunc = sum(r["truncated_without_tool_call"] for r in rows)
+    print(f"\nwrote {args.out}: {n_call}/{len(rows)} emitted a tool call; "
+          f"{n_trunc} abstentions were TRUNCATIONS, not judgments")
+    if n_trunc:
+        print(f"  worst-case abstention (every truncation counted as a call): "
+              f"{100.0*(len(rows)-n_call-n_trunc)/len(rows):.1f}%")
 
 
 if __name__ == "__main__":
