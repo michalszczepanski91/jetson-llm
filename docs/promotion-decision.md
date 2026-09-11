@@ -159,3 +159,55 @@ belong to the still-open latency question this document defers to Phase 4.
    *remedy* on this board. The mechanism and the fix are different questions and this
    separates them. MMLU for the fp16 row is still unmeasured; it would sharpen the causal
    story but cannot revive fp16 as a candidate.
+
+## Overturned in part, 2026-09-11 — recommendation 2 does not survive production measurement
+
+`embedded-ai-chain/docs/round-trip-measurement.md` ran this repo's two leading Orin rows
+through the **real** `LlmOrchestrator.handle_transcript()` — production tool loop,
+production prompt, production `_FORCE_ASK_VLM` gating — rather than through BFCL. On
+turns where no tool is needed:
+
+| | BFCL `irrelevance` (this repo) | spurious tool calls, 40 real turns |
+|---|---:|---:|
+| `1.5b-awq-vllm-orin` (shipping) | 36.7% correct-abstain | **0 / 40** |
+| `3b-awq-vllm-orin` (recommended above) | 70.0% correct-abstain | **21 / 40** |
+
+**The ranking reverses on the exact failure this scorecard exists to predict.** Not a
+single-phrase artifact: 3B fires `ask_vlm` on 4–5 of 5 samples for four of five
+`needs_none` phrases and leaks into chit-chat, while 1.5B is clean on every phrase. And
+3B costs 2.6× the turn latency (633ms p50 vs 241ms), most of it from making 1.62 calls
+per turn against 1.14 — not from the +104ms of TTFT this document's corrected table shows.
+
+So **recommendation 2 above should not be acted on**: promoting `3b-awq-vllm-orin` on the
+strength of its `irrelevance` score would roughly double unwanted VLM actuation while
+also costing latency.
+
+### The methodological finding, which outlives this particular pick
+
+`docs/promotion-contract.md` §3 elevates BFCL `irrelevance` as "arguably the more
+important number for this lab specifically", on the grounds that it maps to the
+production `ask_vlm` escalation failure. **It does not map to it — here it inverts it.**
+Two reasons, both structural rather than incidental:
+
+- **BFCL measures the model naked.** Production wraps it in `_grounding_context()`, which
+  supplies the scene data with "already up to date — no need to call `read_scene_state`
+  again". That prompt alone suppresses the spurious-call failure completely for 1.5B. So
+  §"What this data does add" above is **overstated**: 63.3% is a real property of the
+  model, not "the first hard measurement of that risk's real frequency" in production.
+- **The tool set differs.** BFCL offers one generic tool; production offers a cheap one
+  (`read_scene_state`) beside an expensive actuating one (`ask_vlm`). All 21 of 3B's
+  spurious calls were `ask_vlm`. "Calls a tool when it shouldn't" is not one failure mode
+  — which tool it reaches for is most of the cost.
+
+This does not make BFCL worthless here: it remains a real, external, comparable benchmark
+and it is still the right instrument for comparing candidates *to each other* on raw
+judgment. What it cannot do is stand in for the production risk, and the contract's §3
+should say so. **A candidate should not be promoted on `irrelevance` alone without a
+round-trip measurement against the real orchestrator** — which is cheap, is now scripted
+(`embedded-ai-chain/benchmarks/measure_round_trip.py`), and would have caught this.
+
+One thing the production run does confirm in 3B's favour: it escalated on 10/10 turns
+that genuinely needed the VLM, 5/5 of them unforced, where 1.5B managed 2 of its 5
+unforced. 3B is genuinely better on the false-*negative* axis and would allow
+`_FORCE_ASK_VLM` to be retired. That is a real trade, not a tie-break — and per §4 it is
+the parent repo's decision to make, not this document's.
