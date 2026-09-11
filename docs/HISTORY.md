@@ -457,7 +457,11 @@ would have moved both.
   J/output-token 0.297 → **0.329**. Decode is unaffected (108.2 → 109.6 tok/s), as
   expected — prefix caching cannot touch decode.
 - **Phase 4's context-scaling finding.** "vLLM near-flat" was the artifact; vLLM is
-  linear. See Phase 4's own corrected table.
+  linear (`R² = 0.9999`). See Phase 4's own corrected table — and note that the *first*
+  correction overreached in the other direction, claiming llama.cpp was "clearly
+  super-linear" at 5.5× the marginal cost. Four input lengths cannot support a curvature
+  claim, and the four-point slope ratio is 4.89×, not 5.5× (that came from a two-point
+  fit). Corrected again 2026-09-11 after the Thor session challenged it.
 - **The Phase 5 cross-platform TTFT row.** It compared Thor's 54.9ms against Orin's
   "31.1 / 66.0" spread and called it inconclusive. Both Orin numbers were contaminated;
   the honest Orin value at that point is ~80.5ms. Thor's own row is single-cell and so

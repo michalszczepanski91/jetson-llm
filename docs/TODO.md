@@ -340,16 +340,31 @@ see "Prompt-salt contamination" below:
 | llama.cpp TTFT ms (v2, control) | 216.4 | 313.6 | 637.0 | 897.9 |
 
 **The corrected reading is the opposite of the original one on vLLM's half.** vLLM is
-not "near-flat" — it is textbook *linear* in input length: a least-squares fit of the
-512/1536 points, `27.4ms + 0.1035ms/token`, predicts 40.7ms at 128 tokens against
-41.1ms measured. The v1 row fitted nothing (it "predicted" 60ms at 128 where 40.8 was
-measured) and was even non-monotonic at the top, 83.2 → 81.8 — the tell that should
-have been caught at the time. llama.cpp is still clearly super-linear and its marginal
-prefill cost is **5.5×** vLLM's (0.574 vs 0.104 ms/token).
+not "near-flat" — it is textbook *linear* in input length, `R² = 0.9999` over all four
+points at a slope of **103.0 ms per 1k input tokens**. The v1 row fitted nothing
+(`R² = 0.80`) and was even non-monotonic at the top, 83.2 → 81.8 — the tell that should
+have been caught at the time.
 
-So the backend difference is real but is a *marginal-cost and curvature* difference,
-not the "flat vs super-linear" qualitative gap this table used to claim. Still
-confounded by quantization format (AWQ vs GGUF), stated not fixed, per this lab's
+**llama.cpp is NOT demonstrably super-linear, and this table said so until 2026-09-11.**
+Corrected after the Thor session pushed back on the claim and it did not survive
+checking against this repo's own numbers. Over the same four points llama.cpp fits a
+straight line at `R² = 0.983`, and a quadratic term buys `0.007` — about what one extra
+free parameter buys on four points whichever way the truth runs. **Four input lengths
+cannot separate linear from mildly quadratic**; settling it needs more points, not more
+replicates. The same test on Thor's independent run gives llama.cpp `R² = 0.9993` linear,
+quadratic buying `0.0004`.
+
+So the defensible statement is: **both backends are linear in input length over
+128–1536 and differ in slope** — llama.cpp's marginal prefill cost is **4.89×** vLLM's
+on this board (504.1 vs 103.0 ms/1k tokens), with llama.cpp the noisier fit. Not "flat
+vs super-linear", which is what this table originally claimed, and not "linear vs
+super-linear", which is what the first correction replaced it with. Both the shape claim
+and its magnitude were wrong; the slope ratio is the part that holds.
+
+(The earlier "5.5×" figure here came from a two-point fit through 512 and 1536. The
+four-point least-squares value is 4.89×.)
+
+Still confounded by quantization format (AWQ vs GGUF), stated not fixed, per this lab's
 fairness rules.
 
 **The Thor arm, run 2026-09-10** (`configs/benchmarks/context_sweep_thor.yaml`,
