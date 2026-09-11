@@ -147,9 +147,22 @@ question this file gets asked most and it should not take eleven sections to ans
   before the model ever sees it. If Bielik's HF `chat_template` shares that gap, vLLM is
   dropping `tools` for exactly the same reason — which would make this a **property of
   the model's template, not of any backend**, and explain both boards and all three
-  parsers with one cause. **Not yet tested, and it is the cheap decisive one**: serve
-  `bielik-11b-awq-vllm-orin` with `--chat-template` pointing at a tool-aware ChatML
-  template and re-check. Until then the observation is confirmed and the cause is open.
+  parsers with one cause. **CONFIRMED 2026-09-11 from the repo's own
+  metadata — no box time needed.** Verified directly against
+  `speakleash/Bielik-11B-v3.0-Instruct-awq`, the checkpoint the Orin vLLM row actually
+  serves: its `chat_template` is 209 characters of bare ChatML containing no occurrence of
+  `tools`, `tool_call` or `function`, byte-identical to the one the GGUF ships. So `tools`
+  is dropped at template rendering on **every** backend, collapsing vLLM-on-Orin (both
+  parsers), llama.cpp-on-Thor and the negative `content` re-check into **one cause**.
+  **And it goes further than "unsupported".** The same `tokenizer_config.json` carries five
+  dedicated tool-calling special tokens, all `special: true` — 32002 `<|function_list|>`,
+  32003 `<|function_output|>`, 32004 `<|function_call|>`, 32005 `<tool_call>`, 32006
+  `</tool_call>`. Bielik **was** trained for tagged tool use; its shipped template throws
+  the tools away. That contradicts the root cause this lab recorded on 2026-09-04 — now
+  corrected in `configs/models.yaml`.
+  **Consequence: the 2026-09-07 exclusion of this family rests on a serving defect a
+  `--chat-template` flag fixes, not on a model limitation, and should be revisited.** The
+  vLLM-on-Orin confirmation run is now a formality rather than a discovery.
   No Edge-LLM Bielik row is possible: `speakleash/Bielik-11B-v3.0-Instruct` is still
   **gated** (re-confirmed live via the HF API, 2026-09-10) and the ungated `-awq`
   sibling is compressed-tensors, which Edge-LLM's builder does not read — so that leg
