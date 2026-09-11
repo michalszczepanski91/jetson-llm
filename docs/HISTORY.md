@@ -517,3 +517,17 @@ enforced schemas, an immutability guard, and a condition-vs-reality assertion.
   about an inference drawn from a README.
 - An analysis joins on **recorded fields**, never on what an identifier or a filename
   appears to imply. IDs are for uniqueness; the document body is the record.
+- **A discriminator must be something a caller can vary.** Before adding any field to an
+  identifier — or to any key meant to tell two things apart — ask *which pair of runs
+  this separates*. A module constant separates none: changing it moves the whole repo
+  forward at once, so it stamps every future record with a value that carries no
+  information while silently splitting the record into "before" and "after" shapes. This
+  convention exists because the first version of the prompt-regime ID fix (2026-09-11)
+  broke it, and the Thor session caught it on its own 8 results.
+
+A closing distinction worth keeping, because the two errors above look alike and are not.
+Withdrawing the super-linear claim was a **claim outrunning its evidence** — four points
+cannot support a curvature statement. Narrowing the ID fix was a **fix outrunning its
+defect** — a real collision existed and the remedy was scoped wider than it. Only the
+second has a cheap guard (the question above). The first needs the slower discipline of
+asking what the data can carry, and does not reduce to a checklist.

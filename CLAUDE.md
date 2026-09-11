@@ -18,6 +18,7 @@ before assuming TensorRT is out of scope.
 including an exclusive-box timing campaign, a decoding control, and a working
 quantization. Result: at 7B the three backends are within ~2% on turn latency and
 ~16% on marginal energy per token, and differ by **40 points on BFCL `irrelevance`**
+(but read the caveat on that axis below before treating it as a production signal)
 (Edge-LLM 94%, llama.cpp 62%, vLLM 54%) - that one axis decides the recommendation:
 **Edge-LLM + Qwen2.5-7B, GPTQ-Int4 quantized if the turn budget is tight (769ms/turn,
 0.274 J/token), FP16 otherwise (94% vs INT4's 90% `irrelevance`)**. Quantization
@@ -39,14 +40,41 @@ structural difference causes the framework gap, and the list of things it is NOT
 now longer than the list of candidates. See `scripts/chat_template_crossfeed.py` and
 `docs/thor-framework-comparison.md`'s "Why the gap exists".
 
+**Caveat on `irrelevance` as a decision axis, 2026-09-11.** `docs/promotion-contract.md`
+§3 treats BFCL `irrelevance` as the axis that maps to the production `ask_vlm`
+over-escalation failure. Checked once against a real orchestrator, **it inverted**:
+`embedded-ai-chain` ran this lab's two leading Orin rows through the real
+`LlmOrchestrator.handle_transcript()` and the shipping 1.5B (36.7% `irrelevance`) made
+**0/40** spurious tool calls where the recommended 3B (70.0%) made **21/40**. The
+mechanism is not Orin-specific: BFCL measures the model naked with one generic tool,
+while production supplies a grounding block asserting the scene is already current and
+offers a cheap tool beside an expensive actuating one. So **every `irrelevance` number
+in this lab, Thor's 94% included, is measured in a configuration shown at least once to
+be unrepresentative.** That does not transfer the inversion to the Thor
+backend-at-fixed-precision comparison, which is a different comparison - it means no
+candidate should be promoted on `irrelevance` alone without a round-trip measurement
+(`embedded-ai-chain/benchmarks/measure_round_trip.py`). Full record:
+`docs/promotion-decision.md`'s "Overturned in part".
+
 Currently Qwen2.5-Instruct (1.5B/3B/7B/14B), Apertus-8B-Instruct-2509
 (data-sovereignty framing - Swiss-public-funded and fully open including training
 data, vs Qwen's Alibaba origin - but **BLOCKED**: llama.cpp doesn't recognize its
 GGUF architecture at all, confirmed on two build versions, no working serving path
-exists), and Bielik-11B-v3.0-Instruct (Polish, SpeakLeash - **llama.cpp: working**,
-the strongest llama.cpp result of any family so far; **vLLM: serves correctly but
-tool-calling doesn't work** on either of two parsers tried - the opposite pattern
-from Qwen2.5). See README's "Model families" table for the full comparison.
+exists), and Bielik-11B-v3.0-Instruct (Polish, SpeakLeash). The
+"**works on llama.cpp, broken on vLLM - the opposite pattern from Qwen2.5**" framing
+this file carried until 2026-09-11 is **wrong on both halves**, and the real cause is
+one thing: **Bielik's shipped `chat_template` is 209 characters of bare ChatML with no
+`tools` handling at all**, byte-identical in the AWQ repo and the GGUF, so the `tools`
+parameter is dropped *before the model ever sees it* - on every backend. That explains
+both vLLM parsers on Orin, llama.cpp's 0/9 on Thor, and the fact that no tool-call block
+appears in `content` either. It is **not** that the model lacks tool training: its
+`added_tokens_decoder` carries five dedicated tool-calling special tokens (32002-32006,
+`<|function_list|>` / `<|function_output|>` / `<|function_call|>` / `<tool_call>` /
+`</tool_call>`), and given a tool-aware template it emits a correct call 6/6. The Orin
+llama.cpp "success" is the part that needed explaining, not the failures - an older
+build's grammar-CONSTRAINED path forced valid JSON regardless of what the prompt asked.
+**So the 2026-09-07 exclusion of this family rests on a fixable serving defect, not a
+model limitation, and is flagged for revisit.** See README's "Model families" table.
 
 (Named `jetson-llm-qwen` until Apertus was added - renamed once a second model family
 broadened its scope, mirroring `jetson-vlm-lab`'s own history of starting as
