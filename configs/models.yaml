@@ -171,15 +171,41 @@ bielik-11b-awq-vllm-orin:
     LlamaForCausalLM-architected) both returned an empty tool_calls list on
     the identical get_weather/Warsaw test that vLLM+Qwen2.5 and
     llama.cpp+Bielik both handled correctly. Not a fluke - two independent
-    parsers, identical result. Root cause, not just symptom: Bielik's own
-    GGUF README documents tool use only as a manual prompt-injection
+    parsers, identical result.
+
+    **The root cause recorded here on 2026-09-04 was WRONG, corrected
+    2026-09-11.** It read the GGUF README's manual prompt-injection
     convention (an Ollama Modfile asking the model to emit
-    {"name":...,"arguments":{...}} as plain text), not evidence of native
-    training on any tagged format vLLM's per-family regex parsers look for -
-    consistent with why llama.cpp's grammar-CONSTRAINED "Generic" tool-call
-    path works for this model (forces valid JSON structurally, regardless of
-    what the model was trained to emit) where vLLM's tag-DETECTION parsers
-    don't (nothing to detect if the model never emits the tag at all). Not
+    {"name":...,"arguments":{...}} as plain text) as evidence that Bielik had
+    no native training on any tagged format, and explained the vLLM failure
+    that way. The repo's own metadata contradicts it. Verified directly
+    against THIS repo (speakleash/Bielik-11B-v3.0-Instruct-awq):
+
+      - added_tokens_decoder carries five DEDICATED tool-calling special
+        tokens, all special:true - 32002 <|function_list|>, 32003
+        <|function_output|>, 32004 <|function_call|>, 32005 <tool_call>,
+        32006 </tool_call>. A model with no tagged-format training does not
+        ship reserved vocabulary for one.
+      - chat_template is 209 characters of bare ChatML and contains no
+        occurrence of "tools", "tool_call" or "function" at all:
+        {{bos_token}}{% for message in messages %}...{% endfor %}...
+
+    So the tools parameter is DROPPED AT TEMPLATE RENDERING and the model
+    never sees a tool. That is a property of the shipped template, not of the
+    model and not of any backend, and it explains every observation at once:
+    both vLLM parsers on Orin (nothing to detect because nothing was asked),
+    llama.cpp on Thor (0/9, same 209-char template in the GGUF - confirmed by
+    the Thor session off llama-server's GET /props), and the 2026-09-11 Orin
+    re-check finding no tool-call block in `content` either. The Orin
+    llama.cpp success is the one that needed the special explanation, not the
+    failures: an older build's grammar-CONSTRAINED "Generic" path forces
+    valid JSON structurally regardless of what the prompt asked for.
+
+    Handed a tool-aware ChatML template instead, the model emits a correct
+    get_weather call 6/6 (Thor session, llama.cpp). **The exclusion below
+    therefore rests on a serving defect that a --chat-template flag fixes,
+    not on a model limitation, and should be revisited.** Not yet confirmed
+    on the vLLM leg on Orin. Not
     exhaustively tried: vLLM has ~30 total --tool-call-parser options: the
     other ~28 remain untried after two failed, cheap, plausible guesses -
     diminishing-returns territory, not attempted further without a specific

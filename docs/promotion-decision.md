@@ -34,6 +34,22 @@ result per the contract's own §4, not a failed process.
 > no longer a fair description of the 1.5B→3B step, and the recommendation was written
 > on the un-corrected number. See "Reopened" at the end of this file.
 
+> **Caveat on the whole MMLU column, added 2026-09-11.** Every MMLU figure in this table
+> is an `--limit 200` run, and `validate_mmlu.py` takes `all_rows[:limit]` from a split
+> that is **ordered by subject**. Verified on this board's staged copy: the first 200 rows
+> are 100 `abstract_algebra` + 100 `anatomy` — **2 of MMLU's 57 subjects**, one of them
+> among its hardest. These are therefore *not* MMLU accuracies and must not be quoted as
+> such anywhere, this document included.
+>
+> They remain valid for the **only** job §3 of the contract gives them — comparing a
+> quantization against its same-size sibling — because every row was scored on the
+> identical 200 questions, so the comparison is controlled even though the absolute level
+> is not meaningful. What they cannot support is any statement about a model's general
+> knowledge, including this document's own "sane scaling from the 1.5B row's 40.0%"
+> reasoning below, which should be read as "sane scaling on two subjects".
+> Found by the Thor session, which measured both its 7B checkpoints moving ~7 points
+> between `--limit 200` and `--limit 1000`.
+
 BFCL scores are the 2026-09-09 re-run under the corrected scorer (see `docs/TODO.md`
 Phase 5's "BFCL scorer fix"). **`simple` is saturated — five rows at exactly 100% — so
 `irrelevance` is the only accuracy axis that still discriminates**, which is fortunate,
