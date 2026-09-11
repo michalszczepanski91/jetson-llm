@@ -22,15 +22,15 @@ status column can't carry two boards, so the table splits them.
 | Phase | Orin | Thor | Key result |
 |---|---|---|---|
 | 0 — Framework survey | ✅ | ✅ | vLLM + llama.cpp in scope; TensorRT excluded on Orin (JetPack 6.2.x), **superseded on Thor** |
-| 1 — Foundations | ✅ | ✅ | Qwen2.5 works on every backend; Bielik llama.cpp-only; Apertus blocked entirely |
-| 2 — Measurement integrity | ✅ | 🚧 | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. Thor's campaign bypassed this pipeline; **one** Thor row now goes through it properly — see Phase 6 |
+| 1 — Foundations | ✅ | ✅ | Qwen2.5 works on every backend; **Bielik is tool-capable and was mis-diagnosed** (its chat template carries no tools handling — 2026-09-11, exclusion to revisit); Apertus blocked entirely |
+| 2 — Measurement integrity | ✅ | 🚧 | Raw runs, energy, manifest, IDs, co-residency guard — 3 real bugs found. Thor's campaign bypassed this pipeline; **13 Thor results now go through it properly** (2026-09-10/11). Both result schemas rejected `edge-llm` and Thor's power rails until fixed; **all 94 results now conform**. Two further integrity bugs found 2026-09-11: MMLU's `--limit` was a 2-subject slice, and `result_id` did not encode sampling method |
 | 3 — Experiment configuration | ✅ | ⚠️ | Config-driven campaigns; guard hardened after 2 more incidents. Thor ran from shell scripts, not `configs/benchmarks/` |
 | 4 — Canonical campaign | 🚧 partial | 🚧 | Orin: J/token amortization + a backend context-scaling gap. Thor: one matched point (P5 — Thor buys capacity, not speed) **plus the context sweep, run 2026-09-10** — vLLM's linearity replicates independently and the backend gap is 2.3× here vs Orin's 4.9×. The **output** sweep is the remaining Thor gap |
 | 5 — Full scorecard matrix | ✅ | ✅ | 7 Orin rows fully scored; `irrelevance` is the only accuracy axis that still discriminates |
 | 6 — Cross-platform arm | n/a | ✅ | Thor bring-up, three backends, exclusive-box campaign |
-| 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend, MMLU-controlled |
-| 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled |
-| 9 — Co-resident / concurrency | ⏳ | ⏳ | Highest remaining value — feeds both papers |
+| 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend. **MMLU re-measured 2026-09-11**: INT8-SQ's gap is 7.8 pt, not 12.5 — rankings hold, magnitudes did not. `int4_awq` builds under the patch but produces a mute engine |
+| 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled. **Mechanism still unidentified**: chat-template rendering and numeric dtype both tested and eliminated 2026-09-10 |
+| 9 — Co-resident / concurrency | ⏳ | ⏳ | **The single largest remaining gap** — untouched on both boards, and everything either arm has produced is standalone |
 | 10 — Analysis pipeline | ⏳ | ⏳ | — |
 | 11 — Declare a winner | ✅ deferred | 🚧 | Orin: "no clean winner" + tie-breaker recorded (`docs/promotion-decision.md`). Thor: a recommendation, which is not the same as a promotion |
 
@@ -46,24 +46,75 @@ question this file gets asked most and it should not take eleven sections to ans
   that then never got revisited. The framework comparison held the model fixed
   *because* that is what made it controlled; varying family is a different experiment,
   and it simply hasn't been run. Everything below is execution time, not new design.
-- **Bielik-11B on Thor**: a row exists (`bielik-11b-awq-vllm-thor`) and has **never
-  been smoke-tested**. It was written to answer a real open question — Bielik's
-  tool-calling is confirmed broken on vLLM/Orin across two parsers but works on
-  llama.cpp, and nobody knows whether that is backend-wide or Orin-specific. Note the
-  existing row is the *vLLM* one, i.e. the variant already known to fail on Orin; the
-  *working* Bielik path (llama.cpp) has no Thor row at all, and neither does Edge-LLM.
+- **Bielik-11B: TESTED AND ROOT-CAUSED (2026-09-10/11). The family was excluded on a
+  wrong diagnosis.** `bielik-11b-q4-llamacpp-thor` added and smoke-tested; the full
+  record is in the Bielik entry further down this section. The short version: its chat
+  template — **byte-identical 209-character bare ChatML in both the HF `-awq` repo and
+  the GGUF**, with no `tools`/`tool_call`/`function` handling — means every backend
+  drops the `tools` parameter before the model sees it. That is one cause for both
+  boards and all three parsers, and it replaces the old "works on llama.cpp, broken on
+  vLLM" framing, which was wrong on both halves. **The model is tool-capable and was
+  trained for it**: its tokenizer carries dedicated `<|function_call|>`,
+  `<|function_list|>`, `<|function_output|>`, `<tool_call>` and `</tool_call>` special
+  tokens, contradicting the 2026-09-04 note that read the GGUF README's manual
+  prompt-injection convention as evidence of no tagged-format training. Given a
+  tool-aware template it emits a correct call 6/6. **⟨DECIDE⟩ the 2026-09-07 exclusion
+  of this family now rests on a serving defect a `--chat-template` flag fixes, not on a
+  model limitation, and should be revisited rather than inherited.**
 - **Qwen3 on Thor: tested 2026-09-10, and it is BLOCKED** — `Qwen3-8B-AWQ` (Qwen's
   own published int4, in Edge-LLM's supported list) builds and serves, then emits
   degenerate output: `"0000000..."` for "capital of Poland", a punctuation loop under
   greedy decoding. Not a sampling artifact. It did *not* hit the int4 bias-recipe bug,
   consistent with Qwen3 having dropped the QKV biases that trigger it — so that
   hypothesis held, but the engine is unusable for a different reason further down.
-  Root cause open; the `patches/` fix is a live suspect and there is a cheap test to
-  settle it (see the row's own notes). **No Qwen3 row on Orin yet either.**
+  Root cause still open, but **the `patches/` fix is CLEARED as a suspect (2026-09-10)**
+  and the proposed revert-and-rebuild was not needed — a static argument settles it
+  more strongly. (a) The checkpoint is fine: the same `Qwen/Qwen3-8B-AWQ` on Thor's
+  vLLM answers coherently and returns a correct unforced tool call
+  (`qwen3-8b-awq-vllm-thor`). (b) The patch is provably inert here: `weights.py` assigns
+  `bias_recipe` only inside `if self.has(prefix + ".bias")`, `LinearWeights.bias_recipe`
+  already defaults to `None`, and this checkpoint has **zero** bias tensors — so the
+  patched line passes `None` exactly as the unpatched code did, and reverting could not
+  change the engine. The fault is elsewhere in Edge-LLM's **AWQ** path, which is now a
+  pattern rather than one incident: see the `int4_awq` entry below. **No Qwen3 row on
+  Orin yet either.**
+- **`int4_awq` against the bias-recipe patch — TESTED 2026-09-11. It builds, and the
+  engine is still unusable.** `Qwen2.5-1.5B-Instruct-AWQ` now compiles and serves, so
+  the patch does cover this format and the 2026-09-08 "Edge-LLM cannot build this
+  family's AWQ" record was simply taken the day before the fix existed — a stale claim
+  that had propagated into being the stated reason every Edge-LLM row here is FP16.
+  But the engine emits **zero tool calls in 100 BFCL cases** (0/50 `simple`, and a
+  meaningless 100% `irrelevance` that is the mute-model false positive, not
+  abstention), while scoring **MMLU 42.0% — identical to its FP16 twin**, which calls a
+  tool in 50/50 `simple` cases. Numerically healthy, tool-calling entirely gone. That
+  is **two** Edge-LLM AWQ engines that build and are then silently wrong in two
+  different ways, against an `int4_gptq` path validated end-to-end. Guidance unchanged:
+  on Edge-LLM use FP16 or GPTQ-Int4, never AWQ. `int4_awq_modelopt` stays untested and
+  now needs a deliberate decision, since producing such a checkpoint needs a modelopt
+  environment this box no longer has.
+- **MMLU numbers are 2-subject scores — found 2026-09-11, affects every MMLU figure in
+  this repo.** `validate_mmlu.py --limit N` takes `all_rows[:N]` and MMLU's `all/test`
+  parquet is **ordered by subject**, so the standard `--limit 200` run is 100
+  abstract_algebra + 100 anatomy, 2 of 57 subjects. Rankings survive (every row saw the
+  identical questions); magnitudes do not — INT8-SQ's gap reads 13.5 pt on that slice
+  and **7.8 pt on a representative random draw**. `--sample random` with a recorded
+  seed now exists, `first-n` stays the default so historical results stay reproducible,
+  and the sampling method is part of the `result_id` because it is experiment identity.
+- **The official `bfcl-eval` checker — RUN 2026-09-11, and the premise was backwards.**
+  It scores **2.0–3.3 points lower** than this repo's simplified matcher on all 10
+  re-scorable sets, so ours is more *lenient* and the documented "~8-point
+  false-negative floor" does not exist. Swapping checkers would not de-saturate
+  `simple`; the models are simply good at it. Kept as an audit tool
+  (`scripts/rescore_bfcl_official.py`), not adopted as the default — making `bfcl-eval`
+  a hard dependency drags torch into a Jetson venv for a ≤3.3-point correction.
+  Separately: the 9 results written **before 2026-09-09 record no per-case arguments**,
+  so no independent checker can ever re-score them.
 - **Apertus-8B**: genuinely blocked, not neglected — llama.cpp doesn't recognize its
-  GGUF architecture on any build tried, and no trustworthy AWQ exists. Worth one
-  cheap re-check on Thor: the int4 bias-recipe bug patched in Edge-LLM was blocking
-  *every* int4 checkpoint, so it may have been masking an Apertus/Bielik path too.
+  GGUF architecture on any build tried, and no trustworthy AWQ exists. The "worth one
+  cheap re-check, the int4 bias bug may have been masking it" note is **withdrawn for
+  Bielik** (root-caused above: a chat template with no tools handling, nothing to do
+  with int4) and is **weak for Apertus**, since its blocker is architecture recognition
+  at load time, which no quantization-builder fix can reach.
 - **The chat-template test — COMPLETE, 2026-09-10, and it REFUTES the hypothesis.**
   The Thor (Edge-LLM) leg ran precision-matched at 7B fp16 across all three backends,
   via `scripts/chat_template_crossfeed.py`; raw documents in
@@ -639,10 +690,30 @@ tight, FP16 otherwise.** Precision table in Phase 7 below.
       J/token amortization and the backend context-scaling gap — remain unmeasured
       there. Both configs already run against Thor rows; this is execution time.
 
-Also open, tracked in the comparison doc's own "Still open": the `jetson_clocks`-locked
-timing run, the official `bfcl-eval` checker, a co-residency run with the VLM tier,
-INT8-SQ's unexplained MMLU gap, and identifying the exact mechanism behind the
-framework gap (chat-template rendering is the leading candidate).
+Also tracked in the comparison doc's own "Still open", updated 2026-09-11 — **three of
+these five closed, none of them the way they were framed**:
+
+- [x] **The official `bfcl-eval` checker** — run, and the premise was backwards. It
+      scores 2.0–3.3 points **LOWER** than this repo's simplified matcher across all 10
+      re-scorable sets, so ours is more *lenient* and the documented "~8-point
+      false-negative floor" does not exist. Swapping checkers would not de-saturate
+      `simple`. `scripts/rescore_bfcl_official.py`.
+- [x] **INT8-SQ's MMLU gap** — re-measured at **7.8 points, not 12.5**. The original
+      figure came from `--limit 200`, which takes `all_rows[:200]` of a subject-ordered
+      parquet, i.e. 2 of 57 subjects. Direction survives (z=3.7); magnitude does not.
+      The *cause* is still unexplained and is now blocked on tooling: `modelopt` and
+      `torch` are both gone from the Edge-LLM venv, so `scripts/quantize_edgellm.sh`
+      does not run on this box at all.
+- [x] **The mechanism behind the framework gap** — chat-template rendering is
+      **refuted**, not still-leading (see Phase 8 and the "Not tested yet" entry).
+      Numeric dtype was tested and eliminated too. Still unidentified, but the list of
+      eliminated causes is now longer than the list of candidates.
+- [ ] **The `jetson_clocks`-locked timing run.** Re-scoped 2026-09-11: this is *not*
+      "needs root the lab does not have". The account is in the `sudo` group — an agent
+      simply cannot supply the password non-interactively. One `sudo jetson_clocks`
+      typed by the user unblocks it.
+- [ ] **A co-residency run with the VLM tier** (Phase 9) — untouched on both boards and
+      now the single largest gap in the project.
 
 **Two bugs found 2026-09-10 by actually running an Edge-LLM row**, both silently
 live until then — recorded here because each broke something wider than its own row:
@@ -698,9 +769,19 @@ only variable, MMLU carried throughout as the regression control this phase asks
 | FP8 (self-quantized) | 90% | 66.5% | 1052 ms | 0.603 J | — |
 | INT8-SQ (self-quantized) | 92% | 54.0% ² | 1074 ms | 0.610 J | — |
 
-¹ Cache **hit** for both; a miss takes minutes either way. ² **INT8-SQ keeps an
-unexplained 12.5-point MMLU gap** even after raising calibration 128→512 samples
-(44.5%→54.0%) — not trusted for production; see the comparison doc's "Still open".
+¹ Cache **hit** for both; a miss takes minutes either way.
+² **Every MMLU figure in this column is a 2-subject score** (corrected 2026-09-11).
+`validate_mmlu.py --limit 200` takes `all_rows[:200]` and MMLU's `all/test` parquet is
+ordered by subject, so these are 100 abstract_algebra + 100 anatomy out of 57 subjects.
+Because every row saw the *identical* 200 questions the column still **ranks** these
+precisions correctly, which is the only job `docs/promotion-contract.md` §3 gives MMLU
+— but no *magnitude* in it can be trusted, and none should be quoted as a
+general-knowledge score. Measured on the same two checkpoints: INT8-SQ's gap against
+FP16 is 13.5 pt on this slice, 12.6 pt at n=1000 first-n (8 subjects), and **7.8 pt on
+a representative n=1000 random draw across all 57** — the slice overstates the damage
+by ~60%. INT8-SQ remains not trusted for production; the direction is decisive (z=3.7)
+even though the size was wrong. `--sample random` now exists for anything quoted as a
+magnitude.
 
 **INT4-GPTQ wins every timing and energy column outright** — 2.5× the throughput and
 3× the energy efficiency of FP16 — for 4 points of `irrelevance`. FP8 is essentially
