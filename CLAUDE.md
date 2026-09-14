@@ -246,6 +246,91 @@ retired; the harness stays the shared hand-maintained copy across sibling repos.
 `benchmarks/manifest.py` and `benchmarks/runner.py` are new and repo-specific, which
 is why the retrofit machinery lives there instead.
 
+## The v2 measurement path (`scripts/measure_run.py` + `analysis/`)
+
+A **second** pipeline alongside `scripts/run_experiment.py`, not a replacement:
+95 results conform to `benchmark_result.schema.json` and every existing figure
+reads it, so that path is untouched. v2 exists for the questions that document
+cannot answer - does a config fit, what does prefill cost separately from
+decode, what does a *task* cost in joules, and which orderings the intervals
+actually support.
+
+Three separable stages, and the separation is load-bearing rather than tidy:
+
+```
+scripts/measure_run.py  ->  records.jsonl + power.jsonl + run_meta.json   (no statistics)
+analysis/stats.py       ->  results.json     (EVERY statistic, computed here and nowhere else)
+analysis/figures.py     ->  PDFs             (reads only results.json, holds no data)
+analysis/table.py       ->  booktabs/siunitx LaTeX
+analysis/quality.py     ->  the quality join, on model_config_key
+```
+
+Because measurement writes only per-request rows, a percentile can be
+redefined or a figure set regenerated without an hour of board time, and the
+published aggregate cannot drift from the raw data because it has no
+independent existence. `make measure` / `make analyze` / `make figures`.
+
+Things this path establishes that should not be re-derived:
+
+- **Every numeric leaf wears one envelope**: `{value, unit, ci95, n, method}`,
+  or `{value: null, _not_collected: "<reason>"}`. Enforced by
+  `analysis/stats.py:check_envelopes()` on every write and by
+  `schemas/v2_results.schema.json`. Wilson for proportions, bootstrap for
+  latency percentiles, interval arithmetic for ratios joined across runs.
+  Never a bare float, never a zero standing in for a gap.
+- **Representation is read from the artifact, never from the registry
+  string.** `benchmarks/representation.py` parses safetensors headers and GGUF
+  tensor tables. Confirmed on this box: Qwen2.5-7B bf16 is exactly 16.00
+  effective bits/weight (the calibration case) and Q4_K_M is **5.03**, not 4,
+  because it is a *mixed* scheme leaving whole tensor families at Q6_K - hence
+  the separate `w4_grouped_mixed` comparability class. A figure must never put
+  Q4_K_M next to GPTQ-Int4 as one "INT4".
+- **KV bytes/token computed and cross-checked.** 2 x n_layers x n_kv_heads x
+  head_dim x bytes: 57,344 B/token for Qwen2.5-7B at fp16, against vLLM's own
+  reported 57,335.6. Use `n_kv_heads`, not `n_attention_heads` - a 7x error on
+  this model.
+- **Reserved KV is not resident KV.** vLLM reserved 31.9 GiB while the board's
+  MemAvailable fell 24 GB in total including ~15 GB of weights. On unified
+  memory a co-resident perception stack contends with the resident figure and
+  a second server's startup contends with the reserved one; both are recorded.
+- **`vin_sys_5v0_mw` is sampled but never summed into joules.** It is the
+  board-level supply and already contains much of the domain rails; including
+  it once read 37.6 W against a true 23.5 W.
+
+**Two measurement-validity findings, 2026-09-11, both archived with write-ups:**
+
+1. **Five warm-ups is not enough on Thor** (`results/invalid/2026-09-11_thor-dvfs-ramp-diagnostic/`).
+   Decode held 9.5 tok/s for nine repetitions then **stepped +39% to 13.0**,
+   about two minutes into sustained load. Cause is CPU DVFS - `schedutil`,
+   972 -> 2601 MHz - promoting the core vLLM's batch-1 decode loop runs on;
+   the GPU GPC clock was already at its 1386 MHz maximum throughout. So
+   **vLLM's batch-1 decode on Thor is partly CPU-bound**, which is itself
+   worth knowing before attributing a backend gap to a kernel.
+   `results/thor-precampaign/streaming_7b-fp16-vllm-thor.json`'s 11.31 tok/s
+   sits between the two plateaus - exactly where a 20-run measurement that
+   straddles the step lands - so that number and anything resting on it should
+   be re-taken.
+2. **A stability threshold must be calibrated against the board's own noise**
+   (`results/invalid/2026-09-11_thor-unreachable-stability-threshold/`). The
+   first fix used a 3% coefficient-of-variation test; this board's run-to-run
+   decode spread over six samples is 5-13%, so it could never pass and every
+   cell ran to its cap. Now a **trend** test - mean of the last six against
+   the six before - which cancels noise but still rejects a regime change.
+
+Clocks are deliberately **not** locked with `jetson_clocks` (it also needs a
+password here): locking would remove the confound but stop measuring the board
+a deployment actually runs on. The price is that every cell records
+`warmup_seconds_to_steady_state` and the intervals must carry the governor's
+residual wander.
+
+**Sample-size reality for the accuracy suites.** `n >= 2000` is reachable for
+MMLU (14,042 items staged locally) and **not** for BFCL v3 `irrelevance`,
+which has **240 items in total**. At n=240 the smallest gap two Wilson
+intervals can separate near 94% is **8 points** - so the 40-point framework
+gap is comfortably real, while the FP16-vs-INT4 `irrelevance` difference the
+current recommendation leans on (94% vs 90%) is **not** separable at that n.
+Adding BFCL's `live_irrelevance` (~882 items) would bring it to ~4 points.
+
 ## Schemas
 
 `schemas/` holds JSON Schema (draft 2020-12) for the four document types this lab

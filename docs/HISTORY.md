@@ -479,6 +479,65 @@ share this harness's ancestry, and any multi-cell sweep against a prefix-caching
 has the same exposure.
 
 
+## Phase 10 — the v2 measurement path's first runs, 2026-09-11
+
+Two runs of `7b-fp16-vllm-thor-v2` were thrown away before one was kept, and each
+threw itself away for a different reason. Both are archived under `results/invalid/`
+with their raw trajectories; this is the part worth carrying forward.
+
+**1. Five warm-ups is not enough on this board — and the reason is the CPU.** The
+first run warmed up with a fixed 5 requests, per the brief's "≥5 warm-up requests
+discarded". Inside its very first cell (in≈128, out=128, 30 repetitions, identical
+prompt, prefix caching verified off) decode held ~9.5 tok/s for nine repetitions and
+then **stepped to ~13.0 and stayed there** — +39%, flat on both sides, about two
+minutes into sustained load. Not noise, and not thermal decay, which would have gone
+the other way.
+
+The cause is `schedutil` on the CPU (972 → 2601 MHz) promoting the busy core, while
+the GPU GPC clock sat pinned at its 1386 MHz maximum the whole time. **vLLM's batch-1
+decode on Thor is therefore partly CPU-bound** — per-token scheduling and sampling in
+Python — which is a fact about this platform worth knowing before any backend gap gets
+attributed to a kernel. The step is paid once per server session, not once per cell.
+
+It also reaches backwards into data already published:
+`results/thor-precampaign/streaming_7b-fp16-vllm-thor.json` reports 11.31 tok/s from
+20 repetitions, which is *between* the two plateaus — exactly where a 20-run
+measurement straddling the step lands. A p50 taken across a regime change belongs to
+neither regime.
+
+**2. The fix for (1) was calibrated against nothing, and so was unreachable.** The
+steady-state warm-up that replaced the fixed 5 used a coefficient-of-variation test:
+stop once the last six decode rates span ≤3% of their mean. This board's own
+run-to-run decode spread is **5–13%** over six samples. Twenty-two warm-up
+repetitions never came close, and every cell of every framework would have run to its
+cap and self-flagged `reached_steady_state: False` — forever.
+
+The deeper problem is with spread tests as a class here, not with the number chosen.
+To mean anything the threshold has to sit below the process noise; loosened enough to
+be reachable on this board (~15%) it would happily have accepted the *pre-step*
+plateau of incident 1, which was extremely stable at 9.5 tok/s — the exact regime the
+warm-up exists to leave. A spread test cannot distinguish "settled" from "settled in
+the wrong place". The replacement is a **trend** test: the mean of the last six
+repetitions against the six before them. Noise cancels between the halves; a regime
+change does not.
+
+**Three things this pair establishes.**
+
+- **A warm-up criterion is a measurement, and needs calibrating against the board's
+  own noise before it is trusted** — the same discipline this repo already applies to
+  the numbers a warm-up protects. The first fix was written from a plausible constant
+  and was unfalsifiable in the direction that mattered.
+- **Not every bad result is a mislabelled one.** Everything previously in
+  `results/invalid/` got there because the document lied about the conditions
+  (`assert_condition_matches_reality()`'s three incidents). These two were labelled
+  truthfully and measured badly. No condition guard can catch that class; what catches
+  it is a cell that reports how its own warm-up ended, which every v2 result now does.
+- **Clocks stay unlocked deliberately.** `jetson_clocks` would remove this confound and
+  stop measuring the board a deployment actually runs on. The price is paid in the open:
+  `warmup_seconds_to_steady_state` in every cell, and intervals that carry the
+  governor's residual wander.
+
+
 ## The recurring failure this lab keeps finding in itself, 2026-09-11
 
 Four separate incidents this week shared one shape, and it is worth naming because

@@ -201,6 +201,81 @@ family's model card.
 
 This wrapper: no separate license claimed here (internal eval tooling).
 
+## The v2 measurement path (publication campaign)
+
+`scripts/run_experiment.py` and `benchmark_result.schema.json` stay exactly as
+they are - 95 results conform to that document type and every existing figure
+reads it. The v2 path is a **second**, wider pipeline for the questions that
+document cannot answer, and it is deliberately three separable stages:
+
+```
+scripts/measure_run.py   ->  records.jsonl + power.jsonl + run_meta.json
+analysis/stats.py        ->  results.json      (every statistic, computed here and nowhere else)
+analysis/figures.py      ->  PDFs              (reads only results.json; holds no data)
+analysis/table.py        ->  a booktabs/siunitx LaTeX table
+analysis/quality.py      ->  the quality join, on model_config_key
+```
+
+`make measure CONFIG=<key> EXPERIMENT=<name> CONDITION=standalone`, then
+`make analyze`, then `make figures`.
+
+The separation is not tidiness. Because measurement writes only per-request
+rows, a percentile can be redefined, an interval method changed, or a whole
+figure set regenerated without putting the board back under load for an hour -
+and the published aggregate can never drift from the raw data, because the
+aggregate has no independent existence.
+
+**What it adds over the v1 path**
+
+- **Memory that answers "does this fit".** Weights on device (read from the
+  runtime's own startup log, not guessed), KV bytes per token (computed from
+  the model config and cross-checked against the runtime's reported cache
+  size), peak and free, and the largest context that actually runs - *probed
+  until it fails*, with `limiting_factor` separating a configuration limit
+  from a memory one. On unified memory it also separates KV **reserved** from
+  KV **resident**: vLLM reserved 31.9 GiB here while the board's available
+  memory fell by 24 GB in total, and only one of those two numbers answers a
+  co-tenancy question.
+- **Prefill and decode as separate regimes**, swept over prompt length
+  (128/512/2048/8192) rather than collapsed into one TTFT.
+- **Energy per task against a measured idle baseline**, taken per cell with
+  the server loaded and resident, reported both absolute (budgets a power
+  envelope) and marginal (budgets the cost of adding this workload), each
+  carrying the decision it serves.
+- **Intervals on everything.** Wilson for accuracy, bootstrap for latency
+  percentiles, interval arithmetic for derived ratios - in one envelope
+  (`{"value", "unit", "ci95", "n", "method"}`) that the plotting code never
+  has to guess about. A quantity that was not measured is `null` with a
+  reason beside it, never a zero.
+- **Representation decomposed.** Weights dtype/method/granularity/group size,
+  activations, KV dtype, which modules stayed FP, calibration, effective bits
+  per weight, and a `comparability_class` so a figure cannot silently put
+  Q4_K_M next to GPTQ-Int4. Read from the artifact, not from the registry's
+  `precision:` string.
+
+**Two measurement-validity findings from its first runs (2026-09-11)**
+
+1. **Five warm-ups is not enough on Thor.** Decode rate held 9.5 tok/s for
+   nine repetitions and then stepped to 13.0 - a +39% regime change about two
+   minutes into sustained load, from the CPU governor (`schedutil`, 972 ->
+   2601 MHz) promoting the core vLLM's batch-1 decode loop runs on; the GPU
+   was already at its maximum clock throughout. `results/thor-precampaign/streaming_7b-fp16-vllm-thor.json`
+   reports 11.31 tok/s, which is between the two plateaus - where a 20-run
+   measurement straddling the step lands. Warm-up is now to a *measured*
+   steady state. Full record: `results/invalid/2026-09-11_thor-dvfs-ramp-diagnostic/`.
+2. **A stability threshold has to be calibrated against the board's own
+   noise.** The first fix used a 3% coefficient-of-variation test, which is
+   below this board's run-to-run decode spread (5-13% over six samples) and so
+   could never pass. Replaced with a trend test - the mean of the last six
+   repetitions against the six before them - which cancels noise but still
+   rejects a regime change. Record:
+   `results/invalid/2026-09-11_thor-unreachable-stability-threshold/`.
+
+Clocks are deliberately **not** locked with `jetson_clocks`: that would remove
+the confound but stop measuring the board a deployment actually runs on. The
+cost is that every cell records how long it took to reach steady state, and
+the reported intervals have to carry the governor's residual wander.
+
 ## Current State
 
 ### Phase 2-4: measurement integrity, then a real campaign (2026-09-04)

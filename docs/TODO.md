@@ -31,7 +31,7 @@ status column can't carry two boards, so the table splits them.
 | 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend. **MMLU re-measured 2026-09-11**: INT8-SQ's gap is 7.8 pt, not 12.5 — rankings hold, magnitudes did not. `int4_awq` builds under the patch but produces a mute engine |
 | 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled. **Mechanism still unidentified**: chat-template rendering and numeric dtype both tested and eliminated 2026-09-10 |
 | 9 — Co-resident / concurrency | ⏳ | ⏳ | **The single largest remaining gap** — untouched on both boards, and everything either arm has produced is standalone |
-| 10 — Analysis pipeline | ⏳ | ⏳ | — |
+| 10 — Analysis pipeline | ⏳ | 🚧 | **v2 path built 2026-09-11** (`measure_run.py` + `analysis/`): envelopes on every leaf, representation read from the artifact, figures that hold no data. Campaign behind it is **1/3 run** (vLLM only), quality axis unjoined, `results/raw/` untouched by it |
 | 11 — Declare a winner | ✅ deferred | 🚧 | Orin: "no clean winner" + tie-breaker recorded (`docs/promotion-decision.md`). Thor: a recommendation, which is not the same as a promotion |
 
 Full reconciliation of this plan with `docs/note.md`'s original benchmark-suite
@@ -895,12 +895,86 @@ single most important unmeasured quantity in the whole project.
 
 ## Phase 10 — Analysis pipeline
 
-- [ ] `scripts/analyze.py` regenerating every table/plot from `results/raw/`. Never
-      hand-edit a plot.
+**Partly built 2026-09-11, as a second pipeline rather than the one sketched here.**
+`scripts/measure_run.py` + `analysis/` (the "v2 path", README and CLAUDE.md both
+describe it) answers the questions `benchmark_result.schema.json` cannot — does a
+config fit, what does prefill cost separately from decode, what does a *task* cost in
+joules, and which orderings the intervals actually support. It does **not** replace
+`run_experiment.py`: 95 results conform to that document type and every existing
+figure reads it, so both paths stay.
+
+```
+scripts/measure_run.py  ->  records.jsonl + power.jsonl + run_meta.json   (no statistics)
+analysis/stats.py       ->  results.json   (EVERY statistic, computed here and nowhere else)
+analysis/figures.py     ->  PDFs           (reads only results.json, holds no data)
+analysis/table.py       ->  booktabs/siunitx LaTeX
+analysis/quality.py     ->  the quality join, on model_config_key
+```
+
+- [x] **Figures regenerate from a document, never hand-edited** — the Phase 10 rule,
+      met on the v2 path only. `analysis/figures.py` holds no data and reads only
+      `results/v2/results.json`, so a percentile can be redefined or a figure set
+      redrawn without an hour of board time, and the published aggregate cannot drift
+      from the raw rows because it has no independent existence.
+- [x] **Every numeric leaf wears one envelope** — `{value, unit, ci95, n, method}` or
+      `{value: null, _not_collected: "<reason>"}`, enforced by
+      `analysis/stats.py:check_envelopes()` and `schemas/v2_results.schema.json`.
+      Wilson for proportions, bootstrap for latency percentiles, interval arithmetic
+      for ratios. Never a bare float, never a zero standing in for a gap.
+- [x] **Representation read from the artifact, not the registry string**
+      (`benchmarks/representation.py`): Q4_K_M measures **5.03** effective bits/weight,
+      not 4, because whole tensor families stay at Q6_K — hence a separate
+      `w4_grouped_mixed` comparability class so no figure can put it next to
+      GPTQ-Int4 as one "INT4".
+- [ ] **The campaign behind it is 1/3 run.** Three configs are registered
+      (`7b-fp16-{vllm,llamacpp,edgellm}-thor-v2`) and **only vLLM has been measured**
+      (`p1-context`, replicates r03/r04; r01/r02 archived under `results/invalid/`).
+      Every current figure is therefore a single-backend figure. ~37 min of exclusive
+      board time per remaining leg — execution, not design.
+- [ ] **The quality join has never run against real data.** Every row in
+      `results/v2/results.json` carries `quality.accuracy: null` with
+      `_not_collected`. `analysis/quality.py` exists and is unit-tested; it has not
+      been passed a real accuracy run via `analysis/stats.py --quality`.
+- [ ] **Nothing from `results/raw/` (the v1 path, 95 documents, both boards) is read
+      by any analysis code.** The original Phase 10 item — one command regenerating
+      every v1 table/plot — is untouched, and the v2 pipeline does not cover it.
 - [ ] Pareto frontier over (quality, latency, memory, energy) — no weighted score.
 - [ ] Keep the application scorecard separate from the raw benchmark.
 
-**GATE 10** — not met.
+**Two measurement-validity findings from the v2 path's first runs, 2026-09-11**, both
+archived with write-ups rather than deleted:
+
+- **Five warm-ups is not enough on Thor** (`results/invalid/2026-09-11_thor-dvfs-ramp-diagnostic/`).
+  Decode held 9.5 tok/s for nine repetitions then stepped **+39% to 13.0**, ~2 minutes
+  into sustained load — CPU DVFS (`schedutil`, 972 -> 2601 MHz) promoting the core
+  vLLM's batch-1 decode loop runs on, with the GPU already at its maximum clock
+  throughout. **So vLLM's batch-1 decode on Thor is partly CPU-bound** — worth knowing
+  before attributing any backend gap to a kernel.
+  `results/thor-precampaign/streaming_7b-fp16-vllm-thor.json`'s 11.31 tok/s sits
+  between the two plateaus, exactly where a 20-run measurement straddling the step
+  lands; that number and anything resting on it should be re-taken.
+- **A stability threshold must be calibrated against the board's own noise**
+  (`results/invalid/2026-09-11_thor-unreachable-stability-threshold/`). The first fix
+  used a 3% coefficient-of-variation test against a board whose run-to-run decode
+  spread is 5–13% over six samples, so it could never pass and every cell ran to its
+  cap. Now a **trend** test — mean of the last six repetitions against the six before
+  — which cancels noise but still rejects a regime change.
+
+Clocks are deliberately **not** locked with `jetson_clocks` on this path: locking
+would remove the confound but stop measuring the board a deployment actually runs on.
+The price is that every cell records `warmup_seconds_to_steady_state` and the
+intervals carry the governor's residual wander.
+
+**Sample-size reality for the accuracy suites**: `n >= 2000` is reachable for MMLU
+(14,042 items staged) and **not** for BFCL v3 `irrelevance`, which has **240 items in
+total**. At n=240 the smallest gap two Wilson intervals can separate near 94% is **8
+points** — so the 40-point framework gap is comfortably real, while the FP16-vs-INT4
+`irrelevance` difference the Thor recommendation leans on (94% vs 90%) is **not**
+separable at that n. Adding `live_irrelevance` (~882 items) would bring it to ~4.
+
+**GATE 10** — not met. The v2 path meets the "never hand-edit a plot" rule on its own
+documents; the campaign feeding it is one third run, the quality axis is unjoined, and
+`results/raw/` has no analysis code at all.
 
 ## Phase 11 — Declare (or defer) a winner
 
