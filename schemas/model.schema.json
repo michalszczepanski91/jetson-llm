@@ -103,6 +103,10 @@
       "maximum": 1,
       "description": "vLLM only. MUST be set explicitly and conservatively on this hardware: vLLM's own default (0.9) fails outright at startup on a ~30GB unified-memory Orin. See CLAUDE.md's \"Memory constraints\" for where the current values came from."
     },
+    "enable_prefix_caching": {
+      "type": "boolean",
+      "description": "vLLM only. Automatic prefix caching is ON by default in vLLM V1, which makes every repetition of a byte-identical prompt a cache hit rather than a prefill - a measured 6.6x TTFT error on this fleet, and the reason benchmarks/runner.py varies its prompts per repetition. A row that instead holds the prompt CONSTANT across repetitions (so that the same bytes can be sent to all three backends, per the v2 measurement path) MUST set this false. It is an assertion either way: scripts/measure_run.py's per-cell cache probe is what verifies it."
+    },
     "max_model_len": {
       "type": "integer",
       "exclusiveMinimum": 0,
@@ -210,6 +214,7 @@
         "not": {"anyOf": [
           {"required": ["gpu_memory_utilization"]},
           {"required": ["max_model_len"]},
+          {"required": ["enable_prefix_caching"]},
           {"required": ["extra_volumes"]},
           {"required": ["served_model_name"]},
           {"required": ["max_input_len"]}

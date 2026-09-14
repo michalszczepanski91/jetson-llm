@@ -7,7 +7,8 @@
 # against an already-running container), not for the benchmark scripts
 # themselves, which start/stop their own container via llm_coordinator.py.
 .PHONY: help serve-1.5b-vllm serve-1.5b-llamacpp stop stop-llamacpp \
-        benchmark experiment benchmark-streaming validate-tool-calling validate-mmlu test clean clean-docker
+        benchmark experiment benchmark-streaming validate-tool-calling validate-mmlu \
+        measure analyze figures report test clean clean-docker
 
 COMPOSE := docker compose
 
@@ -68,6 +69,27 @@ validate-mmlu:  ## MMLU quantization-sanity accuracy - CONFIG=<model-config> CON
 	uv run python scripts/validate_mmlu.py --model-config $(or $(CONFIG),1.5b-awq-vllm-orin) \
 	  --execution-condition $(CONDITION) $(if $(CORESIDENT),--co-resident $(CORESIDENT),)
 	@echo "results written under results/raw/ - output/*.json is no longer used by this target"
+
+# ── v2 measurement path (publication campaign) ─────────────────────────────
+# Three separable stages, and the separation is the point: measurement writes
+# only per-request rows, analysis computes every statistic from those rows,
+# and the figures read only the analysis output. So a percentile can be
+# redefined or a figure redrawn without putting the board back under load.
+measure:        ## v2 run: memory + prefill/decode sweep + per-task energy - CONFIG=<key> EXPERIMENT=<name> CONDITION=standalone|co-resident
+	@test -n "$(CONFIG)" || { echo "error: CONFIG is required, e.g. CONFIG=7b-fp16-vllm-thor-v2"; exit 1; }
+	@test -n "$(CONDITION)" || { echo "error: CONDITION is required, e.g. CONDITION=standalone"; exit 1; }
+	python3 scripts/measure_run.py --model-config $(CONFIG) \
+	  --experiment $(or $(EXPERIMENT),p1-context) --execution-condition $(CONDITION) \
+	  $(if $(CORESIDENT),--co-resident $(CORESIDENT),) $(MEASURE_ARGS)
+
+analyze:        ## records.jsonl -> results.json for every v2 run (RUNS=... to restrict)
+	python3 analysis/stats.py $(or $(RUNS),$(wildcard results/v2/*/)) \
+	  --out results/v2/results.json $(if $(QUALITY),--quality $(QUALITY),)
+	python3 analysis/summarize.py results/v2/results.json
+
+figures:        ## results.json -> publication PDFs + the LaTeX table
+	python3 analysis/figures.py results/v2/results.json --out-dir output/figures
+	python3 analysis/table.py results/v2/results.json --at-prompt-tokens $(or $(AT),512)
 
 # ── Dev ───────────────────────────────────────────────────────────────────
 test:           ## Run the unit test suite (no Docker/GPU needed)

@@ -5,6 +5,11 @@ __pycache__/
 output/*.json
 !output/.gitkeep
 output/window_logs/
+# Derived: analysis/figures.py and analysis/table.py regenerate every one of
+# these from results/v2/results.json in seconds. Committing them would create
+# a second copy of the data that can drift from the first - the exact thing
+# the three-stage v2 split exists to prevent.
+output/figures/
 output/*.log
 output/*.txt
 .run/

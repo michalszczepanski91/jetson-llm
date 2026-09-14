@@ -1194,3 +1194,102 @@ qwen3-8b-awq-vllm-thor:
     path, not to int4, and not to the patch (which is what makes these engines
     build at all). Practical guidance is unchanged: on Edge-LLM use FP16 or
     GPTQ-Int4, never AWQ.
+
+# --- v2 measurement rows, added 2026-09-11 -----------------------------------
+# The publication campaign (scripts/measure_run.py) needs three things the
+# existing Thor rows cannot give it, and each is a real constraint rather than
+# a preference:
+#
+#   1. **Context headroom to 8192.** The prompt-length sweep runs at
+#      128/512/2048/8192, so `max_model_len: 2048` - correct for the framework
+#      comparison, where holding it constant across three backends was the
+#      point - makes three quarters of the sweep unrunnable. 16384 leaves room
+#      for the longest prompt plus its generation without capping the
+#      measured-max-context probe at the sweep's own top end.
+#   2. **Prefix caching OFF.** Every repetition of a cell sends a
+#      byte-identical prompt, which is what makes the prompts identical across
+#      frameworks too. With vLLM V1's automatic prefix caching (on by default)
+#      that would make repetitions 2..30 cache hits rather than prefills - the
+#      exact 6.6x TTFT error benchmarks/runner.py documents. The flag is an
+#      assertion; the per-cell cache probe is the verification.
+#   3. A distinct container name per config, so a run's own container is the
+#      only one `assert_condition_matches_reality()` has to forgive.
+#
+# Everything else is copied from 7b-fp16-vllm-thor unchanged, so this row and
+# that one differ on context length and caching alone.
+7b-fp16-vllm-thor-v2:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "bf16 (no quantization; the checkpoint's own dtype)"
+  backend: vllm
+  platform: thor
+  port: 8001
+  image: ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor
+  gpu_memory_utilization: 0.25  # ~30GB of Thor's 122GB, same budget as 7b-fp16-vllm-thor
+  max_model_len: 16384
+  enable_prefix_caching: false
+  extra_volumes:
+    - /opt/hf-cache/gpu_worker_patched.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py:ro
+  notes: >
+    Priority-1 row for the publication campaign: memory footprint, the
+    prefill/decode split across a 128-8192 prompt sweep, and energy per task
+    against a per-cell idle baseline. Deliberately labelled bf16 rather than
+    "fp16 (no quantization)" as 7b-fp16-vllm-thor is - the checkpoint is bf16
+    and nothing overrides it, and the representation block reads that from the
+    safetensors header rather than from this string.
+
+# llama.cpp twin of 7b-fp16-vllm-thor-v2. Differs from 7b-fp16-llamacpp-thor by
+# ctx_size only (2048 -> 16384), for the same reason the vLLM v2 row does: the
+# prompt sweep runs to 8192 and a 2048-token context makes three quarters of it
+# unrunnable. There is no caching flag here because llama-server's prompt cache
+# is a REQUEST-level setting (`cache_prompt`), not a launch flag - scripts/
+# measure_run.py sends `cache_prompt: false` on every request to this backend,
+# and the per-cell cache probe is what verifies it took effect.
+7b-fp16-llamacpp-thor-v2:
+  model: Qwen/Qwen2.5-7B-Instruct-GGUF
+  precision: "GGUF fp16 (unquantized, to match the other 7B legs)"
+  backend: llama-cpp
+  platform: thor
+  quant: fp16
+  image: ghcr.io/nvidia-ai-iot/llama_cpp:b10373-r38.2.arm64-sbsa-cp312-cu130-24.04
+  n_gpu_layers: -1
+  ctx_size: 16384
+  notes: >
+    Priority-1 row for the publication campaign, llama.cpp leg. Holds model,
+    precision and context budget equal to 7b-fp16-vllm-thor-v2 so the backend
+    is the only variable; the prompts are byte-identical by construction
+    (both read the same frozen corpus in configs/prompt_corpus/).
+
+# Edge-LLM twin of 7b-fp16-vllm-thor-v2. Differs from 7b-fp16-edgellm-thor by
+# max_input_len (2048 -> 16384) and the KV capacity that has to accompany it.
+#
+# **This row costs an engine rebuild.** Edge-LLM's engine cache is keyed on the
+# build shape - the existing bundles are all named `i2048-b1-kv8192-*` - so
+# raising max_input_len is a cache miss and the first launch compiles before it
+# serves. EdgeLlmCoordinator's 1800s ready_timeout already allows for that.
+#
+# **No cache-disabling flag, and that is a finding rather than an omission.**
+# Edge-LLM's prefix reuse is `--enable-context-reuse`, a store_true defaulting
+# to FALSE (experimental/server/config.py) - so it is off unless asked for,
+# unlike vLLM's automatic prefix caching, which is ON by default in V1, and
+# unlike llama-server's per-request `cache_prompt`, which defaults to true.
+# The three backends therefore had three different caching defaults through
+# every comparison this lab has run, and only vLLM's was ever turned off. The
+# per-cell cache probe in scripts/measure_run.py is what establishes the state
+# empirically for all three; this comment records why only two of them need a
+# flag to reach the same state.
+7b-fp16-edgellm-thor-v2:
+  model: Qwen/Qwen2.5-7B-Instruct
+  precision: "fp16 (TensorRT Edge-LLM engine, unquantized)"
+  backend: edge-llm
+  platform: thor
+  port: 8002
+  max_input_len: 16384
+  extra_args:
+    - --max-kv-cache-capacity
+    - "20480"   # >= max_input_len + the 128-token generation, with headroom
+  notes: >
+    Priority-1 row for the publication campaign, Edge-LLM leg. Holds model,
+    precision and context budget equal to 7b-fp16-vllm-thor-v2 and
+    7b-fp16-llamacpp-thor-v2 so the backend is the only variable; all three
+    read the same frozen prompt corpus, so the request bytes are identical by
+    construction.

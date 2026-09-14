@@ -15,6 +15,14 @@
 # suite instead of three months into a benchmark campaign. Pure Python, no
 # native/GPU wheel involved, so it carries none of the wheel-shadowing risk
 # docs/environment.md warns about.
+#
+# matplotlib is deliberately NOT here. analysis/style.py needs it and every
+# v2 figure consumer imports that module, but a native aarch64 wheel in this
+# venv is the wheel-shadowing risk docs/environment.md warns about - and
+# nothing that touches the board needs to plot. So `make figures`/`make
+# analyze` run under the system interpreter (which carries matplotlib) while
+# `make test` runs under the venv; tests/test_v2_results.py resolves the two
+# itself and skips the figure check only if neither can plot.
 pytest==9.1.1
 pyyaml==6.0.3
 pyarrow==25.0.1

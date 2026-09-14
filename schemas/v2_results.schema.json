@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "v2_results.schema.json",
+  "title": "v2 analysis output (analysis/stats.py -> results.json)",
+  "description": "The document analysis/figures.py and analysis/table.py read, and the ONLY thing they read. Its central rule is that every numeric leaf wears the same envelope, so the plotting code never has to guess whether a number carries an interval, how many samples back it, or what units it is in. The other rule is that a quantity which was not measured appears as a null WITH A REASON, never as a zero and never as an absent key - a partial honest file is the goal, and a reader must be able to tell 'measured as zero' from 'not measured'. Conformance level: enforced by tests/test_v2_results.py against real analysis output, unlike schemas/benchmark_result.schema.json which describes a target the v1 path does not yet meet (see schemas/README.md).",
+  "type": "object",
+  "required": ["results_format_version", "generated", "rows"],
+  "additionalProperties": false,
+  "properties": {
+    "results_format_version": {"type": "string"},
+    "generated": {"type": "string"},
+    "source_runs": {"type": "array", "items": {"type": "string"}},
+    "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+    "_envelope_problems": {
+      "type": "array", "items": {"type": "string"},
+      "description": "Leaves that failed the envelope contract, recorded IN the document rather than raised: a run whose analysis found a contract violation still produced real measurements, and hiding the violation behind an exception would lose them. A non-empty array here means a figure drawn from this file may be wrong."
+    }
+  },
+  "$defs": {
+    "envelope": {
+      "description": "One numeric leaf. Exactly two legal shapes: a measured value with a unit, or a null with a short reason. Nothing else may appear where a number is expected.",
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["value", "unit"],
+          "properties": {
+            "value": {"type": "number"},
+            "unit": {"type": "string"},
+            "ci95": {
+              "type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2,
+              "description": "[lower, upper] at 95%. Absent when the estimator declined to produce one - below three samples a resampling interval is an artifact of the samples, not a measurement of spread."
+            },
+            "n": {"type": "integer", "minimum": 1},
+            "method": {
+              "type": "string",
+              "description": "How the interval was built. Required reading before comparing two leaves: 'wilson' for proportions, 'bootstrap' for latency percentiles, 'normal' only for a mean, 'interval-arithmetic' for a ratio of two envelopes from different runs (conservative, wider than a joint bootstrap would be), 'single measurement' for a quantity measured once, 'datasheet' for a value that was never measured on this board at all."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["value", "_not_collected"],
+          "properties": {
+            "value": {"type": "null"},
+            "unit": {"type": "string"},
+            "_not_collected": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "row": {
+      "description": "One (config x condition) cell. Self-contained on purpose: the memory and quality blocks are repeated onto every row of a config so that figures.py never has to join two tables to draw a bar.",
+      "type": "object",
+      "required": ["config_id", "framework", "representation", "condition",
+                   "latency", "throughput", "memory", "energy", "quality", "efficiency"],
+      "properties": {
+        "config_id": {"type": "string"},
+        "run_id": {"type": "string"},
+        "framework": {"type": "string", "enum": ["vllm", "llama-cpp", "edge-llm"]},
+        "representation": {"$ref": "#/$defs/representation"},
+        "condition": {
+          "type": "object",
+          "required": ["prompt_tokens_target", "gen_tokens_requested", "concurrency"],
+          "properties": {
+            "prompt_tokens_target": {"type": "integer"},
+            "prompt_tokens_achieved_p50": {"type": ["number", "null"]},
+            "gen_tokens_requested": {"type": "integer"},
+            "gen_tokens_achieved_p50": {"type": ["number", "null"]},
+            "concurrency": {"type": "integer"},
+            "nvpmodel": {"type": ["string", "null"]},
+            "execution_condition": {"type": ["string", "null"]},
+            "prompt_sha256": {
+              "type": ["string", "null"],
+              "description": "sha256 of the exact prompt string sent. The cross-framework byte-equality claim is checkable from this field alone: two rows from two frameworks that share it were sent identical bytes."
+            }
+          }
+        },
+        "latency": {"type": "object"},
+        "throughput": {"type": "object"},
+        "memory": {"type": "object"},
+        "energy": {"type": "object"},
+        "efficiency": {"type": "object"},
+        "quality": {"type": "object"},
+        "thermal": {"type": "object"},
+        "validity": {"type": "object"}
+      }
+    },
+    "representation": {
+      "description": "The one-word precision label decomposed into the independent choices it bundles. Two frameworks' 'INT4' are not the same object, and this block is what lets a figure say so.",
+      "type": "object",
+      "required": ["weights", "activations", "kv_cache", "effective_bits_per_weight",
+                   "comparability_class"],
+      "properties": {
+        "declared_label": {"type": "string"},
+        "backend": {"type": "string"},
+        "weights": {
+          "type": "object",
+          "required": ["dtype", "method", "granularity"],
+          "properties": {
+            "dtype": {"type": ["string", "null"]},
+            "method": {"type": ["string", "null"]},
+            "granularity": {"type": ["string", "null"]},
+            "group_size": {"type": ["integer", "null"]},
+            "symmetric": {"type": ["boolean", "null"]},
+            "storage_dtype_histogram_params": {"type": "object"},
+            "_granularity_source": {"type": "string"}
+          }
+        },
+        "activations": {
+          "type": "object",
+          "description": "A separate axis from weights, and not readable from the artifact - it is a property of how the runtime was launched, so it carries its own _source.",
+          "required": ["dtype", "_source"]
+        },
+        "kv_cache": {
+          "type": "object",
+          "description": "A third separate axis. It dominates at long context, where a per-token KV cost at 16 bits versus 8 decides whether a config fits at all.",
+          "required": ["dtype", "_source"]
+        },
+        "modules_kept_fp": {"type": "array", "items": {"type": "string"}},
+        "modules_quantized": {"type": "array", "items": {"type": "string"}},
+        "module_storage_types": {"type": "object"},
+        "calibration": {
+          "type": "object",
+          "description": "Which data the quantizer saw, how much of it, and whether it resembles this deployment's domain. Null with a reason for an unquantized config or a vendor checkpoint whose publisher never said."
+        },
+        "artifact_bytes": {"type": "integer"},
+        "param_count": {"type": "integer"},
+        "param_count_method": {"type": "string"},
+        "effective_bits_per_weight": {
+          "type": ["number", "null"],
+          "description": "artifact bytes / parameter count x 8. A bare number, not an envelope: it is an exact ratio of two counted quantities, not an estimate, so an interval would imply a spread that does not exist. The only field here comparable across all three runtimes without reference to the rest of the block."
+        },
+        "comparability_class": {
+          "type": "string",
+          "enum": ["fp16_baseline", "fp8_e4m3", "w8a8_int", "w8a16_int",
+                   "w4_grouped", "w4_grouped_mixed", "unclassified"],
+          "description": "Deliberately blunt, and never used to claim two configs in the same class ARE equivalent - only to mark cells where a direct comparison is not defensible at all. 'w4_grouped_mixed' exists because a GGUF K-quant leaves whole tensor families at 6 bits and is not the same object as a uniform grouped int4."
+        }
+      }
+    }
+  }
+}

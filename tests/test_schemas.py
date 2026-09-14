@@ -51,6 +51,11 @@ def test_schema_files_exist():
         "experiment.schema.json",
         "model.schema.json",
         "quality_result.schema.json",
+        # Added 2026-09-11 for the v2 analysis output. Unlike the four above
+        # it is validated against real generated documents rather than a
+        # target shape - see tests/test_v2_results.py and schemas/README.md's
+        # conformance levels.
+        "v2_results.schema.json",
     }, names
 
 

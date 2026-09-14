@@ -139,6 +139,7 @@ def stream_llm(
     max_tokens: int = 128,
     temperature: float | None = None,
     timeout: float = 300.0,
+    extra_body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One streaming round trip, returning the per-run timing and token
     record that benchmark_result.schema.json's `runs[]` entries are built
@@ -165,6 +166,19 @@ def stream_llm(
        the schema's inter_token field with that caveat carried in
        token_source.
 
+    `extra_body` merges backend-specific fields into the request payload.
+    It exists for one real, measured need rather than for generality:
+    llama-server's per-slot prompt cache is a REQUEST-level setting
+    (`cache_prompt`, default true), not a launch flag, so a run that sends a
+    byte-identical prompt every repetition - which the v2 path does
+    deliberately, to keep the prompt identical across backends too - would
+    get a prefix-cache hit on every repetition after the first and no way to
+    turn it off from the command line. vLLM's equivalent IS a launch flag
+    (`--no-enable-prefix-caching`) and needs nothing here. Unknown fields are
+    ignored by both servers, so passing this to the wrong backend is inert
+    rather than an error - which is also why it is never a substitute for
+    the cache probe that verifies the setting took effect.
+
     All intervals come from time.perf_counter(); this device's NTP sync is
     known-broken, so nothing here may depend on wall-clock time."""
     payload: dict[str, Any] = {
@@ -176,6 +190,8 @@ def stream_llm(
     }
     if temperature is not None:
         payload["temperature"] = temperature
+    if extra_body:
+        payload.update(extra_body)
     req = urllib.request.Request(
         f"{coordinator.base_url}/v1/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
