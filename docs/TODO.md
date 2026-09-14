@@ -30,7 +30,7 @@ status column can't carry two boards, so the table splits them.
 | 6 — Cross-platform arm | n/a | ✅ | Thor bring-up, three backends, exclusive-box campaign |
 | 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend. **MMLU re-measured 2026-09-11**: INT8-SQ's gap is 7.8 pt, not 12.5 — rankings hold, magnitudes did not. `int4_awq` builds under the patch but produces a mute engine |
 | 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled. **Mechanism still unidentified**: chat-template rendering and numeric dtype both tested and eliminated 2026-09-10 |
-| 9 — Co-resident / concurrency | ⏳ | ⏳ | **The single largest remaining gap** — untouched on both boards, and everything either arm has produced is standalone |
+| 9 — Co-resident / concurrency | ✅ | ⏳ | **Answered on Orin 2026-09-14** at a real 30fps: the LLM pays (+25% TTFT, −15% decode, +21% J/token), perception holds (30.02 fps loaded vs idle). **Thor still has none** — every Thor number, the framework comparison included, is standalone |
 | 10 — Analysis pipeline | ⏳ | 🚧 | **v2 path built 2026-09-11** (`measure_run.py` + `analysis/`): envelopes on every leaf, representation read from the artifact, figures that hold no data. Campaign behind it is **1/3 run** (vLLM only), quality axis unjoined, `results/raw/` untouched by it |
 | 11 — Declare a winner | ✅ deferred | 🚧 | Orin: "no clean winner" + tie-breaker recorded (`docs/promotion-decision.md`). Thor: a recommendation, which is not the same as a promotion |
 
@@ -717,8 +717,11 @@ these five closed, none of them the way they were framed**:
       "needs root the lab does not have". The account is in the `sudo` group — an agent
       simply cannot supply the password non-interactively. One `sudo jetson_clocks`
       typed by the user unblocks it.
-- [ ] **A co-residency run with the VLM tier** (Phase 9) — untouched on both boards and
-      now the single largest gap in the project.
+- [ ] **A co-residency run on Thor** (Phase 9) — **done on Orin 2026-09-14**, where the
+      LLM pays (+25% TTFT, −15% decode at a real 30 fps) and perception holds. Thor has
+      none, so every number in the framework comparison above is standalone against an
+      Orin baseline that now has both conditions. The VLM tier specifically is still
+      unmeasured as a co-tenant on either board.
 
 **Two bugs found 2026-09-10 by actually running an Edge-LLM row**, both silently
 live until then — recorded here because each broke something wider than its own row:
@@ -881,17 +884,57 @@ met on Orin; the causal mechanism is narrowed but not pinned.
 **Objective**: the number both `paper.md` and `embedded-ai-chain`'s own TODO call the
 single most important unmeasured quantity in the whole project.
 
-- [ ] Condition A (standalone) vs B (co-resident with the real pipeline: YOLO + STT +
-      TTS + VLM), same model/workload/methodology.
-- [ ] Report both directions: what co-residency does to LLM TTFT/decode/energy, **and**
-      what the LLM does to `yolo_frame` p50/p95/p99 (the number `embedded-ai-chain`
-      actually needs).
-- [ ] Batch/concurrency sweep 1/2/4/8 — batch=1 is the deployment reality, the rest is
-      characterization; never conflate the two terms.
-- [ ] Every OOM is a recorded result, including the ones already on record (VLM OOM at
-      `gpu_memory_utilization=0.6`, the 276MB-free thin-margin finding).
+**Answered on Orin, 2026-09-14** — the first co-resident measurement either board has
+produced, run twice because the first one could not test what it claimed to. Full
+write-up: `embedded-ai-chain/docs/phase9-coresidency.md`; raw documents here under
+`results/raw/2026-09-14_orin_1.5b-awq-vllm-orin_phase9-coresident{,-30fps}_*`.
 
-**GATE 9** — not met.
+- [x] **Condition A vs B, same model/workload/methodology** (`1.5b-awq-vllm-orin`,
+      in512/out128, MAXN + `jetson_clocks` locked), measured `--target remote` against
+      the pipeline's own server with the whole stack declared and resident:
+      `vllm-orchestrator`, `tts_consumer`, `yolo`, `pose`, `tts`, `dashboard`.
+
+  | | standalone | co-res 10fps | co-res 30fps | delta at 30fps |
+  |---|---:|---:|---:|---:|
+  | TTFT p50 | 80.3 ms | 88.6 ms | 100.4 ms | **+25.0%** |
+  | TTFT p95 | 80.9 ms | 94.7 ms | 106.2 ms | **+31.2%** |
+  | decode | 109.3 tok/s | 105.7 tok/s | 92.7 tok/s | **−15.3%** |
+  | J/output token | 0.3220 | 0.3376 | 0.3895 | **+21.0%** |
+
+- [x] **Both directions reported, and the interference runs opposite to the project's
+      stated fear: the LLM pays, perception does not.** At a real 30fps the loop held
+      **30.02 fps loaded against 30.02 idle**, ~1 ms at p99, no frames lost, no OOM
+      (peak 11.4 GB of 30.7 GB with everything resident). So Phase 4's question — does
+      orchestrator inference stall the 30 fps perception loop — is answered **no**.
+- [x] **The 10fps run's caveat was real and was fixed rather than argued around.** That
+      loop was camera-bound, not compute-bound: `camera.py` opened the camera YUYV at
+      1280x720 (10 fps here) while never setting `CAP_PROP_FOURCC`, though the device
+      offers MJPG at 30. ~90 ms of per-frame camera slack was absorbing the contention,
+      making the perception result a floor on the safety margin rather than evidence of
+      none. `jetson-yolov8-trt`'s `camera.py` now requests MJPG and the experiment was
+      repeated at a genuine 30 fps — which roughly doubled every LLM-side penalty. **The
+      monotonic 10→30 fps progression is what makes it causal rather than incidental.**
+- [x] **A schema bug found by running it**: `cold_start.weights_cached` was typed
+      boolean-only while the same block's `measured` field documents the remote case in
+      its own description, so **every `--target remote` result failed validation on that
+      field alone**. `null` is now permitted for exactly that case, described as
+      genuinely unknown rather than merely unrecorded.
+- [ ] **Thor has no co-resident measurement at all.** This arm is Orin-only, and Thor's
+      every number — including the framework comparison the recommendation rests on — is
+      standalone.
+- [ ] Batch/concurrency sweep 1/2/4/8 — batch=1 is the deployment reality, the rest is
+      characterization; never conflate the two terms. Untouched.
+- [ ] Every OOM is a recorded result, including the ones already on record (VLM OOM at
+      `gpu_memory_utilization=0.6`, the 276MB-free thin-margin finding). Untouched — the
+      30 fps run hit no OOM, so it added no evidence here.
+
+**What this does to the promotion decision**: every latency number in
+`docs/promotion-decision.md` is standalone, and the co-resident penalty at a real 30 fps
+is **+25% TTFT and −15% decode**. A candidate that only just fits a turn budget
+standalone does not fit it in production.
+
+**GATE 9** — met for Orin (both directions measured, declared, and validated on write).
+Open for Thor, and open for the concurrency sweep on both.
 
 ## Phase 10 — Analysis pipeline
 
@@ -1008,7 +1051,8 @@ argument for what future hardware buys, not a shipping decision.
 
 - [ ] Re-run the promotion contract against Thor properly *if* the parent project ever
       targets Thor — which would need the co-resident measurement §3 requires
-      (everything measured so far is `standalone`) and the `results/raw/` gap in
+      (everything measured **on Thor** is still `standalone`; Orin's arm was measured
+      2026-09-14) and the `results/raw/` gap in
       Phase 6 closed first, since a promotion cannot rest on evidence that isn't in
       the repo.
 
