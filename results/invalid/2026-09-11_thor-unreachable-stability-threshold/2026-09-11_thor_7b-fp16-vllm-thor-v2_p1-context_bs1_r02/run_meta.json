@@ -1,0 +1,179 @@
+{
+  "run_format_version": "2.0.0",
+  "run_id": "2026-09-11_thor_7b-fp16-vllm-thor-v2_p1-context_bs1_r02",
+  "config_id": "7b-fp16-vllm-thor-v2",
+  "framework": "vllm",
+  "experiment": "p1-context",
+  "replicate": 2,
+  "timestamp": "2026-09-11T11:07:36.690176+02:00",
+  "command": "scripts/measure_run.py --model-config 7b-fp16-vllm-thor-v2 --experiment p1-context --execution-condition standalone --prompt-tokens 128,512,2048,8192 --gen-tokens 128 --runs 30 --warmup 5 --warmup-min-s 150 --idle-seconds 20 --max-context-cap 32768 --replicate 2",
+  "representation": {
+    "declared_label": "bf16 (no quantization; the checkpoint's own dtype)",
+    "backend": "vllm",
+    "weights": {
+      "dtype": "bf16",
+      "method": "none (unquantized)",
+      "granularity": "n/a (unquantized)",
+      "group_size": null,
+      "symmetric": null,
+      "storage_dtype_histogram_params": {
+        "BF16": 7615616512
+      },
+      "_granularity_source": "safetensors tensor table - no quantization_config present, so this checkpoint declares no quantizer and the storage dtype IS the scheme"
+    },
+    "activations": {
+      "dtype": "bfloat16",
+      "_source": "checkpoint torch_dtype; the runtime was not asked to override it"
+    },
+    "kv_cache": {
+      "dtype": "auto -> model dtype",
+      "_source": "launch configuration (vLLM --kv-cache-dtype; 'auto' means the model dtype)"
+    },
+    "modules_kept_fp": [
+      "biases",
+      "embeddings",
+      "lm_head",
+      "norms"
+    ],
+    "modules_quantized": [],
+    "module_storage_types": {
+      "lm_head": [
+        "BF16"
+      ],
+      "embeddings": [
+        "BF16"
+      ],
+      "norms": [
+        "BF16"
+      ],
+      "biases": [
+        "BF16"
+      ]
+    },
+    "calibration": {
+      "dataset": null,
+      "n_samples": null,
+      "matches_deployment_domain": null,
+      "_not_collected": "no calibration step in this config's provenance (unquantized, or a vendor checkpoint whose calibration set the publisher did not state)"
+    },
+    "artifact_bytes": 15231271888,
+    "param_count": 7615616512,
+    "param_count_method": "summed from the safetensors tensor table",
+    "effective_bits_per_weight": 16.0,
+    "comparability_class": "fp16_baseline",
+    "_artifact": {
+      "source": "safetensors header",
+      "artifact_paths": [
+        "/opt/hf-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28/model-00001-of-00004.safetensors",
+        "/opt/hf-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28/model-00002-of-00004.safetensors",
+        "/opt/hf-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28/model-00003-of-00004.safetensors",
+        "/opt/hf-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28/model-00004-of-00004.safetensors"
+      ],
+      "artifact_bytes": 15231271888,
+      "param_count": 7615616512,
+      "param_count_method": "summed from the safetensors tensor table",
+      "storage_dtypes": {
+        "BF16": 7615616512
+      },
+      "quantization_config": null,
+      "hf_config": {
+        "model_type": "qwen2",
+        "num_hidden_layers": 28,
+        "num_attention_heads": 28,
+        "num_key_value_heads": 4,
+        "hidden_size": 3584,
+        "vocab_size": 152064,
+        "max_position_embeddings": 32768,
+        "torch_dtype": "bfloat16"
+      }
+    }
+  },
+  "execution_condition": "standalone",
+  "co_resident_workload": null,
+  "cells": [],
+  "manifest": {
+    "git_commit": "e85d3d3873edfc435c67663c1c0cbaa7b952d2a3",
+    "git_dirty": true,
+    "command": "scripts/measure_run.py --model-config 7b-fp16-vllm-thor-v2 --experiment p1-context --execution-condition standalone --prompt-tokens 128,512,2048,8192 --gen-tokens 128 --runs 30 --warmup 5 --warmup-min-s 150 --idle-seconds 20 --max-context-cap 32768 --replicate 2",
+    "model_config_key": "7b-fp16-vllm-thor-v2",
+    "hardware": {
+      "platform": "thor",
+      "board": "NVIDIA Jetson AGX Thor Developer Kit",
+      "memory_total_mb": 125771.6,
+      "nvpmodel_mode": "120W",
+      "jetson_clocks_locked": null,
+      "l4t_version": "R38.4.0"
+    },
+    "software": {
+      "backend": "vllm",
+      "backend_version": "vllm 0.19.0",
+      "container_image": "ghcr.io/nvidia-ai-iot/vllm:latest-jetson-thor",
+      "python": "3.12.3",
+      "container_digest": "sha256:b587dd56b4cb076209ad5156a626ac75f5a976d0e8e7d1e6a9fccd56d1bd65e8",
+      "docker": "29.1.3"
+    }
+  },
+  "cold_start": {
+    "measured": true,
+    "total_s": 90.125,
+    "download_s": null,
+    "weights_cached": true,
+    "container_start_s": 2.084,
+    "model_load_s": 88.041,
+    "server_ready_s": 90.125,
+    "caveat": "weights_cached=true - total_s excludes any download, and is not comparable with a first-pull cold start. Component resolution is bounded by the ~2s health-poll interval."
+  },
+  "nvpmodel": "120W",
+  "prompt_corpus": {
+    "corpus_version": "c1",
+    "reference_model": "Qwen/Qwen2.5-7B-Instruct",
+    "reference_count_method": "POST /tokenize (content only)",
+    "targets": [
+      128,
+      512,
+      2048,
+      8192
+    ],
+    "corpus_sha256": "8c36a604d0a5a42fdccad0e5736ecb624e6a58b0a48a14aa431645ebef2b0636",
+    "_loaded_from": "/home/michal/dev/jetson-llm/configs/prompt_corpus/Qwen--Qwen2.5-7B-Instruct.c1.json",
+    "entries": {
+      "128": {
+        "target_tokens": 128,
+        "reference_tokens": 128,
+        "exact": true,
+        "token_error": 0,
+        "n_probes": 3,
+        "chars": 670,
+        "sha256": "72f32628eb55c217c49466429c3e4bb9e82f790fc5145f0ae678338055d4a4ab"
+      },
+      "512": {
+        "target_tokens": 512,
+        "reference_tokens": 512,
+        "exact": true,
+        "token_error": 0,
+        "n_probes": 3,
+        "chars": 2684,
+        "sha256": "44e8028af7b3718eec3d77df186ba47d1f607d332c30440a95e0428070f99e81"
+      },
+      "2048": {
+        "target_tokens": 2048,
+        "reference_tokens": 2048,
+        "exact": true,
+        "token_error": 0,
+        "n_probes": 3,
+        "chars": 10893,
+        "sha256": "8ddeb388bd7e4fd8faa5594f772053b9a4f1e6565427c544cca34df67b166fc5"
+      },
+      "8192": {
+        "target_tokens": 8192,
+        "reference_tokens": 8192,
+        "exact": true,
+        "token_error": 0,
+        "n_probes": 3,
+        "chars": 43714,
+        "sha256": "f154ba9e3c5c798bf1ab98ba142df978c8b37a244f4af9d36d8609327f4e159c"
+      }
+    }
+  },
+  "wall_clock_s": 398.2
+}

@@ -1,0 +1,1263 @@
+{
+  "results_format_version": "2.0.0",
+  "generated": "2026-09-11T11:08:00.618066+02:00",
+  "source_runs": [
+    "2026-09-11_thor_7b-fp16-vllm-thor-v2_p1-context_bs1_r01"
+  ],
+  "rows": [
+    {
+      "config_id": "7b-fp16-vllm-thor-v2",
+      "run_id": "2026-09-11_thor_7b-fp16-vllm-thor-v2_p1-context_bs1_r01",
+      "framework": "vllm",
+      "representation": {
+        "declared_label": "bf16 (no quantization; the checkpoint's own dtype)",
+        "backend": "vllm",
+        "weights": {
+          "dtype": "bf16",
+          "method": "none (unquantized)",
+          "granularity": "n/a (unquantized)",
+          "group_size": null,
+          "symmetric": null,
+          "storage_dtype_histogram_params": {
+            "BF16": 7615616512
+          },
+          "_granularity_source": "safetensors tensor table - no quantization_config present, so this checkpoint declares no quantizer and the storage dtype IS the scheme"
+        },
+        "activations": {
+          "dtype": "bfloat16",
+          "_source": "checkpoint torch_dtype; the runtime was not asked to override it"
+        },
+        "kv_cache": {
+          "dtype": "auto -> model dtype",
+          "_source": "launch configuration (vLLM --kv-cache-dtype; 'auto' means the model dtype)"
+        },
+        "modules_kept_fp": [
+          "biases",
+          "embeddings",
+          "lm_head",
+          "norms"
+        ],
+        "modules_quantized": [],
+        "module_storage_types": {
+          "lm_head": [
+            "BF16"
+          ],
+          "embeddings": [
+            "BF16"
+          ],
+          "norms": [
+            "BF16"
+          ],
+          "biases": [
+            "BF16"
+          ]
+        },
+        "calibration": {
+          "dataset": null,
+          "n_samples": null,
+          "matches_deployment_domain": null,
+          "_not_collected": "no calibration step in this config's provenance (unquantized, or a vendor checkpoint whose calibration set the publisher did not state)"
+        },
+        "artifact_bytes": 15231271888,
+        "param_count": 7615616512,
+        "param_count_method": "summed from the safetensors tensor table",
+        "effective_bits_per_weight": 16.0,
+        "comparability_class": "fp16_baseline"
+      },
+      "condition": {
+        "prompt_tokens_target": 128,
+        "prompt_tokens_achieved_p50": 157.0,
+        "gen_tokens_requested": 128,
+        "gen_tokens_achieved_p50": 128.0,
+        "concurrency": 1,
+        "nvpmodel": "120W",
+        "execution_condition": "standalone",
+        "prompt_sha256": "72f32628eb55c217c49466429c3e4bb9e82f790fc5145f0ae678338055d4a4ab"
+      },
+      "latency": {
+        "n_requests": 30,
+        "n_ok": 30,
+        "ttft_ms_p50": {
+          "value": 102.97429596539587,
+          "unit": "ms",
+          "ci95": [
+            100.21120848250575,
+            118.17532833592847
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "ttft_ms_p90": {
+          "value": 133.04792192066088,
+          "unit": "ms",
+          "ci95": [
+            130.791814008262,
+            137.34338934300473
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "ttft_ms_p99": {
+          "value": 158.09786646976139,
+          "unit": "ms",
+          "ci95": [
+            132.89906665100716,
+            167.96474903821945
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "turn_ms_p50": {
+          "value": 10185.683540039463,
+          "unit": "ms",
+          "ci95": [
+            10012.383694993332,
+            11939.329837993135
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "turn_ms_p90": {
+          "value": 13667.941090714885,
+          "unit": "ms",
+          "ci95": [
+            13537.034497014247,
+            13753.557414800161
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "turn_ms_p99": {
+          "value": 13783.66470779234,
+          "unit": "ms",
+          "ci95": [
+            13642.081573686446,
+            13797.978011018131
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "decode_ms_p50": {
+          "value": 10090.887239523,
+          "unit": "ms",
+          "ci95": [
+            9914.353733009193,
+            11820.256480207172
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "decode_ms_p90": {
+          "value": 13535.164420492947,
+          "unit": "ms",
+          "ci95": [
+            13403.89903303003,
+            13589.13329646457
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "decode_ms_p99": {
+          "value": 13640.838436742779,
+          "unit": "ms",
+          "ci95": [
+            13509.926034851815,
+            13665.41956900619
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p50": {
+          "value": 80.8727485127747,
+          "unit": "ms",
+          "ci95": [
+            80.53222457747324,
+            81.17936848429963
+          ],
+          "n": 3810,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p90": {
+          "value": 106.50392696843483,
+          "unit": "ms",
+          "ci95": [
+            106.3880839679041,
+            106.61164236618788
+          ],
+          "n": 3810,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p99": {
+          "value": 110.493666093098,
+          "unit": "ms",
+          "ci95": [
+            110.14855244837236,
+            110.8685529907234
+          ],
+          "n": 3810,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_stdev": {
+          "value": 13.762980654171345,
+          "unit": "ms",
+          "ci95": [
+            13.57496942576042,
+            13.926812255972582
+          ],
+          "n": 3810,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_n_gaps": 3810,
+        "inter_token_ms_ecdf": {
+          "q": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100
+          ],
+          "ms": [
+            58.5749,
+            68.0698,
+            69.5093,
+            70.4385,
+            71.0256,
+            71.3909,
+            71.8316,
+            72.1636,
+            72.5896,
+            72.9063,
+            73.2446,
+            73.5068,
+            73.788,
+            74.1046,
+            74.28,
+            74.4749,
+            74.7253,
+            74.9814,
+            75.1923,
+            75.4192,
+            75.6224,
+            75.8536,
+            76.0664,
+            76.3228,
+            76.4728,
+            76.6162,
+            76.8387,
+            76.9837,
+            77.1333,
+            77.3113,
+            77.4408,
+            77.6094,
+            77.7734,
+            77.9152,
+            78.111,
+            78.259,
+            78.4414,
+            78.5828,
+            78.7253,
+            78.8535,
+            78.9765,
+            79.1458,
+            79.3394,
+            79.5012,
+            79.6645,
+            79.834,
+            80.0659,
+            80.2751,
+            80.4767,
+            80.6317,
+            80.8727,
+            81.0477,
+            81.2878,
+            81.4917,
+            81.7556,
+            81.9792,
+            82.2391,
+            82.5592,
+            82.9169,
+            83.2208,
+            83.4959,
+            83.9171,
+            84.2587,
+            84.9101,
+            85.4015,
+            85.9859,
+            87.1108,
+            88.7179,
+            102.9961,
+            104.0301,
+            104.3681,
+            104.5695,
+            104.6906,
+            104.841,
+            104.9758,
+            105.0715,
+            105.1865,
+            105.2664,
+            105.345,
+            105.4448,
+            105.5252,
+            105.6169,
+            105.7356,
+            105.8295,
+            105.9148,
+            106.0024,
+            106.124,
+            106.2225,
+            106.3022,
+            106.3888,
+            106.5039,
+            106.6221,
+            106.7674,
+            106.946,
+            107.1054,
+            107.3093,
+            107.637,
+            108.3365,
+            109.3786,
+            110.4937,
+            119.7033
+          ],
+          "n": 3810
+        },
+        "_inter_token_caveat": "gaps between successive SSE content deltas, not between tokens. A backend may coalesce several tokens into one delta or split one across two, and the three backends do not agree on it - so an ITL comparison ACROSS frameworks is confounded by chunking, while within one framework it is a clean jitter measurement."
+      },
+      "throughput": {
+        "prefill_tok_s_p50": {
+          "value": 1524.6620410549556,
+          "unit": "tokens/s",
+          "ci95": [
+            1342.9814687422695,
+            1566.838768451552
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "decode_tok_s_p50": {
+          "value": 12.68471232515568,
+          "unit": "tokens/s",
+          "ci95": [
+            11.023570212868748,
+            12.9105742489127
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "output_tokens_p50": {
+          "value": 128.0,
+          "unit": "tokens",
+          "ci95": [
+            128.0,
+            128.0
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "input_tokens_p50": {
+          "value": 157.0,
+          "unit": "tokens",
+          "ci95": [
+            157.0,
+            157.0
+          ],
+          "n": 30,
+          "method": "bootstrap"
+        },
+        "_prefill_caveat": "prefill_tok_s is input_tokens / TTFT, so it charges prefill with every fixed per-request cost the server has - scheduling, tokenisation, the first sampling step. At 128 tokens that overhead dominates and the figure understates the kernel; at 8192 it is negligible. Compare prefill rates across prompt LENGTHS with that in mind, and across frameworks only at the same length."
+      },
+      "memory": {
+        "weights_bytes_on_device": {
+          "value": null,
+          "_not_collected": "not measured",
+          "unit": "bytes"
+        },
+        "weights_bytes_source": null,
+        "kv_cache_bytes_per_token": {
+          "value": null,
+          "_not_collected": "not measured",
+          "unit": "bytes/token"
+        },
+        "kv_cache_bytes_per_token_formula": null,
+        "kv_cache_bytes_reserved": {
+          "value": null,
+          "_not_collected": "the runtime did not report a KV reservation",
+          "unit": "bytes"
+        },
+        "kv_cache_bytes_resident_at_peak": {
+          "value": null,
+          "_not_collected": "needs both a runtime reservation and a measured peak",
+          "unit": "bytes"
+        },
+        "kv_residency_note": null,
+        "peak_device_bytes": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "peak_attributable_bytes": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "free_bytes_remaining": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "system_total_bytes": {
+          "value": null,
+          "_not_collected": "not read",
+          "unit": "bytes"
+        },
+        "max_context_measured": {
+          "value": null,
+          "_not_collected": "not probed",
+          "unit": "tokens"
+        },
+        "max_context_limiting_factor": null,
+        "max_context_configured": {
+          "value": null,
+          "_not_collected": "the runtime did not print its configured limit",
+          "unit": "tokens"
+        },
+        "attribution_note": null
+      },
+      "energy": {
+        "rails_included": [
+          "vdd_gpu_mw",
+          "vdd_cpu_soc_mss_mw"
+        ],
+        "measurement_window_s": 335.184,
+        "conventions": {
+          "absolute": "P_gen: total board rail power during generation. Budgets the power envelope and thermal design - 'can this board sustain this workload'.",
+          "marginal": "P_gen - P_idle, idle measured with this same server loaded and resident but serving nothing. Budgets the incremental cost of the orchestrator turn on a board that is already on - 'what does this choice cost me'."
+        },
+        "idle_power_mw": {
+          "value": 7928.1,
+          "unit": "mW",
+          "n": 1,
+          "method": "single measurement"
+        },
+        "generation_power_mw": {
+          "value": 28358.7,
+          "unit": "mW",
+          "n": 1,
+          "method": "single measurement"
+        },
+        "absolute": {
+          "power_mw": {
+            "value": 28358.7,
+            "unit": "mW",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_turn": {
+            "value": 316.84687,
+            "unit": "J/turn",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_output_token": {
+            "value": 2.4753661,
+            "unit": "J/token",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_completed_tool_call": {
+            "value": null,
+            "_not_collected": "this workload attached no tools; measured by the tool-calling run instead, joined on config_id at analysis time",
+            "unit": "J/tool-call"
+          },
+          "convention": "P_gen: total board rail power during generation. Budgets the power envelope and thermal design - 'can this board sustain this workload'.",
+          "j_per_correct_answer": {
+            "value": null,
+            "_not_collected": "no quality run has been joined to this config yet; run the accuracy suite and re-run analysis/stats.py with --quality",
+            "unit": "J/correct-answer"
+          }
+        },
+        "marginal": {
+          "power_mw": {
+            "value": 20430.6,
+            "unit": "mW",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_turn": {
+            "value": 228.26766,
+            "unit": "J/turn",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_output_token": {
+            "value": 1.7833411,
+            "unit": "J/token",
+            "n": 1,
+            "method": "single measurement"
+          },
+          "j_per_completed_tool_call": {
+            "value": null,
+            "_not_collected": "this workload attached no tools; measured by the tool-calling run instead, joined on config_id at analysis time",
+            "unit": "J/tool-call"
+          },
+          "convention": "P_gen - P_idle, idle measured with this same server loaded and resident but serving nothing. Budgets the incremental cost of the orchestrator turn on a board that is already on - 'what does this choice cost me'.",
+          "j_per_correct_answer": {
+            "value": null,
+            "_not_collected": "no quality run has been joined to this config yet; run the accuracy suite and re-run analysis/stats.py with --quality",
+            "unit": "J/correct-answer"
+          }
+        }
+      },
+      "quality": {
+        "accuracy": {
+          "value": null,
+          "_not_collected": "no quality run joined to this config; run the accuracy suite and pass --quality to analysis/stats.py",
+          "unit": "fraction"
+        },
+        "suites": {}
+      },
+      "thermal": {
+        "max_c": {
+          "value": 53.781,
+          "unit": "degC",
+          "n": 1,
+          "method": "single measurement"
+        },
+        "mean_c": {
+          "value": 50.35,
+          "unit": "degC",
+          "n": 1,
+          "method": "single measurement"
+        },
+        "time_to_throttle_s": {
+          "value": null,
+          "_not_collected": "needs the 30-minute sustained run; this cell is a few minutes long and never reached a throttle point",
+          "unit": "s"
+        },
+        "sensor": "tj"
+      },
+      "validity": {
+        "cache_probe": {
+          "first_ttft_ms": 131.95,
+          "second_ttft_ms": 130.34,
+          "ratio_second_over_first": 0.988,
+          "prefix_caching_appears_disabled": true,
+          "verdict": "the second identical request was not faster - no prefix reuse detected"
+        },
+        "warmup_discarded": 5,
+        "runs_ok": 30,
+        "power_samples_in_window": 666,
+        "confounds": null,
+        "cold_start": {
+          "measured": true,
+          "total_s": 90.122,
+          "download_s": null,
+          "weights_cached": true,
+          "container_start_s": 2.086,
+          "model_load_s": 88.037,
+          "server_ready_s": 90.122,
+          "caveat": "weights_cached=true - total_s excludes any download, and is not comparable with a first-pull cold start. Component resolution is bounded by the ~2s health-poll interval."
+        }
+      },
+      "efficiency": {
+        "prefill_mfu": {
+          "value": null,
+          "_not_collected": "needs a FLOP count per prefill token and a datasheet peak FLOP/s at this board's achieved clocks; neither is established for Thor in this lab yet",
+          "unit": "fraction"
+        },
+        "decode_mbu": {
+          "value": null,
+          "_not_collected": "needs a datasheet peak bandwidth for platform 'thor' plus measured weights, KV/token and decode rate",
+          "unit": "fraction"
+        }
+      }
+    },
+    {
+      "config_id": "7b-fp16-vllm-thor-v2",
+      "run_id": "2026-09-11_thor_7b-fp16-vllm-thor-v2_p1-context_bs1_r01",
+      "framework": "vllm",
+      "representation": {
+        "declared_label": "bf16 (no quantization; the checkpoint's own dtype)",
+        "backend": "vllm",
+        "weights": {
+          "dtype": "bf16",
+          "method": "none (unquantized)",
+          "granularity": "n/a (unquantized)",
+          "group_size": null,
+          "symmetric": null,
+          "storage_dtype_histogram_params": {
+            "BF16": 7615616512
+          },
+          "_granularity_source": "safetensors tensor table - no quantization_config present, so this checkpoint declares no quantizer and the storage dtype IS the scheme"
+        },
+        "activations": {
+          "dtype": "bfloat16",
+          "_source": "checkpoint torch_dtype; the runtime was not asked to override it"
+        },
+        "kv_cache": {
+          "dtype": "auto -> model dtype",
+          "_source": "launch configuration (vLLM --kv-cache-dtype; 'auto' means the model dtype)"
+        },
+        "modules_kept_fp": [
+          "biases",
+          "embeddings",
+          "lm_head",
+          "norms"
+        ],
+        "modules_quantized": [],
+        "module_storage_types": {
+          "lm_head": [
+            "BF16"
+          ],
+          "embeddings": [
+            "BF16"
+          ],
+          "norms": [
+            "BF16"
+          ],
+          "biases": [
+            "BF16"
+          ]
+        },
+        "calibration": {
+          "dataset": null,
+          "n_samples": null,
+          "matches_deployment_domain": null,
+          "_not_collected": "no calibration step in this config's provenance (unquantized, or a vendor checkpoint whose calibration set the publisher did not state)"
+        },
+        "artifact_bytes": 15231271888,
+        "param_count": 7615616512,
+        "param_count_method": "summed from the safetensors tensor table",
+        "effective_bits_per_weight": 16.0,
+        "comparability_class": "fp16_baseline"
+      },
+      "condition": {
+        "prompt_tokens_target": 512,
+        "prompt_tokens_achieved_p50": 541.0,
+        "gen_tokens_requested": 128,
+        "gen_tokens_achieved_p50": 128.0,
+        "concurrency": 1,
+        "nvpmodel": "120W",
+        "execution_condition": "standalone",
+        "prompt_sha256": "44e8028af7b3718eec3d77df186ba47d1f607d332c30440a95e0428070f99e81"
+      },
+      "latency": {
+        "n_requests": 6,
+        "n_ok": 6,
+        "ttft_ms_p50": {
+          "value": 161.00091798580252,
+          "unit": "ms",
+          "ci95": [
+            152.75658798054792,
+            213.48451697849669
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "ttft_ms_p90": {
+          "value": 213.48451697849669,
+          "unit": "ms",
+          "ci95": [
+            161.00091798580252,
+            262.36620597774163
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "ttft_ms_p99": {
+          "value": 257.47803707781713,
+          "unit": "ms",
+          "ci95": [
+            161.38210575154517,
+            262.36620597774163
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "turn_ms_p50": {
+          "value": 10029.248028993607,
+          "unit": "ms",
+          "ci95": [
+            9895.778153993888,
+            11176.839730003849
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "turn_ms_p90": {
+          "value": 11176.839730003849,
+          "unit": "ms",
+          "ci95": [
+            10029.248028993607,
+            11917.270842008293
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "turn_ms_p99": {
+          "value": 11843.227730807848,
+          "unit": "ms",
+          "ci95": [
+            10051.449348696042,
+            11917.270842008293
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "decode_ms_p50": {
+          "value": 9872.348765522474,
+          "unit": "ms",
+          "ci95": [
+            9733.188051992329,
+            10969.087072531693
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "decode_ms_p90": {
+          "value": 10969.087072531693,
+          "unit": "ms",
+          "ci95": [
+            9872.348765522474,
+            11654.904636030551
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "decode_ms_p99": {
+          "value": 11586.322879680665,
+          "unit": "ms",
+          "ci95": [
+            9898.622762053856,
+            11654.904636030551
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p50": {
+          "value": 78.5367919888813,
+          "unit": "ms",
+          "ci95": [
+            78.04700486449292,
+            79.12665499607101
+          ],
+          "n": 762,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p90": {
+          "value": 93.64307858631946,
+          "unit": "ms",
+          "ci95": [
+            91.68063102988525,
+            94.97657999163494
+          ],
+          "n": 762,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_p99": {
+          "value": 100.00689599837642,
+          "unit": "ms",
+          "ci95": [
+            97.95298781279416,
+            106.21921704383564
+          ],
+          "n": 762,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_stdev": {
+          "value": 8.144376384995661,
+          "unit": "ms",
+          "ci95": [
+            7.672560556589799,
+            8.620389083678564
+          ],
+          "n": 762,
+          "method": "bootstrap"
+        },
+        "inter_token_ms_n_gaps": 762,
+        "inter_token_ms_ecdf": {
+          "q": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100
+          ],
+          "ms": [
+            60.8272,
+            66.9293,
+            68.8279,
+            69.7658,
+            70.1057,
+            70.4374,
+            70.8604,
+            71.0689,
+            71.3122,
+            71.6147,
+            71.803,
+            71.943,
+            72.2539,
+            72.4046,
+            72.6308,
+            72.8062,
+            73.0321,
+            73.2623,
+            73.341,
+            73.508,
+            73.7081,
+            73.74,
+            73.8891,
+            74.0366,
+            74.1341,
+            74.3268,
+            74.5261,
+            74.6801,
+            74.8046,
+            74.88,
+            75.1008,
+            75.2148,
+            75.4328,
+            75.5298,
+            75.7065,
+            75.8525,
+            76.0379,
+            76.258,
+            76.456,
+            76.6892,
+            76.8708,
+            77.0372,
+            77.2187,
+            77.3326,
+            77.4905,
+            77.5833,
+            77.9321,
+            78.1124,
+            78.2272,
+            78.4192,
+            78.5368,
+            78.7292,
+            78.8682,
+            79.0367,
+            79.1572,
+            79.3886,
+            79.613,
+            79.7623,
+            79.9652,
+            80.0719,
+            80.2825,
+            80.574,
+            80.7588,
+            80.8635,
+            80.9666,
+            81.1582,
+            81.3285,
+            81.5616,
+            81.8117,
+            82.0349,
+            82.3071,
+            82.7367,
+            83.074,
+            83.4844,
+            84.2575,
+            84.6,
+            84.9211,
+            85.1585,
+            85.603,
+            85.9367,
+            86.561,
+            86.845,
+            87.0945,
+            87.868,
+            88.7432,
+            89.5454,
+            90.4271,
+            90.9905,
+            91.8139,
+            92.0547,
+            93.6431,
+            94.4093,
+            95.005,
+            95.737,
+            96.2916,
+            96.5259,
+            96.9246,
+            97.3673,
+            97.8076,
+            100.0069,
+            113.8063
+          ],
+          "n": 762
+        },
+        "_inter_token_caveat": "gaps between successive SSE content deltas, not between tokens. A backend may coalesce several tokens into one delta or split one across two, and the three backends do not agree on it - so an ITL comparison ACROSS frameworks is confounded by chunking, while within one framework it is a clean jitter measurement."
+      },
+      "throughput": {
+        "prefill_tok_s_p50": {
+          "value": 3360.252542491721,
+          "unit": "tokens/s",
+          "ci95": [
+            2674.3513348110487,
+            3541.6043234532463
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "decode_tok_s_p50": {
+          "value": 12.965619663922206,
+          "unit": "tokens/s",
+          "ci95": [
+            11.7149519347265,
+            13.15090445454159
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "output_tokens_p50": {
+          "value": 128.0,
+          "unit": "tokens",
+          "ci95": [
+            128.0,
+            128.0
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "input_tokens_p50": {
+          "value": 541.0,
+          "unit": "tokens",
+          "ci95": [
+            541.0,
+            541.0
+          ],
+          "n": 6,
+          "method": "bootstrap"
+        },
+        "_prefill_caveat": "prefill_tok_s is input_tokens / TTFT, so it charges prefill with every fixed per-request cost the server has - scheduling, tokenisation, the first sampling step. At 128 tokens that overhead dominates and the figure understates the kernel; at 8192 it is negligible. Compare prefill rates across prompt LENGTHS with that in mind, and across frameworks only at the same length."
+      },
+      "memory": {
+        "weights_bytes_on_device": {
+          "value": null,
+          "_not_collected": "not measured",
+          "unit": "bytes"
+        },
+        "weights_bytes_source": null,
+        "kv_cache_bytes_per_token": {
+          "value": null,
+          "_not_collected": "not measured",
+          "unit": "bytes/token"
+        },
+        "kv_cache_bytes_per_token_formula": null,
+        "kv_cache_bytes_reserved": {
+          "value": null,
+          "_not_collected": "the runtime did not report a KV reservation",
+          "unit": "bytes"
+        },
+        "kv_cache_bytes_resident_at_peak": {
+          "value": null,
+          "_not_collected": "needs both a runtime reservation and a measured peak",
+          "unit": "bytes"
+        },
+        "kv_residency_note": null,
+        "peak_device_bytes": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "peak_attributable_bytes": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "free_bytes_remaining": {
+          "value": null,
+          "_not_collected": "no memory samples",
+          "unit": "bytes"
+        },
+        "system_total_bytes": {
+          "value": null,
+          "_not_collected": "not read",
+          "unit": "bytes"
+        },
+        "max_context_measured": {
+          "value": null,
+          "_not_collected": "not probed",
+          "unit": "tokens"
+        },
+        "max_context_limiting_factor": null,
+        "max_context_configured": {
+          "value": null,
+          "_not_collected": "the runtime did not print its configured limit",
+          "unit": "tokens"
+        },
+        "attribution_note": null
+      },
+      "energy": {
+        "rails_included": null,
+        "measurement_window_s": null,
+        "conventions": null,
+        "idle_power_mw": {
+          "value": null,
+          "_not_collected": "no idle baseline",
+          "unit": "mW"
+        },
+        "generation_power_mw": {
+          "value": null,
+          "_not_collected": "no power rails sampled in the measurement window",
+          "unit": "mW"
+        },
+        "absolute": {
+          "_not_collected": "absolute energy was not computed"
+        },
+        "marginal": {
+          "_not_collected": "marginal energy was not computed"
+        }
+      },
+      "quality": {
+        "accuracy": {
+          "value": null,
+          "_not_collected": "no quality run joined to this config; run the accuracy suite and pass --quality to analysis/stats.py",
+          "unit": "fraction"
+        },
+        "suites": {}
+      },
+      "thermal": {
+        "max_c": {
+          "value": null,
+          "_not_collected": "not sampled",
+          "unit": "degC"
+        },
+        "mean_c": {
+          "value": null,
+          "_not_collected": "not sampled",
+          "unit": "degC"
+        },
+        "time_to_throttle_s": {
+          "value": null,
+          "_not_collected": "needs the 30-minute sustained run; this cell is a few minutes long and never reached a throttle point",
+          "unit": "s"
+        },
+        "sensor": null
+      },
+      "validity": {
+        "cache_probe": null,
+        "warmup_discarded": null,
+        "runs_ok": null,
+        "power_samples_in_window": null,
+        "confounds": null,
+        "cold_start": {
+          "measured": true,
+          "total_s": 90.122,
+          "download_s": null,
+          "weights_cached": true,
+          "container_start_s": 2.086,
+          "model_load_s": 88.037,
+          "server_ready_s": 90.122,
+          "caveat": "weights_cached=true - total_s excludes any download, and is not comparable with a first-pull cold start. Component resolution is bounded by the ~2s health-poll interval."
+        }
+      },
+      "efficiency": {
+        "prefill_mfu": {
+          "value": null,
+          "_not_collected": "needs a FLOP count per prefill token and a datasheet peak FLOP/s at this board's achieved clocks; neither is established for Thor in this lab yet",
+          "unit": "fraction"
+        },
+        "decode_mbu": {
+          "value": null,
+          "_not_collected": "needs a datasheet peak bandwidth for platform 'thor' plus measured weights, KV/token and decode rate",
+          "unit": "fraction"
+        }
+      }
+    }
+  ]
+}
