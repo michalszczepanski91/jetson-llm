@@ -31,7 +31,7 @@ status column can't carry two boards, so the table splits them.
 | 7 — Quantization study | ⏳ | ✅ | FP16 / INT4-GPTQ / FP8 / INT8-SQ, one model + backend. **MMLU re-measured 2026-09-11**: INT8-SQ's gap is 7.8 pt, not 12.5 — rankings hold, magnitudes did not. `int4_awq` builds under the patch but produces a mute engine |
 | 8 — Backend study | ⏳ | ✅ | Three backends, model **and** precision held fixed, parser + decoding controlled. **Mechanism still unidentified**: chat-template rendering and numeric dtype both tested and eliminated 2026-09-10 |
 | 9 — Co-resident / concurrency | ✅ | ⏳ | **Answered on Orin 2026-09-14** at a real 30fps: the LLM pays (+25% TTFT, −15% decode, +21% J/token), perception holds (30.02 fps loaded vs idle). **Thor still has none** — every Thor number, the framework comparison included, is standalone |
-| 10 — Analysis pipeline | ⏳ | 🚧 | **v2 path built 2026-09-11** (`measure_run.py` + `analysis/`): envelopes on every leaf, representation read from the artifact, figures that hold no data. Campaign behind it is **1/3 run** (vLLM only), quality axis unjoined, `results/raw/` untouched by it |
+| 10 — Analysis pipeline | ⏳ | 🚧 | **v2 path built 2026-09-11** (`measure_run.py` + `analysis/`): envelopes on every leaf, representation read from the artifact, figures that hold no data. **`p1-context` complete on all three backends 2026-09-14** — vLLM decodes ~30% slower, llama.cpp's prefill saturates at half the others'. Quality axis still unjoined; `results/raw/` untouched by it |
 | 11 — Declare a winner | ✅ deferred | 🚧 | Orin: "no clean winner" + tie-breaker recorded (`docs/promotion-decision.md`). Thor: a recommendation, which is not the same as a promotion |
 
 Full reconciliation of this plan with `docs/note.md`'s original benchmark-suite
@@ -969,11 +969,33 @@ analysis/quality.py     ->  the quality join, on model_config_key
       not 4, because whole tensor families stay at Q6_K — hence a separate
       `w4_grouped_mixed` comparability class so no figure can put it next to
       GPTQ-Int4 as one "INT4".
-- [ ] **The campaign behind it is 1/3 run.** Three configs are registered
-      (`7b-fp16-{vllm,llamacpp,edgellm}-thor-v2`) and **only vLLM has been measured**
-      (`p1-context`, replicates r03/r04; r01/r02 archived under `results/invalid/`).
-      Every current figure is therefore a single-backend figure. ~37 min of exclusive
-      board time per remaining leg — execution, not design.
+- [x] **The `p1-context` campaign is complete on all three backends, 2026-09-14.**
+      16 rows from 4 runs (vLLM r03/r04, llama.cpp r01, Edge-LLM r01), all standalone,
+      all sending the **same corpus** `8c36a604d0a5` — every leg reports the same input
+      lengths (157/541/2077/8221), which is what makes the comparison a comparison.
+      Three results the framework comparison could not produce, because it never
+      separated prefill from decode:
+
+  | framework | TTFT p50 @8221 | prefill tok/s (long) | decode tok/s | J/output token @8221 |
+  |---|---:|---:|---:|---:|
+  | Edge-LLM | **1529 ms** | 5376 | 15.4 | **2.395** |
+  | vLLM | 1595 ms | 5150 | **11.1–11.9** | 2.95–3.01 |
+  | llama.cpp | 3320 ms | **2476** | 16.4 | 3.656 |
+
+      **vLLM decodes ~30% slower than the other two at every prompt length** — and it
+      is the backend whose batch-1 decode loop the DVFS diagnostic already found to be
+      partly CPU-bound, so two independent observations now point at the same place.
+      **The backends differ far more in prefill than in decode**: llama.cpp saturates
+      at ~2500 tok/s where the other two reach ~5100–5900, and that is the whole of its
+      2.2× TTFT penalty at 8192. Energy per output token is flat to ~2077 tokens and
+      then climbs for everyone — the marginal cost of a long prompt is paid in prefill.
+- [ ] **One cell left standing out rather than smoothed**: Edge-LLM at 2077 reports
+      180.0 J/turn against 296/322/306 for its other three cells. The cell is otherwise
+      clean (30/30, steady state, cache off), so the likeliest cause is its per-cell
+      idle baseline. Recorded as measured, pending a replicate.
+- [ ] **Replicates**: vLLM has two, llama.cpp and Edge-LLM have one each. The
+      run-to-run spread on this board is 5–13% on decode, so single-replicate rows
+      carry that without an estimate of it.
 - [ ] **The quality join has never run against real data.** Every row in
       `results/v2/results.json` carries `quality.accuracy: null` with
       `_not_collected`. `analysis/quality.py` exists and is unit-tested; it has not
