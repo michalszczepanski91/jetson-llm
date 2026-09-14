@@ -1246,6 +1246,11 @@ qwen3-8b-awq-vllm-thor:
 # and the per-cell cache probe is what verifies it took effect.
 7b-fp16-llamacpp-thor-v2:
   model: Qwen/Qwen2.5-7B-Instruct-GGUF
+  # Send the corpus the vLLM and Edge-LLM legs send. Without this, the row's
+  # own `-GGUF` model id keys a SECOND corpus file, and the byte-identical
+  # prompt property the whole three-backend comparison rests on is gone -
+  # which is exactly what happened on 2026-09-14 (see results/invalid/).
+  prompt_corpus_reference: Qwen/Qwen2.5-7B-Instruct
   precision: "GGUF fp16 (unquantized, to match the other 7B legs)"
   backend: llama-cpp
   platform: thor

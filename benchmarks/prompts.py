@@ -104,9 +104,16 @@ class TokenCounter:
         self.method: str | None = None
 
     def _try_tokenize_endpoint(self, text: str) -> int | None:
+        # Both spellings go in the same body on purpose. vLLM's /tokenize
+        # reads `prompt`; llama-server's reads `content` and IGNORES an
+        # unknown `prompt`, which is the whole defect this once caused:
+        # sending only `prompt` made llama-server tokenise the empty string
+        # and answer {"tokens": []}, a well-formed 200 meaning zero. Each
+        # server takes the key it knows and ignores the other.
         req = urllib.request.Request(
             f"{self.base_url}/tokenize",
-            data=json.dumps({"model": self.model, "prompt": text}).encode(),
+            data=json.dumps({"model": self.model, "prompt": text,
+                             "content": text}).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -115,12 +122,19 @@ class TokenCounter:
                 body = json.loads(resp.read())
         except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
             return None
+        n: int | None = None
         if isinstance(body, dict):
             if isinstance(body.get("count"), int):
-                return body["count"]
-            if isinstance(body.get("tokens"), list):
-                return len(body["tokens"])
-        return None
+                n = body["count"]
+            elif isinstance(body.get("tokens"), list):
+                n = len(body["tokens"])
+        # Zero tokens for non-empty text is not a measurement, it is a
+        # misunderstood request body. Returning None here demotes this
+        # counter to the usage-block fallback, which costs a round trip and
+        # cannot be silently wrong in this direction.
+        if n is not None and n <= 0 and text.strip():
+            return None
+        return n
 
     def _via_usage(self, text: str) -> int:
         req = urllib.request.Request(
@@ -188,6 +202,20 @@ def build_corpus(
             n_words = max(1, n_words)
         assert best is not None
         err, text, achieved = best
+        # An off-by-three prompt honestly labelled is fine. A prompt that
+        # missed its target by a quarter is not a near-miss, it is a broken
+        # counter - and the run that follows would spend 40 minutes
+        # measuring prompt lengths nobody asked for, against an x axis
+        # shared with the other frameworks. Die here instead, while the
+        # only thing lost is a corpus build.
+        if achieved <= 0 or err > max(4, target // 4):
+            raise RuntimeError(
+                f"corpus target {target} converged to {achieved} tokens "
+                f"(error {achieved - target}) after {len(probes)} probes via "
+                f"{counter.method!r}. That is a counting failure, not a near "
+                f"miss - check the reference server's /tokenize contract "
+                f"before measuring anything against this corpus."
+            )
         entries[str(target)] = {
             "target_tokens": target,
             "reference_tokens": achieved,

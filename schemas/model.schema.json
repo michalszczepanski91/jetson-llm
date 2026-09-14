@@ -112,6 +112,11 @@
       "exclusiveMinimum": 0,
       "description": "vLLM only. Every current row is pinned to 2048 for cross-family comparability. Raising it is itself an experimental change (KV cache grows with it) and needs its own memory re-tune - never a silent flag bump. This field was once asserted as \"known-good: 4096\" without verification and was wrong; `docker inspect` on the real production container settled it at 2048."
     },
+    "prompt_corpus_reference": {
+      "type": "string",
+      "description": "Any backend. The model id whose frozen prompt corpus this row SENDS, when that differs from the row's own `model`. The v2 measurement path makes the three backends comparable by having them send byte-identical prompt strings, and the corpus file is keyed by reference model - so a llama.cpp row naming a `-GGUF` repo would key, and build, a SECOND corpus and quietly destroy the property. Set this to the reference row's `model` to make one corpus serve all of them. The corpus's own recorded `reference_model` still says which tokenizer established exactness.",
+      "examples": ["Qwen/Qwen2.5-7B-Instruct"]
+    },
     "quant": {
       "type": "string",
       "description": "llama.cpp only. The GGUF quantization file selector passed to `-hf` (`Q4_K_M`). Distinct from `precision`, which is prose, and from `quantization.method`, which is the taxonomy.",

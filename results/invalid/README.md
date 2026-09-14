@@ -40,12 +40,22 @@ Each entry names what was actually true and what fixed it.
 |---|---|---|
 | `2026-09-11_thor-dvfs-ramp-diagnostic/` | Warmed up for a fixed 5 requests. Decode rate held 9.5 tok/s for nine repetitions, then **stepped +39% to 13.0** about two minutes into sustained load — the CPU governor (`schedutil`, 972→2601 MHz) promoting the core vLLM's batch-1 decode loop runs on. A p50 across that step belongs to neither regime. | `scripts/measure_run.py:warm_up()` — warm up to a *measured* steady state, and record `warmup_seconds_to_steady_state` and whether it was reached. |
 | `2026-09-11_thor-unreachable-stability-threshold/` | The first version of that fix used a 3% coefficient-of-variation test, which sits **below this board's own run-to-run decode spread** (5–13% over six samples) and so could never pass — every cell would have run to its cap and self-flagged. No cell completed. | Same function, trend test instead of spread test: mean of the last six repetitions against the six before them. Noise cancels between the halves; a regime change does not. |
+| `2026-09-14_thor-llamacpp-corpus-tokenizer-mismatch/` | `TokenCounter` posted `prompt` to `/tokenize`; **llama-server reads `content`**, so it tokenised the empty string and returned a well-formed `{"tokens": []}`. Every corpus entry recorded `reference_tokens: 0`. Separately, the row keyed its corpus by its own `-GGUF` model id and so built a **second** corpus — the prompts were not byte-identical across backends, which is the one property the three-backend comparison is built to guarantee. | `/tokenize` bodies carry both spellings; a zero count for non-empty text demotes to the `usage` fallback instead of being believed; `build_corpus` raises on a miss larger than `max(4, target/4)`; and a new `prompt_corpus_reference` registry field lets a row name the corpus it shares. `tests/test_prompt_corpus.py`. |
 
-**A note on the second entry, because it is a different species from everything
-above it.** The other runs archived here were *mislabelled* — the measurement
-was fine and the document lied about the conditions. These two were *badly
-measured*: the label was true and the number was not. Both belong here for the
-same reason, which is that the evidence is worth more than the disk space, but
-`assert_condition_matches_reality()` cannot catch either one. The check that
-catches this class is the one that reports how a warm-up ended, and it is now
-in every cell of every v2 result.
+**A note on these three, because they are a different species from everything above
+them.** The other runs archived here were *mislabelled*: the measurement was fine and
+the document lied about the conditions, which is the class
+`assert_condition_matches_reality()` exists to catch.
+
+These three were labelled truthfully. The two 2026-09-11 entries were **badly
+measured** — the label was true and the number was not — and the check that catches
+that class is a cell reporting how its own warm-up ended, which every v2 result now
+does. The 2026-09-14 entry is a third kind again: correctly executed, correctly
+labelled, and **incomparable**, because what broke was the object that makes two runs
+mean the same thing. No condition guard reaches any of them. What reaches the third is
+a corpus builder that refuses to emit entries it could not converge, and a registry
+that lets every leg of a comparison name one shared corpus.
+
+All three are kept for the same reason: the evidence is worth more than the disk space,
+and a defect is easier to believe with the trajectory that produced it sitting next to
+the write-up.

@@ -335,12 +335,21 @@ def main() -> int:
         meta["nvpmodel"] = nvpmodel_mode()
 
         # --- prompt corpus: built once, reused byte-for-byte everywhere ----
+        # The corpus is keyed by the REFERENCE model, not by what this row
+        # serves. A llama.cpp row names a `-GGUF` repo, which would key a
+        # second corpus file and send different bytes than the vLLM and
+        # Edge-LLM legs - destroying the one property that makes the three
+        # comparable. `prompt_corpus_reference` lets such a row name the
+        # corpus it shares.
+        corpus_ref = variant.get("prompt_corpus_reference") or variant["model"]
         corpus = pr.load_or_build(
             REPO_ROOT / "configs" / "prompt_corpus",
             prompt_targets,
             lambda: pr.TokenCounter(coordinator.base_url, coordinator.model),
-            reference_model=variant["model"],
+            reference_model=corpus_ref,
         )
+        if corpus_ref != variant["model"]:
+            corpus["_shared_corpus_of"] = corpus_ref
         meta["prompt_corpus"] = {
             k: v for k, v in corpus.items() if k != "entries"
         } | {"entries": {k: {kk: vv for kk, vv in v.items() if kk != "text"}
