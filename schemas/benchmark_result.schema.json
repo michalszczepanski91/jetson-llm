@@ -443,8 +443,11 @@
           "description": "Model artifact download. null = already cached, which is itself the fact that makes a 2.0s figure not a cold start."
         },
         "weights_cached": {
-          "type": "boolean",
-          "description": "Whether the weights were already on disk before this run. The single field that would have prevented both misleading numbers above."
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Whether the weights were already on disk before this run. The single field that would have prevented both misleading numbers above. **null is permitted only for the case this block's own `measured` field already documents** - `--target remote`, where the server was already running and this run did not start it, so whether its weights were cached is genuinely unknown rather than merely unrecorded. Added 2026-09-14: the schema described the remote case in `measured` while rejecting the only honest value that case can produce, so every remote result failed validation on this field alone."
         },
         "container_start_s": {
           "type": [
